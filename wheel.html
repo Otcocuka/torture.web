@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Дофаминовое Колесо</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .wheel-spin {
+            animation: spin 4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white p-8 rounded-lg shadow-lg container mx-auto relative z-10">
+        <div class="text-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-800">🎡 Дофаминовое Колесо</h1>
+            <p class="text-gray-600 mt-2">Выбери случайное занятие на перерыв</p>
+
+            <div class="flex justify-center">
+                <div class="">
+                    <canvas id="wheelCanvas" width="600" height="600"></canvas>
+
+                </div>
+                <div class="arrow flex items-center"><-делай это</div>
+            </div>
+
+            <div id="result" class="text-xl font-semibold text-gray-800 min-h-[2.5rem] my-4 flex items-center justify-center"></div>
+
+            <button id="spinButton" class="px-6 py-3 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors font-medium">
+                Крутить колесо
+            </button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { DopamineWheel } from './js/DopamineWheel.js';
+        window.addEventListener('DOMContentLoaded', () => {
+            new DopamineWheel();
+        });
+    </script>
+</body>
+</html>
