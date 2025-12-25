@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📊 Статистика</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-purple-50 to-pink-50 min-h-screen p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-4xl font-bold text-center text-gray-800 mb-12">📊 Твоя продуктивность</h1>
+        
+        <div class="grid md:grid-cols-2 gap-8 mb-12">
+            <!-- App Time Tracker -->
+            <div class="bg-white p-8 rounded-xl shadow-lg border border-purple-100">
+                <h2 class="text-2xl font-bold text-purple-600 mb-6">⏱️ Время в приложении</h2>
+                <div class="space-y-4 text-3xl font-mono font-bold text-gray-800">
+                    <div><span id="totalAppTime">0</span></div>
+                    <div>Сессий: <span id="sessionsCount">0</span></div>
+                    <div class="text-sm text-gray-500 font-normal">С первого запуска: <span id="firstSessionDate">-</span></div>
+                </div>
+            </div>
+
+            <!-- Pomodoro Stats -->
+            <div class="bg-white p-8 rounded-xl shadow-lg border border-green-100">
+                <h2 class="text-2xl font-bold text-green-600 mb-6">🍅 Помодоро</h2>
+                <div class="grid grid-cols-2 gap-4 text-lg">
+                    <div>Sessions: <span id="pomodoroSessions" class="font-bold text-gray-800">0</span></div>
+                    <div>Work: <span id="pomodoroWork" class="font-bold text-gray-800">0</span></div>
+                    <div>Break: <span id="pomodoroBreak" class="font-bold text-gray-800">0</span></div>
+                    <div>Paused: <span id="pomodoroPaused" class="font-bold text-gray-800">0</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white p-8 rounded-xl shadow-lg">
+            <h3 class="text-xl font-bold mb-4">📤 Экспорт</h3>
+            <button id="exportBtn" class="px-6 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600">Скачать JSON</button>
+            <pre id="jsonPreview" class="mt-4 p-4 bg-gray-100 rounded-lg text-sm overflow-auto max-h-96 hidden"></pre>
+        </div>
+    </div>
+
+    <script type="module">
+        import { TimeTracker } from './js/TimeTracker.js';
+        
+        window.addEventListener('DOMContentLoaded', () => {
+            const tracker = new TimeTracker();
+            tracker.start();
+            window.tracker = tracker;
+
+            function updateDisplay() {
+                const data = tracker.exportData();
+                document.getElementById('totalAppTime').textContent = formatDuration(data.totalAppTime);
+                document.getElementById('sessionsCount').textContent = data.sessionsCount;
+                document.getElementById('firstSessionDate').textContent = 
+                    data.firstSessionDate ? new Date(data.firstSessionDate).toLocaleDateString('ru-RU') : '-';
+                
+                const pomodoro = tracker.user?.pomodoro?.stats || {};
+                document.getElementById('pomodoroSessions').textContent = pomodoro.totalSessions || 0;
+                document.getElementById('pomodoroWork').textContent = formatDuration(pomodoro.totalWork || 0);
+                document.getElementById('pomodoroBreak').textContent = formatDuration(pomodoro.totalBreak || 0);
+                document.getElementById('pomodoroPaused').textContent = formatDuration(pomodoro.totalPaused || 0);
+            }
+
+            tracker.onTick(updateDisplay);
+            updateDisplay();
+
+            document.getElementById('exportBtn').addEventListener('click', () => {
+                const data = tracker.exportData();
+                const fullData = tracker.user;
+                const jsonStr = JSON.stringify(fullData, null, 2);
+                
+                document.getElementById('jsonPreview').textContent = jsonStr;
+                document.getElementById('jsonPreview').classList.remove('hidden');
+                
+                // Download
+                const blob = new Blob([jsonStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `torture2-stats-${new Date().toISOString().slice(0,10)}.json`;
+                a.click();
+            });
+        });
+
+        function formatDuration(seconds) {
+            if (!seconds) return "0 сек";
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = seconds % 60;
+            const parts = [];
+            if (h) parts.push(`${h}ч`);
+            if (m) parts.push(`${m}м`);
+            parts.push(`${s}с`);
+            return parts.join(' ');
+        }
+    </script>
+</body>
+</html>
