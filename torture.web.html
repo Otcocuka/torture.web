@@ -105,6 +105,50 @@
             background: #888;
             border-radius: 3px;
         }
+
+        /* Календарь GitHub Style */
+        .github-grid {
+            display: grid;
+            grid-template-columns: repeat(52, 12px);
+            /* 52 колонки */
+            grid-template-rows: repeat(7, 12px);
+            /* 7 строк */
+            gap: 2px;
+            width: fit-content;
+        }
+
+        .github-cell {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+        }
+
+        /* Цвета GitHub */
+        .level-0 {
+            background-color: #ebedf0;
+        }
+
+        /* Серый */
+        .level-1 {
+            background-color: #9be9a8;
+        }
+
+        /* Светло-зеленый */
+        .level-2 {
+            background-color: #40c463;
+        }
+
+        /* Зеленый */
+        .level-3 {
+            background-color: #30a14e;
+        }
+
+        /* Темно-зеленый */
+        .level-4 {
+            background-color: #216e39;
+        }
+
+        /* Очень темный */
     </style>
 </head>
 
@@ -252,7 +296,7 @@
 
         <!-- 4. STATS VIEW -->
         <div id="view-stats" class="app-view">
-            <div class="max-w-2xl mx-auto bg-white p-6 rounded-xl shadow-sm">
+            <div class="max-w-3xl mx-auto bg-white p-6 rounded-xl shadow-sm">
                 <h2 class="text-2xl font-bold mb-6 text-gray-800 border-b pb-2">Общая статистика</h2>
 
                 <!-- Pomodoro Stats -->
@@ -1181,51 +1225,75 @@
                 container.innerHTML = html;
             },
             // --- STATS VIEW (Updated) ---
+            // --- STATS VIEW (Updated) ---
+            // --- STATS VIEW (ИСПРАВЛЕНО) ---
             renderStatsView() {
-                // Pomodoro (без изменений)
+                // 1. Pomodoro
                 const p = Store.data.pomodoro.stats;
                 const s1 = document.getElementById('stat-t-sessions'); if (s1) s1.textContent = p.totalSessions;
                 const s2 = document.getElementById('stat-t-work'); if (s2) s2.textContent = this.formatDuration(p.totalWork);
                 const s3 = document.getElementById('stat-t-break'); if (s3) s3.textContent = this.formatDuration(p.totalBreak);
                 const s4 = document.getElementById('stat-t-paused'); if (s4) s4.textContent = p.totalPaused + 'с';
 
-                // Habits (Логика календаря)
+                // 2. Habits
                 const hCont = document.getElementById('stat-habits-container');
                 const habits = Store.data.habits;
 
-                // Генерация подписей месяцев (ОДИН РАЗ для всех)
-                this.renderCalendarMonths();
+                // Генерация подписей месяцев (просто для вида)
+                const mContainer = document.getElementById('calendar-months');
+                if (mContainer) {
+                    // Генерируем 12 подписей
+                    let mHtml = '';
+                    for (let i = 0; i < 12; i++) mHtml += `<span style="width:30px">${i + 1}</span>`;
+                    mContainer.innerHTML = mHtml;
+                }
 
                 if (hCont) {
                     if (habits.length === 0) {
                         hCont.innerHTML = '<div class="text-gray-500 text-sm">Нет активных привычек</div>';
                     } else {
-                        // Для каждой привычки создаем блок
                         hCont.innerHTML = habits.map(habit => {
-                            const gridHtml = UI.generateCalendarGrid(habit);
+                            // Подготовка данных
+                            const today = new Date();
+                            const map = {};
+                            if (habit.history) {
+                                habit.history.forEach(h => { map[h.date] = 1; });
+                            }
+
+                            // Рендер 365 дней
+                            let html = '';
+                            for (let i = 0; i < 365; i++) {
+                                const d = new Date(today);
+                                d.setDate(today.getDate() - i);
+                                const iso = d.toISOString().split('T')[0];
+                                const filled = map[iso] ? 'bg-green-300' : 'bg-gray-200';
+                                html += `<div class="w-[10px] h-[10px] rounded-[2px] ${filled}" title="${iso}"></div>`;
+                            }
+
+                            // ВАЖНО: container для ленты (flex-wrap, БЕЗ фикс высоты)
                             return `
-                    <div class="bg-white p-3 rounded-lg border border-purple-100 shadow-sm">
-                        <div class="flex justify-between items-center mb-2">
-                            <span class="font-bold text-gray-800">${habit.name}</span>
-                            <span class="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">Дней: ${habit.count}</span>
-                        </div>
-                        <div class="overflow-x-auto pb-1">
-                            <div class="flex gap-1 justify-start min-w-[600px] h-[84px]">
-                                ${gridHtml}
-                            </div>
-                        </div>
-                    </div>
-                `;
+                                <div class="bg-white p-3 rounded-lg border border-purple-100 shadow-sm mb-4">
+                                    <div class="flex justify-between items-center mb-2">
+                                        <span class="font-bold text-gray-800">${habit.name}</span>
+                                        <span class="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">Дней: ${habit.count}</span>
+                                    </div>
+                                    <div class="overflow-x-auto pb-2 scale-y-[-1]" style="direction: rtl;">
+                                        <div class="grid grid-rows-7 grid-flow-col gap-[2px] w-max">
+                                            ${html}
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
                         }).join('');
                     }
                 }
 
                 // Wheel (без изменений)
                 const wCont = document.getElementById('stat-wheel-container');
-                const history = Store.data.wheel.history;
                 if (wCont) {
+                    const history = Store.data.wheel.history;
                     if (history.length === 0) {
-                        wCont.innerHTML = '<div class="text-gray-500 text-sm">Колесо еще не крутилось</div>';
+                        wCont.innerHTML = '<div class="text-gray-500 text-sm">Нет данных</div>';
                     } else {
                         const counts = {};
                         history.forEach(h => counts[h.activity] = (counts[h.activity] || 0) + 1);
