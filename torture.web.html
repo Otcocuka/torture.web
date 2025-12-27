@@ -296,7 +296,7 @@
 
         <!-- 4. STATS VIEW -->
         <div id="view-stats" class="app-view">
-            <div class="max-w-3xl mx-auto bg-white p-6 rounded-xl shadow-sm">
+            <div class="max-w-4xl mx-auto bg-white p-6 rounded-xl shadow-sm">
                 <h2 class="text-2xl font-bold mb-6 text-gray-800 border-b pb-2">Общая статистика</h2>
 
                 <!-- Pomodoro Stats -->
@@ -801,10 +801,15 @@
             bindHabitsEvents() {
                 document.getElementById('addHabitBtn').onclick = () => {
                     const input = document.getElementById('habitInput');
-                    if (input.value.trim()) {
-                        const hadAchievement = Store.addHabit(input.value.trim());
+                    const name = input.value.trim();
+
+                    if (name) {
+                        // ВАЖНО: Передаем имя, Store.addHabit сам заберет tempSubtasks и очистит их
+                        const hadAchievement = Store.addHabit(name);
+
                         input.value = '';
                         this.renderHabits();
+
                         if (hadAchievement) this.showNotification('🏆 Ачивка получена!');
                     }
                 };
@@ -1253,11 +1258,13 @@
                         hCont.innerHTML = '<div class="text-gray-500 text-sm">Нет активных привычек</div>';
                     } else {
                         hCont.innerHTML = habits.map(habit => {
-                            // Подготовка данных
+                            // Подготовка данных: Считаем количество выполнений за дату
                             const today = new Date();
                             const map = {};
                             if (habit.history) {
-                                habit.history.forEach(h => { map[h.date] = 1; });
+                                habit.history.forEach(h => {
+                                    map[h.date] = (map[h.date] || 0) + 1;
+                                });
                             }
 
                             // Рендер 365 дней
@@ -1266,20 +1273,44 @@
                                 const d = new Date(today);
                                 d.setDate(today.getDate() - i);
                                 const iso = d.toISOString().split('T')[0];
-                                const filled = map[iso] ? 'bg-green-300' : 'bg-gray-200';
-                                html += `<div class="w-[10px] h-[10px] rounded-[2px] ${filled}" title="${iso}"></div>`;
+
+                                // --- ЛОГИКА ЦВЕТОВ ---
+                                const count = map[iso] || 0;
+                                let colorClass = 'bg-gray-200'; // Уровень 0 (нет выполнений)
+
+                                if (count >= 1) colorClass = 'bg-green-300'; // level-1
+                                if (count >= 2) colorClass = 'bg-green-500'; // level-2
+                                if (count >= 3) colorClass = 'bg-green-600'; // level-3
+                                if (count >= 4) colorClass = 'bg-green-800'; // level-4+ (темнее для контраста)
+                                // ---------------------
+
+                                html += `<div class="w-[10px] h-[10px] rounded-[2px] ${colorClass}" title="${iso}: ${count} раз"></div>`;
                             }
 
-                            // ВАЖНО: container для ленты (flex-wrap, БЕЗ фикс высоты)
+                            // ВАЖНО: СОХРАНЯЕМ ВАШУ РАССТАНОВКУ
+                            // scale-y-[-1] + direction: rtl обеспечивает движение снизу-справа вверх-влево
                             return `
                                 <div class="bg-white p-3 rounded-lg border border-purple-100 shadow-sm mb-4">
                                     <div class="flex justify-between items-center mb-2">
                                         <span class="font-bold text-gray-800">${habit.name}</span>
                                         <span class="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">Дней: ${habit.count}</span>
                                     </div>
-                                    <div class="overflow-x-auto pb-2 scale-y-[-1]" style="direction: rtl;">
-                                        <div class="grid grid-rows-7 grid-flow-col gap-[2px] w-max">
-                                            ${html}
+                                    <div class="flex  overflow-x-auto">
+                                        <div class="grid grid-rows-7 grid-flow-col gap-[2px] h-[82px] text-[8px]">
+                                            
+                                            <div class="grid grid-rows-7 grid-flow-col gap-[2px] h-[82px] text-[8px]">days</div>    
+                                            <div class="grid grid-rows-7 grid-flow-col gap-[2px] h-[82px] text-[8px]">days</div>
+                                            <div class="grid grid-rows-7 grid-flow-col gap-[2px] h-[82px] text-[8px]">days</div>
+                                            <div class="grid grid-rows-7 grid-flow-col gap-[2px] h-[82px] text-[8px]">days</div>
+                                            <div class="grid grid-rows-7 grid-flow-col gap-[2px] h-[82px] text-[8px]">days</div>
+                                            <div class="grid grid-rows-7 grid-flow-col gap-[2px] h-[82px] text-[8px]">days</div>
+                                            <div class="grid grid-rows-7 grid-flow-col gap-[2px] h-[82px] text-[8px]">days</div>
+                                            
+                                        </div>
+                                        <div class="overflow-x-auto scale-y-[-1]" style="direction: rtl;">
+                                            <div class="grid grid-rows-7 grid-flow-col gap-[2px] w-max">
+                                                ${html}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
