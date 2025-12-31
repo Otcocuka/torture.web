@@ -14,7 +14,8 @@ const Store = {
             stats: { totalSessions: 0, totalWork: 0, totalBreak: 0, totalPaused: 0 },
             settings: { work: 25, short: 5, long: 15, longCycle: 4 }
         },
-        wheel: { history: [] }
+        wheel: { history: [] },
+        appStats: { totalUptime: 0, lastSeen: Date.now() } // Структура
     },
 
     load() {
@@ -22,24 +23,41 @@ const Store = {
             const raw = localStorage.getItem(this.key);
             if (raw) {
                 const parsed = JSON.parse(raw);
-                // Аккуратное слияние структур
+                
+                // Базовая загрузка полей
                 this.data.habits = parsed.habits || [];
                 this.data.achievements = parsed.achievements || [];
                 this.data.habitSettings = { ...this.data.habitSettings, ...parsed.habitSettings };
                 this.data.tempSubtasks = parsed.tempSubtasks || [];
-                this.data.pomodoro.stats = { ...this.data.pomodoro.stats, ...parsed.pomodoro?.stats };
-                this.data.pomodoro.settings = { ...this.data.pomodoro.settings, ...parsed.pomodoro?.settings };
+                
+                // Pomodoro
+                if (parsed.pomodoro) {
+                    this.data.pomodoro.stats = { ...this.data.pomodoro.stats, ...parsed.pomodoro.stats };
+                    this.data.pomodoro.settings = { ...this.data.pomodoro.settings, ...parsed.pomodoro.settings };
+                }
+
+                // Wheel
                 this.data.wheel.history = parsed.wheel?.history || [];
+
+                // AppStats (Uptime) - Миграция данных
+                if (!parsed.appStats) {
+                    this.data.appStats = { totalUptime: 0, lastSeen: Date.now() };
+                } else {
+                    this.data.appStats = { totalUptime: 0, ...parsed.appStats };
+                    // При загрузке сбрасываем lastSeen на текущий момент корректно
+                    this.data.appStats.lastSeen = Date.now(); 
+                }
 
                 console.log("Данные загружены из LocalStorage.");
                 return true;
             } else {
                 console.log("LocalStorage пуст.");
+                // Инициализация пустых данных
+                this.data.appStats = { totalUptime: 0, lastSeen: Date.now() };
                 return false;
             }
         } catch (e) {
             console.error("Ошибка загрузки:", e);
-            alert("Критическая ошибка загрузки: " + e.message);
             return false;
         }
     },
@@ -49,7 +67,6 @@ const Store = {
             localStorage.setItem(this.key, JSON.stringify(this.data));
         } catch (e) {
             console.error("Ошибка сохранения:", e);
-            alert("Не удалось сохранить данные! Возможно, место в браузере кончилось или режим Инкогнито.");
         }
     },
 
@@ -121,7 +138,27 @@ const Store = {
 
     // --- WHEEL ---
     addToWheelHistory(activity) {
-        this.data.wheel.history.push({ activity, date: new Date().toISOString() });
+        this.data.wheel.history.push({ 
+            activity, 
+            date: new Date().toISOString() 
+        });
         this.save();
+    },
+
+    // --- APP STATS (UPTIME) ---
+    // Обновляет таймер. Принимает секунды (целые числа).
+    updateAppUptime(seconds) {
+        if (!this.data.appStats) {
+            this.data.appStats = { totalUptime: 0, lastSeen: Date.now() };
+        }
+        this.data.appStats.totalUptime += seconds;
+        this.data.appStats.lastSeen = Date.now();
+        // Сохранение происходит в AppTracker.tick при завершении
+    },
+
+    // Возвращает общее время
+    getAppUptime() {
+        if (!this.data.appStats) return 0;
+        return this.data.appStats.totalUptime;
     }
 };

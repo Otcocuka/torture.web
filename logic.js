@@ -158,7 +158,7 @@ class PomodoroController {
 
 /**
  * ------------------------------------------------------------------
- * WHEEL LOGIC
+ * WHEEL LOGIC (Updated for Reliability)
  * ------------------------------------------------------------------
  */
 class WheelController {
@@ -178,7 +178,7 @@ class WheelController {
             { text: "Уборка", color: "#C084FC" }
         ];
         this.canvas = document.getElementById('wheelCanvas');
-        this.ctx = this.canvas.getContext('2d');
+        if (this.canvas) this.ctx = this.canvas.getContext('2d');
     }
 
     draw() {
@@ -225,11 +225,29 @@ class WheelController {
         this.ctx.restore();
     }
 
+    // NEW: Spin returns a Promise that resolves when animation finishes
+    // But CRITICAL: Data is saved immediately to Store
     spin() {
-        if (this.isSpinning) return;
+        if (this.isSpinning) return Promise.resolve(); // Already spinning
         this.isSpinning = true;
 
+        // 1. Determine Result (Instantly)
         const selectedIndex = Math.floor(Math.random() * this.activities.length);
+        const result = this.activities[selectedIndex].text;
+
+        // 2. Save to Store (Instantly - guarantees data persistence)
+        Store.addToWheelHistory(result);
+        
+        // Update UI counter immediately if on Wheel tab
+        const countEl = document.getElementById('wheelHistoryCount');
+        if (countEl) countEl.textContent = Store.data.wheel.history.length;
+        
+        // Show Result Text immediately
+        const resEl = document.getElementById('wheelResult');
+        if (resEl) resEl.textContent = `🎉 ${result}`;
+
+        // 3. Visual Animation (Async, Non-blocking)
+        // We use a custom animation loop that doesn't rely on Store logic
         const slice = (2 * Math.PI) / this.activities.length;
         const extraSpins = 5 * 2 * Math.PI;
         const targetRotation = extraSpins - (selectedIndex * slice + slice / 2);
@@ -238,26 +256,25 @@ class WheelController {
         const duration = 4000;
         const startTime = performance.now();
 
-        const animate = (curr) => {
-            const elapsed = curr - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-            const ease = 1 - Math.pow(1 - progress, 3);
+        // Возвращаем Promise для внешнего использования (если нужно)
+        return new Promise((resolve) => {
+            const animate = (curr) => {
+                const elapsed = curr - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const ease = 1 - Math.pow(1 - progress, 3); // Ease-out cubic
 
-            this.rotation = startRotation + (targetRotation - startRotation) * ease;
-            this.draw();
+                this.rotation = startRotation + (targetRotation - startRotation) * ease;
+                this.draw();
 
-            if (progress < 1) {
-                requestAnimationFrame(animate);
-            } else {
-                this.isSpinning = false;
-                const result = this.activities[selectedIndex].text;
-                const resEl = document.getElementById('wheelResult');
-                if (resEl) resEl.textContent = `🎉 ${result}`;
-                Store.addToWheelHistory(result);
-                const countEl = document.getElementById('wheelHistoryCount');
-                if (countEl) countEl.textContent = Store.data.wheel.history.length;
-            }
-        };
-        requestAnimationFrame(animate);
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    this.isSpinning = false;
+                    AudioEngine.playBeep();
+                    resolve(result); // Animation finished
+                }
+            };
+            requestAnimationFrame(animate);
+        });
     }
 }
