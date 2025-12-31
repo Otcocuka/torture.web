@@ -140,3 +140,46 @@
 }
 
 /* Очень темный */
+
+
+
+/* Kanban Styles */
+.kanban-board {
+    gap: 1rem;
+    padding-bottom: 1rem;
+}
+
+.kanban-column {
+    flex: 0 0 280px;
+    background-color: #f3f4f6;
+    border-radius: 0.5rem;
+    padding: 0.5rem;
+    max-height: 600px;
+    display: flex;
+    flex-direction: column;
+}
+
+.kanban-column-inner {
+    min-height: 100px; /* Чтобы можно было бросать в пустую колонку */
+    transition: background-color 0.2s;
+}
+
+.kanban-card {
+    user-select: none;
+    transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.kanban-card:hover {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Визуальный эффект при перетаскивании */
+.kanban-card.dragging {
+    opacity: 0.5;
+    transform: scale(0.95);
+}
+
+/* Фидбэк при наведении на колонку */
+.bg-blue-50 {
+    background-color: #eff6ff !important; 
+}

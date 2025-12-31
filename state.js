@@ -15,7 +15,12 @@ const Store = {
             settings: { work: 25, short: 5, long: 15, longCycle: 4 }
         },
         wheel: { history: [] },
-        appStats: { totalUptime: 0, lastSeen: Date.now() } // Структура
+        appStats: { totalUptime: 0, lastSeen: Date.now() },
+        // НОВОЕ: Структура для Kanban
+        kanban: {
+            columns: [], // { id, title }
+            cards: []    // { id, columnId, title, description }
+        }
     },
 
     load() {
@@ -24,35 +29,52 @@ const Store = {
             if (raw) {
                 const parsed = JSON.parse(raw);
                 
-                // Базовая загрузка полей
+                // Загрузка стандартных полей
                 this.data.habits = parsed.habits || [];
                 this.data.achievements = parsed.achievements || [];
                 this.data.habitSettings = { ...this.data.habitSettings, ...parsed.habitSettings };
                 this.data.tempSubtasks = parsed.tempSubtasks || [];
                 
-                // Pomodoro
                 if (parsed.pomodoro) {
                     this.data.pomodoro.stats = { ...this.data.pomodoro.stats, ...parsed.pomodoro.stats };
                     this.data.pomodoro.settings = { ...this.data.pomodoro.settings, ...parsed.pomodoro.settings };
                 }
-
-                // Wheel
                 this.data.wheel.history = parsed.wheel?.history || [];
 
-                // AppStats (Uptime) - Миграция данных
+                // Загрузка Kanban (с миграцией)
+                if (parsed.kanban) {
+                    this.data.kanban = parsed.kanban;
+                } else {
+                    // Если нет данных, инициализируем дефолтные колонки для примера
+                    this.data.kanban = {
+                        columns: [
+                            { id: 1, title: "Бэклог" },
+                            { id: 2, title: "В работе" }
+                        ],
+                        cards: []
+                    };
+                }
+
+                // App Stats
                 if (!parsed.appStats) {
                     this.data.appStats = { totalUptime: 0, lastSeen: Date.now() };
                 } else {
                     this.data.appStats = { totalUptime: 0, ...parsed.appStats };
-                    // При загрузке сбрасываем lastSeen на текущий момент корректно
-                    this.data.appStats.lastSeen = Date.now(); 
+                    this.data.appStats.lastSeen = Date.now();
                 }
 
                 console.log("Данные загружены из LocalStorage.");
                 return true;
             } else {
                 console.log("LocalStorage пуст.");
-                // Инициализация пустых данных
+                // Инициализация Kanban по умолчанию
+                this.data.kanban = {
+                    columns: [
+                        { id: 1, title: "Бэклог" },
+                        { id: 2, title: "В работе" }
+                    ],
+                    cards: []
+                };
                 this.data.appStats = { totalUptime: 0, lastSeen: Date.now() };
                 return false;
             }
@@ -146,19 +168,52 @@ const Store = {
     },
 
     // --- APP STATS (UPTIME) ---
-    // Обновляет таймер. Принимает секунды (целые числа).
     updateAppUptime(seconds) {
         if (!this.data.appStats) {
             this.data.appStats = { totalUptime: 0, lastSeen: Date.now() };
         }
         this.data.appStats.totalUptime += seconds;
         this.data.appStats.lastSeen = Date.now();
-        // Сохранение происходит в AppTracker.tick при завершении
     },
-
-    // Возвращает общее время
     getAppUptime() {
         if (!this.data.appStats) return 0;
         return this.data.appStats.totalUptime;
+    },
+
+    // --- KANBAN (TODO) ---
+    addKanbanColumn(title) {
+        const id = Date.now();
+        this.data.kanban.columns.push({ id, title });
+        this.save();
+    },
+    
+    addKanbanCard(columnId, title, description) {
+        this.data.kanban.cards.push({
+            id: Date.now(),
+            columnId: parseInt(columnId),
+            title,
+            description
+        });
+        this.save();
+    },
+
+    moveKanbanCard(cardId, newColumnId) {
+        const card = this.data.kanban.cards.find(c => c.id === cardId);
+        if (card) {
+            card.columnId = newColumnId;
+            this.save();
+        }
+    },
+
+    deleteKanbanColumn(columnId) {
+        // Удаляем колонку и все карточки в ней
+        this.data.kanban.columns = this.data.kanban.columns.filter(c => c.id !== columnId);
+        this.data.kanban.cards = this.data.kanban.cards.filter(c => c.columnId !== columnId);
+        this.save();
+    },
+
+    deleteKanbanCard(cardId) {
+        this.data.kanban.cards = this.data.kanban.cards.filter(c => c.id !== cardId);
+        this.save();
     }
 };
