@@ -1,6 +1,6 @@
 /**
  * ------------------------------------------------------------------
- * UI CONTROLLER
+ * UI CONTROLLER (Fixed with Escape Support)
  * ------------------------------------------------------------------
  */
 const UI = {
@@ -10,7 +10,7 @@ const UI = {
             btn.addEventListener('click', (e) => {
                 const target = e.target.dataset.nav;
                 if (target === 'view-stats') UI.renderStatsView();
-                if (target === 'view-todo') UI.renderKanban(); // Render Kanban on click
+                if (target === 'view-todo') UI.renderKanban();
                 UI.switchView(target);
                 document.querySelectorAll('[data-nav]').forEach(b => b.classList.remove('bg-white', 'shadow-sm', 'text-blue-600'));
                 e.target.classList.add('bg-white', 'shadow-sm', 'text-blue-600');
@@ -21,11 +21,40 @@ const UI = {
         this.switchView('view-habits');
         document.querySelector('[data-nav="view-habits"]').classList.add('bg-white', 'shadow-sm', 'text-blue-600');
 
+        // --- Глобальный обработчик закрытия модалок (Клик по кнопкам с data-close-modal) ---
+        document.addEventListener('click', (e) => {
+            if (e.target.matches('[data-close-modal]') || e.target.closest('[data-close-modal]')) {
+                const modalContent = e.target.closest('[id^="modal_content_"]');
+                if (modalContent) {
+                    const modalIdFull = modalContent.id;
+                    const modalId = modalIdFull.replace('modal_content_', '');
+                    this.closeModal(modalId);
+                }
+            }
+        });
+
+        // --- Глобальный обработчик клавиши Escape ---
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                // Ищем контейнер модалок
+                const container = document.getElementById('modalContainer');
+                if (container && container.children.length > 0) {
+                    // Берем первый элемент (последний открытый, так как добавляются в конец)
+                    const modalElement = container.firstElementChild; 
+                    if (modalElement && modalElement.id.startsWith('modal_')) {
+                        const modalId = modalElement.id.replace('modal_', '');
+                        // Вызываем закрытие
+                        this.closeModal(modalId);
+                    }
+                }
+            }
+        });
+
         this.bindHabitsEvents();
         this.bindTimerEvents();
         this.bindWheelEvents();
         this.bindGlobalEvents();
-        this.bindTodoEvents(); // Bind Todo events
+        this.bindTodoEvents();
         this.renderHabits();
     },
 
@@ -436,7 +465,6 @@ const UI = {
             });
 
             // DRAG AND DROP
-            // dragstart
             board.addEventListener('dragstart', (e) => {
                 if (e.target.dataset.cardId) {
                     e.dataTransfer.setData('text/plain', e.target.dataset.cardId);
@@ -444,43 +472,34 @@ const UI = {
                 }
             });
 
-            // dragend (cleanup)
             board.addEventListener('dragend', (e) => {
                 if (e.target.dataset.cardId) {
                     e.target.classList.remove('opacity-50');
                 }
             });
 
-            // dragover (allow drop)
             board.addEventListener('dragover', (e) => {
-                e.preventDefault(); // Важно!
+                e.preventDefault();
                 const column = e.target.closest('.kanban-column-inner');
-                if (column) {
-                    column.classList.add('bg-blue-50'); // Визуальный фидбэк
-                }
+                if (column) column.classList.add('bg-blue-50');
             });
 
-            // dragleave (remove feedback)
             board.addEventListener('dragleave', (e) => {
                 const column = e.target.closest('.kanban-column-inner');
-                if (column) {
-                    column.classList.remove('bg-blue-50');
-                }
+                if (column) column.classList.remove('bg-blue-50');
             });
 
-            // drop
             board.addEventListener('drop', (e) => {
                 e.preventDefault();
                 const cardId = e.dataTransfer.getData('text/plain');
                 const column = e.target.closest('.kanban-column-inner');
-                
-                // Убираем фидбэк
                 if (column) column.classList.remove('bg-blue-50');
 
                 if (cardId && column) {
                     const newColId = parseInt(column.dataset.columnId);
-                    const oldColId = parseInt(document.querySelector(`[data-card-id="${cardId}"]`)?.dataset.columnId || 0);
-                    
+                    const oldCardElement = document.querySelector(`[data-card-id="${cardId}"]`);
+                    const oldColId = oldCardElement ? parseInt(oldCardElement.dataset.columnId) : 0;
+
                     if (newColId !== oldColId) {
                         Store.moveKanbanCard(parseInt(cardId), newColId);
                         this.renderKanban();
@@ -500,7 +519,6 @@ const UI = {
             return;
         }
 
-        // Генерация HTML
         board.innerHTML = data.columns.map(col => {
             const cards = data.cards.filter(c => c.columnId === col.id);
             return `
@@ -530,7 +548,6 @@ const UI = {
             `;
         }).join('');
 
-        // Прокрутка в конец, если добавили колонку
         board.scrollLeft = board.scrollWidth;
     },
 
