@@ -1,0 +1,142 @@
+/* Global Animations & Utils */
+@keyframes fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pulse-red {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.animate-fade-in {
+    animation: fade-in 0.3s ease-out forwards;
+}
+
+.transition-standard {
+    transition: all 0.2s ease-in-out;
+}
+
+/* View Switching */
+.app-view {
+    display: none;
+}
+
+.app-view.active {
+    display: block;
+    animation: fade-in 0.3s ease-out;
+}
+
+/* Modal Styles */
+.modal-overlay {
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(2px);
+}
+
+.modal-hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.95);
+    transition: all 0.2s;
+}
+
+.modal-visible {
+    opacity: 1;
+    pointer-events: auto;
+    transform: scale(1);
+    transition: all 0.2s;
+}
+
+/* Pomodoro Themes */
+.theme-work {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+/* Red-100 */
+.theme-rest {
+    background-color: #dcfce7;
+    color: #166534;
+}
+
+/* Green-100 */
+
+/* Canvas Centering */
+.canvas-container {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 3px;
+}
+
+/* Календарь GitHub Style */
+.github-grid {
+    display: grid;
+    grid-template-columns: repeat(52, 12px);
+    /* 52 колонки */
+    grid-template-rows: repeat(7, 12px);
+    /* 7 строк */
+    gap: 2px;
+    width: fit-content;
+}
+
+.github-cell {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+}
+
+/* Цвета GitHub */
+.level-0 {
+    background-color: #ebedf0;
+}
+
+/* Серый */
+.level-1 {
+    background-color: #9be9a8;
+}
+
+/* Светло-зеленый */
+.level-2 {
+    background-color: #40c463;
+}
+
+/* Зеленый */
+.level-3 {
+    background-color: #30a14e;
+}
+
+/* Темно-зеленый */
+.level-4 {
+    background-color: #216e39;
+}
+
+/* Очень темный */

@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Torture2 - Unified</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body class="bg-gray-50 min-h-screen text-gray-800 font-sans flex flex-col">
+
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm sticky top-0 z-20">
+        <div class="max-w-5xl mx-auto px-4">
+            <div class="flex justify-center space-x-1 p-1 bg-gray-100 rounded-lg mt-2 mb-2 w-fit mx-auto">
+                <button data-nav="view-habits"
+                    class="nav-btn px-4 py-2 rounded-md text-sm font-medium transition-standard hover:bg-white hover:shadow-sm text-gray-600">Привычки</button>
+                <button data-nav="view-timer"
+                    class="nav-btn px-4 py-2 rounded-md text-sm font-medium transition-standard hover:bg-white hover:shadow-sm text-gray-600">Таймер</button>
+                <button data-nav="view-wheel"
+                    class="nav-btn px-4 py-2 rounded-md text-sm font-medium transition-standard hover:bg-white hover:shadow-sm text-gray-600">Колесо</button>
+                <button data-nav="view-stats"
+                    class="nav-btn px-4 py-2 rounded-md text-sm font-medium transition-standard hover:bg-white hover:shadow-sm text-gray-600">Статистика</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <main class="flex-grow p-4 max-w-5xl mx-auto w-full">
+
+        <!-- 1. HABITS VIEW -->
+        <div id="view-habits" class="app-view">
+            <div class="max-w-2xl mx-auto space-y-4">
+                <!-- Add Habit Form -->
+                <div class="bg-white p-4 rounded-lg shadow-sm">
+                    <div class="flex gap-2">
+                        <input type="text" id="habitInput" placeholder="Новая привычка..."
+                            class="flex-1 p-2 border rounded-lg focus:ring-2 focus:ring-blue-400 outline-none">
+                        <button id="habitSettingsBtn" class="p-2 text-gray-400 hover:text-blue-500" title="Настройки">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                        </button>
+                        <button id="addHabitBtn"
+                            class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">Добавить</button>
+                    </div>
+                </div>
+
+                <!-- Stats Summary (Achievements Quick View) -->
+                <div class="flex justify-between items-center px-2">
+                    <h2 class="text-lg font-semibold">Мои Привычки</h2>
+                    <button id="viewAchievementsBtn" class="text-sm text-green-600 font-medium hover:underline">🏆
+                        Достижения</button>
+                </div>
+
+                <!-- Habits List -->
+                <div id="habitsList" class="space-y-3"></div>
+            </div>
+        </div>
+
+        <!-- 2. TIMER VIEW -->
+        <div id="view-timer" class="app-view">
+            <div class="max-w-2xl mx-auto">
+                <!-- Main Timer Display -->
+                <div id="timerContainer"
+                    class="bg-white p-8 rounded-2xl shadow-lg text-center mb-6 transition-standard theme-work">
+                    <h1 class="text-2xl font-bold mb-2 tracking-wide">POMODORO</h1>
+                    <div id="timerDisplay" class="text-6xl md:text-8xl font-mono font-bold mb-4">25:00</div>
+                    <div id="timerPhaseText" class="text-xl font-semibold uppercase tracking-widest opacity-80">Работа
+                    </div>
+
+                    <!-- Controls -->
+                    <div class="mt-6 flex justify-center gap-3 flex-wrap">
+                        <button id="timerStart"
+                            class="px-6 py-2 bg-green-500 text-white rounded-lg font-bold hover:bg-green-600 shadow-md">Start</button>
+                        <button id="timerPause" disabled
+                            class="px-6 py-2 bg-yellow-500 text-white rounded-lg font-bold hover:bg-yellow-600 shadow-md opacity-50">Pause</button>
+                        <button id="timerReset"
+                            class="px-6 py-2 bg-red-500 text-white rounded-lg font-bold hover:bg-red-600 shadow-md">Reset</button>
+                    </div>
+                </div>
+
+                <!-- Stats & Settings Row -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Stats -->
+                    <div class="bg-white p-4 rounded-lg shadow-sm">
+                        <h3 class="font-semibold mb-2 text-gray-500 text-sm">Статистика сессий</h3>
+                        <div class="grid grid-cols-2 gap-2 text-sm">
+                            <div>Всего: <span id="statSessions" class="font-bold">0</span></div>
+                            <div>Работа: <span id="statWork" class="font-bold">0с</span></div>
+                            <div>Пауза: <span id="statPaused" class="font-bold">0с</span></div>
+                            <div>Отдых: <span id="statBreak" class="font-bold">0с</span></div>
+                        </div>
+                        <button id="resetStatsBtn"
+                            class="mt-3 w-full text-xs text-red-500 border border-red-200 py-1 rounded hover:bg-red-50">Сброс
+                            статистики</button>
+                    </div>
+
+                    <!-- Settings -->
+                    <div class="bg-white p-4 rounded-lg shadow-sm">
+                        <h3 class="font-semibold mb-2 text-gray-500 text-sm">Настройки (мин)</h3>
+                        <div class="grid grid-cols-2 gap-2">
+                            <label class="text-xs flex flex-col">Work <input id="settingWork" type="number" value="25"
+                                    class="border rounded px-1"></label>
+                            <label class="text-xs flex flex-col">Short <input id="settingShort" type="number" value="5"
+                                    class="border rounded px-1"></label>
+                            <label class="text-xs flex flex-col">Long <input id="settingLong" type="number" value="15"
+                                    class="border rounded px-1"></label>
+                            <label class="text-xs flex flex-col">Every N <input id="settingCycle" type="number"
+                                    value="4" class="border rounded px-1"></label>
+                        </div>
+                        <button id="saveTimerSettings"
+                            class="mt-3 w-full text-xs bg-blue-100 text-blue-700 py-1 rounded hover:bg-blue-200">Применить</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. WHEEL VIEW -->
+        <div id="view-wheel" class="app-view">
+            <div class="max-w-md mx-auto bg-white p-6 rounded-xl shadow-md text-center">
+                <h2 class="text-xl font-bold mb-1">Колесо Фортуны</h2>
+                <p class="text-sm text-gray-500 mb-4">Вращение для случайной активности</p>
+
+                <div class="relative my-4 canvas-container">
+                    <canvas id="wheelCanvas" width="300" height="300"
+                        class="border-4 border-gray-100 rounded-full shadow-inner"></canvas>
+                    <!-- Arrow -->
+                    <div
+                        class="absolute top-1/2 right-0 -translate-x-1/2 -translate-y-1/2 rotate-90 w-0 h-0 border-l-[15px] border-l-transparent border-r-[15px] border-r-transparent border-t-[25px] border-t-red-500 filter drop-shadow-md">
+                    </div>
+                </div>
+
+                <div id="wheelResult"
+                    class="text-lg font-bold text-indigo-600 min-h-[2.5rem] mb-4 flex items-center justify-center">
+                    Нажми "Крутить"
+                </div>
+
+                <button id="spinWheelBtn"
+                    class="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-indigo-700 shadow-lg w-full">Крутить</button>
+
+                <div class="mt-4 pt-4 border-t text-xs text-gray-500">
+                    История: <span id="wheelHistoryCount">0</span> прокруток
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. STATS VIEW -->
+        <div id="view-stats" class="app-view">
+            <div class="max-w-4xl mx-auto bg-white p-6 rounded-xl shadow-sm">
+                <h2 class="text-2xl font-bold mb-6 text-gray-800 border-b pb-2">Общая статистика</h2>
+
+                <!-- Pomodoro Stats -->
+                <div class="mb-8">
+                    <h3 class="text-lg font-semibold text-blue-600 mb-3 flex items-center gap-2">
+                        <span>🍅</span> Pomodoro
+                    </h3>
+                    <div class="grid grid-cols-2 gap-4 bg-blue-50 p-4 rounded-lg">
+                        <div>
+                            <div class="text-gray-500 text-sm">Сессий всего</div>
+                            <div class="text-2xl font-bold" id="stat-t-sessions">0</div>
+                        </div>
+                        <div>
+                            <div class="text-gray-500 text-sm">Работа</div>
+                            <div class="text-2xl font-bold text-blue-700" id="stat-t-work">0м</div>
+                        </div>
+                        <div>
+                            <div class="text-gray-500 text-sm">Отдых</div>
+                            <div class="text-2xl font-bold text-green-600" id="stat-t-break">0м</div>
+                        </div>
+                        <div>
+                            <div class="text-gray-500 text-sm">Пауза</div>
+                            <div class="text-2xl font-bold text-gray-600" id="stat-t-paused">0м</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Habits Stats with Calendars -->
+                <div class="mb-8">
+                    <h3 class="text-lg font-semibold text-purple-600 mb-3">✅ Привычки</h3>
+                    <div class="bg-purple-50 p-4 rounded-lg space-y-4" id="stat-habits-container"></div>
+                    <div id="calendar-months"
+                        class="flex gap-1 justify-start min-w-[600px] mt-2 text-[10px] text-gray-400 ml-2"></div>
+                </div>
+
+                <!-- Wheel Stats -->
+                <div>
+                    <h3 class="text-lg font-semibold text-indigo-600 mb-3 flex items-center gap-2">
+                        <span>🎡</span> Колесо
+                    </h3>
+                    <div class="bg-indigo-50 p-4 rounded-lg space-y-2" id="stat-wheel-container">
+                        <!-- Сгенерируется JS -->
+                        <div class="text-gray-500 text-sm">Нет данных</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Backup Section -->
+        <div class="mt-8 p-4 border border-gray-300 rounded bg-gray-50 max-w-2xl mx-auto text-center">
+            <h4 class="font-bold mb-2 text-gray-700">Резервное копирование</h4>
+            <p class="text-xs text-gray-500 mb-2">Если данные не сохраняются автоматически, используйте кнопки ниже.</p>
+            <div class="flex gap-2 justify-center">
+                <button id="btnExport"
+                    class="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 text-sm">Скачать JSON</button>
+                <label class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-sm cursor-pointer">
+                    Загрузить JSON
+                    <input type="file" id="fileImport" accept=".json" class="hidden">
+                </label>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal Container -->
+    <div id="modalContainer"></div>
+
+    <!-- Scripts -->
+    <script src="state.js"></script>
+    <script src="logic.js"></script>
+    <script src="ui.js"></script>
+    <script src="main.js"></script>
+</body>
+
+</html>
