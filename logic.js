@@ -37,6 +37,11 @@ const AudioEngine = {
  * POMODORO LOGIC
  * ------------------------------------------------------------------
  */
+/**
+ * ------------------------------------------------------------------
+ * POMODORO LOGIC (Fixed)
+ * ------------------------------------------------------------------
+ */
 class PomodoroController {
     constructor() {
         this.state = {
@@ -61,31 +66,46 @@ class PomodoroController {
         if (this.state.isRunning) return;
         this.state.isRunning = true;
 
+        // Если есть время, оставшееся от паузы, используем его
         if (this.state.remainingPauseTime > 0) {
             this.state.endTime = Date.now() + this.state.remainingPauseTime;
             this.state.remainingPauseTime = 0;
         } else {
+            // Если таймер был сброшен до 0, берем из настроек
+            if (this.state.timeLeft <= 0) {
+                this.state.timeLeft = this.state.isWorking ? this.getSettings().work * 60 : this.getSettings().short * 60;
+            }
             this.state.endTime = Date.now() + this.state.timeLeft * 1000;
         }
 
         Store.updatePomodoroStats('totalSessions', 1);
         UI.Timer.updateStats();
 
+        // Очистка старого интервала на всякий случай
+        clearInterval(this.state.interval);
         this.state.interval = setInterval(() => this.tick(), 1000);
         UI.Timer.toggleControls(true);
     }
 
     pause() {
         if (!this.state.isRunning) {
+            // Resume logic
             const pausedDuration = Math.floor((Date.now() - this.state.lastPauseTime) / 1000);
-            Store.updatePomodoroStats('totalPaused', pausedDuration);
-            UI.Timer.updateStats();
+            if (pausedDuration > 0) {
+                Store.updatePomodoroStats('totalPaused', pausedDuration);
+                UI.Timer.updateStats();
+            }
 
             this.state.isRunning = true;
+            // Восстанавливаем endTime на основе оставшегося времени паузы
             this.state.endTime = Date.now() + this.state.remainingPauseTime;
+            this.state.remainingPauseTime = 0;
+            
+            clearInterval(this.state.interval);
             this.state.interval = setInterval(() => this.tick(), 1000);
             UI.Timer.toggleControls(true);
         } else {
+            // Pause logic
             this.state.isRunning = false;
             this.state.lastPauseTime = Date.now();
             this.state.remainingPauseTime = this.state.endTime - Date.now();
@@ -98,48 +118,78 @@ class PomodoroController {
         clearInterval(this.state.interval);
         this.state.isRunning = false;
         this.state.remainingPauseTime = 0;
+        this.state.lastPauseTime = 0;
+        
         if (fullReset) {
             this.state.cycles = 0;
             this.state.isWorking = true;
         }
-        this.resetTimer(false);
+        
+        // Сброс времени
+        const settings = this.getSettings();
+        this.state.timeLeft = this.state.isWorking ? settings.work * 60 : settings.short * 60;
+        this.state.endTime = Date.now() + this.state.timeLeft * 1000; // Важно!
+
+        UI.Timer.updateDisplay(this.state.timeLeft, this.state.isWorking);
         UI.Timer.toggleControls(false);
     }
 
-    resetTimer(keepState = true) {
+    // ПЕРЕПИСАННАЯ ФУНКЦИЯ СМЕНЫ ФАЗЫ
+    resetTimer() {
         const settings = this.getSettings();
-        if (!keepState) {
-            this.state.timeLeft = this.state.isWorking ? settings.work * 60 : settings.short * 60;
+        
+        // Определяем, что было до этого
+        const wasWorking = this.state.isWorking;
+        
+        if (wasWorking) {
+            // Рабочий цикл закончился -> Начинаем паузу
+            this.state.cycles++;
+            this.state.isWorking = false;
+            
+            const isLong = this.state.cycles % settings.longCycle === 0;
+            this.state.timeLeft = (isLong ? settings.long : settings.short) * 60;
+            
+            this.sendNotification("Break Time!", isLong ? "Long Break" : "Short Break");
         } else {
-            if (this.state.isWorking) {
-                this.state.cycles++;
-                this.state.isWorking = false;
-                const isLong = this.state.cycles % settings.longCycle === 0;
-                this.state.timeLeft = (isLong ? settings.long : settings.short) * 60;
-                this.sendNotification("Break Time!", isLong ? "Long Break" : "Short Break");
-            } else {
-                this.state.isWorking = true;
-                this.state.timeLeft = settings.work * 60;
-                this.sendNotification("Work Time!", "Get back to it.");
-            }
+            // Пауза закончилась -> Начинаем работу
+            this.state.isWorking = true;
+            this.state.timeLeft = settings.work * 60;
+            
+            this.sendNotification("Work Time!", "Get back to it.");
         }
+
+        // ОБНОВЛЯЕМ END TIME, ЧТОБЫ ТАЙМЕР СЧИТАЛ ПРАВИЛЬНО
+        this.state.endTime = Date.now() + this.state.timeLeft * 1000;
+
+        // Звук и UI
         AudioEngine.playBeep();
         UI.Timer.updateDisplay(this.state.timeLeft, this.state.isWorking);
     }
 
     tick() {
+        if (!this.state.isRunning) return;
+
         const now = Date.now();
         let diff = Math.round((this.state.endTime - now) / 1000);
         if (diff < 0) diff = 0;
-        this.state.timeLeft = diff;
+        
+        // Обновляем только если время изменилось, чтобы не дергать UI лишний раз
+        if (diff !== this.state.timeLeft) {
+            this.state.timeLeft = diff;
 
-        if (this.state.isWorking) Store.updatePomodoroStats('totalWork', 1);
-        else Store.updatePomodoroStats('totalBreak', 1);
+            // Обновляем статистику (раз в секунду)
+            if (this.state.isWorking) Store.updatePomodoroStats('totalWork', 1);
+            else Store.updatePomodoroStats('totalBreak', 1);
 
-        UI.Timer.updateDisplay(this.state.timeLeft, this.state.isWorking);
+            UI.Timer.updateDisplay(this.state.timeLeft, this.state.isWorking);
+        }
 
         if (this.state.timeLeft <= 0) {
-            this.resetTimer(true);
+            // Смена фазы, обновление endTime и UI
+            this.resetTimer();
+            
+            // Выходим, интервал продолжит работу (this.state.isRunning == true)
+            return;
         }
     }
 
