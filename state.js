@@ -4,23 +4,24 @@
  * ------------------------------------------------------------------
  */
 const Store = {
-    key: 'torture2_data_v1',
+    key: "torture2_data_v1",
     data: {
         habits: [],
         achievements: [],
-        habitSettings: { goal: 5, color: 'blue' },
+        habitSettings: { goal: 5, color: "blue" },
         tempSubtasks: [],
         pomodoro: {
             stats: { totalSessions: 0, totalWork: 0, totalBreak: 0, totalPaused: 0 },
-            settings: { work: 25, short: 5, long: 15, longCycle: 4 }
+            settings: { work: 25, short: 5, long: 15, longCycle: 4 },
         },
         wheel: { history: [] },
         appStats: { totalUptime: 0, lastSeen: Date.now() },
         // НОВОЕ: Структура для Kanban
         kanban: {
             columns: [], // { id, title }
-            cards: []    // { id, columnId, title, description }
-        }
+            cards: [], // { id, columnId, title, description }
+        },
+        notifications: [],
     },
 
     load() {
@@ -28,16 +29,25 @@ const Store = {
             const raw = localStorage.getItem(this.key);
             if (raw) {
                 const parsed = JSON.parse(raw);
-                
+
                 // Загрузка стандартных полей
                 this.data.habits = parsed.habits || [];
                 this.data.achievements = parsed.achievements || [];
-                this.data.habitSettings = { ...this.data.habitSettings, ...parsed.habitSettings };
+                this.data.habitSettings = {
+                    ...this.data.habitSettings,
+                    ...parsed.habitSettings,
+                };
                 this.data.tempSubtasks = parsed.tempSubtasks || [];
-                
+
                 if (parsed.pomodoro) {
-                    this.data.pomodoro.stats = { ...this.data.pomodoro.stats, ...parsed.pomodoro.stats };
-                    this.data.pomodoro.settings = { ...this.data.pomodoro.settings, ...parsed.pomodoro.settings };
+                    this.data.pomodoro.stats = {
+                        ...this.data.pomodoro.stats,
+                        ...parsed.pomodoro.stats,
+                    };
+                    this.data.pomodoro.settings = {
+                        ...this.data.pomodoro.settings,
+                        ...parsed.pomodoro.settings,
+                    };
                 }
                 this.data.wheel.history = parsed.wheel?.history || [];
 
@@ -49,9 +59,9 @@ const Store = {
                     this.data.kanban = {
                         columns: [
                             { id: 1, title: "Бэклог" },
-                            { id: 2, title: "В работе" }
+                            { id: 2, title: "В работе" },
                         ],
-                        cards: []
+                        cards: [],
                     };
                 }
 
@@ -71,9 +81,9 @@ const Store = {
                 this.data.kanban = {
                     columns: [
                         { id: 1, title: "Бэклог" },
-                        { id: 2, title: "В работе" }
+                        { id: 2, title: "В работе" },
                     ],
-                    cards: []
+                    cards: [],
                 };
                 this.data.appStats = { totalUptime: 0, lastSeen: Date.now() };
                 return false;
@@ -100,26 +110,28 @@ const Store = {
             count: 0,
             goal: this.data.habitSettings.goal,
             color: this.data.habitSettings.color,
-            subtasks: this.data.tempSubtasks.map(st => ({ ...st, dates: [] })),
-            history: []
+            subtasks: this.data.tempSubtasks.map((st) => ({ ...st, dates: [] })),
+            history: [],
         });
         this.data.tempSubtasks = [];
         this.save();
     },
     deleteHabit(id) {
-        this.data.habits = this.data.habits.filter(h => h.id !== id);
+        this.data.habits = this.data.habits.filter((h) => h.id !== id);
         this.save();
     },
     incrementHabit(id) {
-        const habit = this.data.habits.find(h => h.id === id);
+        const habit = this.data.habits.find((h) => h.id === id);
         if (!habit) return;
 
         habit.count++;
-        const today = new Date().toISOString().split('T')[0];
-        const completedIds = habit.subtasks.filter(st => st.completed).map(st => st.id);
+        const today = new Date().toISOString().split("T")[0];
+        const completedIds = habit.subtasks
+            .filter((st) => st.completed)
+            .map((st) => st.id);
         habit.history.push({ date: today, subtasks: completedIds });
 
-        habit.subtasks.forEach(st => {
+        habit.subtasks.forEach((st) => {
             if (st.completed) {
                 st.dates = st.dates || [];
                 st.dates.push(today);
@@ -127,8 +139,15 @@ const Store = {
             }
         });
 
-        if (habit.count >= habit.goal && !this.data.achievements.some(a => a.name === habit.name)) {
-            this.data.achievements.push({ name: habit.name, goal: habit.goal, date: today });
+        if (
+            habit.count >= habit.goal &&
+            !this.data.achievements.some((a) => a.name === habit.name)
+        ) {
+            this.data.achievements.push({
+                name: habit.name,
+                goal: habit.goal,
+                date: today,
+            });
             this.save();
             return true;
         }
@@ -136,9 +155,9 @@ const Store = {
         return false;
     },
     toggleSubtask(habitId, subtaskId, status) {
-        const habit = this.data.habits.find(h => h.id === habitId);
+        const habit = this.data.habits.find((h) => h.id === habitId);
         if (habit) {
-            const st = habit.subtasks.find(s => s.id === subtaskId);
+            const st = habit.subtasks.find((s) => s.id === subtaskId);
             if (st) st.completed = status;
             this.save();
         }
@@ -146,7 +165,10 @@ const Store = {
 
     // --- POMODORO ---
     updatePomodoroSettings(settings) {
-        this.data.pomodoro.settings = { ...this.data.pomodoro.settings, ...settings };
+        this.data.pomodoro.settings = {
+            ...this.data.pomodoro.settings,
+            ...settings,
+        };
         this.save();
     },
     updatePomodoroStats(type, value) {
@@ -154,15 +176,20 @@ const Store = {
         this.save();
     },
     resetPomodoroStats() {
-        this.data.pomodoro.stats = { totalSessions: 0, totalWork: 0, totalBreak: 0, totalPaused: 0 };
+        this.data.pomodoro.stats = {
+            totalSessions: 0,
+            totalWork: 0,
+            totalBreak: 0,
+            totalPaused: 0,
+        };
         this.save();
     },
 
     // --- WHEEL ---
     addToWheelHistory(activity) {
-        this.data.wheel.history.push({ 
-            activity, 
-            date: new Date().toISOString() 
+        this.data.wheel.history.push({
+            activity,
+            date: new Date().toISOString(),
         });
         this.save();
     },
@@ -186,19 +213,19 @@ const Store = {
         this.data.kanban.columns.push({ id, title });
         this.save();
     },
-    
+
     addKanbanCard(columnId, title, description) {
         this.data.kanban.cards.push({
             id: Date.now(),
             columnId: parseInt(columnId),
             title,
-            description
+            description,
         });
         this.save();
     },
 
     moveKanbanCard(cardId, newColumnId) {
-        const card = this.data.kanban.cards.find(c => c.id === cardId);
+        const card = this.data.kanban.cards.find((c) => c.id === cardId);
         if (card) {
             card.columnId = newColumnId;
             this.save();
@@ -207,13 +234,59 @@ const Store = {
 
     deleteKanbanColumn(columnId) {
         // Удаляем колонку и все карточки в ней
-        this.data.kanban.columns = this.data.kanban.columns.filter(c => c.id !== columnId);
-        this.data.kanban.cards = this.data.kanban.cards.filter(c => c.columnId !== columnId);
+        this.data.kanban.columns = this.data.kanban.columns.filter(
+            (c) => c.id !== columnId
+        );
+        this.data.kanban.cards = this.data.kanban.cards.filter(
+            (c) => c.columnId !== columnId
+        );
         this.save();
     },
 
     deleteKanbanCard(cardId) {
-        this.data.kanban.cards = this.data.kanban.cards.filter(c => c.id !== cardId);
+        this.data.kanban.cards = this.data.kanban.cards.filter(
+            (c) => c.id !== cardId
+        );
         this.save();
+    },
+
+    // --- NOTIFICATIONS ---
+    addNotification(title, interval, isImportant) {
+        const notif = {
+            id: Date.now(),
+            title,
+            interval: parseInt(interval),
+            isImportant: !!isImportant,
+            lastTrigger: Date.now(),
+            nextTrigger: Date.now() + parseInt(interval) * 60000,
+            wasClicked: false // НОВОЕ: статус ответа
+        };
+        this.data.notifications.push(notif);
+        this.save();
+        return notif;
+    },
+
+    deleteNotification(id) {
+        this.data.notifications = this.data.notifications.filter(n => n.id !== id);
+        this.save();
+    },
+
+    updateNotificationTrigger(id) {
+        const notif = this.data.notifications.find(n => n.id === id);
+        if (notif) {
+            notif.lastTrigger = Date.now();
+            notif.nextTrigger = Date.now() + notif.interval * 60000;
+            notif.wasClicked = false; // Сбрасываем при новом срабатывании
+            this.save();
+        }
+    },
+
+    // НОВЫЙ МЕТОД: Пометить как "отвечено"
+    markNotificationAsClicked(id) {
+        const notif = this.data.notifications.find(n => n.id === id);
+        if (notif) {
+            notif.wasClicked = true;
+            this.save();
+        }
     }
 };

@@ -91,7 +91,8 @@ window.addEventListener('DOMContentLoaded', () => {
         // 4. Init Controllers
         window.Controllers = {
             pomodoro: new PomodoroController(),
-            wheel: new WheelController()
+            wheel: new WheelController(),
+            scheduler: new NotificationScheduler() // <-- ДОБАВИТЬ ЭТУ СТРОКУ
         };
 
         // 5. Init UI
@@ -111,6 +112,7 @@ window.addEventListener('DOMContentLoaded', () => {
         // 7. Init Logic & View
         UI.renderHabits();
         window.Controllers.pomodoro.init();
+        window.Controllers.scheduler.init(); // <-- ДОБАВИТЬ ЭТУ СТРОКУ
         UI.updateStats();
         window.Controllers.wheel.draw();
     };

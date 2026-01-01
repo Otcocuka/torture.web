@@ -12,24 +12,30 @@ const AudioEngine = {
     },
     playBeep() {
         this.init();
-        if (this.ctx.state === 'suspended') this.ctx.resume();
+        if (this.ctx.state === "suspended") this.ctx.resume();
 
         const oscillator = this.ctx.createOscillator();
         const gainNode = this.ctx.createGain();
 
-        oscillator.type = 'sine';
+        oscillator.type = "sine";
         oscillator.frequency.setValueAtTime(880, this.ctx.currentTime); // A5
-        oscillator.frequency.exponentialRampToValueAtTime(440, this.ctx.currentTime + 0.1);
+        oscillator.frequency.exponentialRampToValueAtTime(
+            440,
+            this.ctx.currentTime + 0.1
+        );
 
         gainNode.gain.setValueAtTime(0.1, this.ctx.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.1);
+        gainNode.gain.exponentialRampToValueAtTime(
+            0.001,
+            this.ctx.currentTime + 0.1
+        );
 
         oscillator.connect(gainNode);
         gainNode.connect(this.ctx.destination);
 
         oscillator.start();
         oscillator.stop(this.ctx.currentTime + 0.15);
-    }
+    },
 };
 
 /**
@@ -52,7 +58,7 @@ class PomodoroController {
             endTime: 0,
             remainingPauseTime: 0,
             lastPauseTime: 0,
-            interval: null
+            interval: null,
         };
     }
 
@@ -60,7 +66,9 @@ class PomodoroController {
         this.resetTimer(false);
     }
 
-    getSettings() { return Store.data.pomodoro.settings; }
+    getSettings() {
+        return Store.data.pomodoro.settings;
+    }
 
     start() {
         if (this.state.isRunning) return;
@@ -73,12 +81,14 @@ class PomodoroController {
         } else {
             // Если таймер был сброшен до 0, берем из настроек
             if (this.state.timeLeft <= 0) {
-                this.state.timeLeft = this.state.isWorking ? this.getSettings().work * 60 : this.getSettings().short * 60;
+                this.state.timeLeft = this.state.isWorking
+                    ? this.getSettings().work * 60
+                    : this.getSettings().short * 60;
             }
             this.state.endTime = Date.now() + this.state.timeLeft * 1000;
         }
 
-        Store.updatePomodoroStats('totalSessions', 1);
+        Store.updatePomodoroStats("totalSessions", 1);
         UI.Timer.updateStats();
 
         // Очистка старого интервала на всякий случай
@@ -90,9 +100,11 @@ class PomodoroController {
     pause() {
         if (!this.state.isRunning) {
             // Resume logic
-            const pausedDuration = Math.floor((Date.now() - this.state.lastPauseTime) / 1000);
+            const pausedDuration = Math.floor(
+                (Date.now() - this.state.lastPauseTime) / 1000
+            );
             if (pausedDuration > 0) {
-                Store.updatePomodoroStats('totalPaused', pausedDuration);
+                Store.updatePomodoroStats("totalPaused", pausedDuration);
                 UI.Timer.updateStats();
             }
 
@@ -100,7 +112,7 @@ class PomodoroController {
             // Восстанавливаем endTime на основе оставшегося времени паузы
             this.state.endTime = Date.now() + this.state.remainingPauseTime;
             this.state.remainingPauseTime = 0;
-            
+
             clearInterval(this.state.interval);
             this.state.interval = setInterval(() => this.tick(), 1000);
             UI.Timer.toggleControls(true);
@@ -119,15 +131,17 @@ class PomodoroController {
         this.state.isRunning = false;
         this.state.remainingPauseTime = 0;
         this.state.lastPauseTime = 0;
-        
+
         if (fullReset) {
             this.state.cycles = 0;
             this.state.isWorking = true;
         }
-        
+
         // Сброс времени
         const settings = this.getSettings();
-        this.state.timeLeft = this.state.isWorking ? settings.work * 60 : settings.short * 60;
+        this.state.timeLeft = this.state.isWorking
+            ? settings.work * 60
+            : settings.short * 60;
         this.state.endTime = Date.now() + this.state.timeLeft * 1000; // Важно!
 
         UI.Timer.updateDisplay(this.state.timeLeft, this.state.isWorking);
@@ -137,24 +151,27 @@ class PomodoroController {
     // ПЕРЕПИСАННАЯ ФУНКЦИЯ СМЕНЫ ФАЗЫ
     resetTimer() {
         const settings = this.getSettings();
-        
+
         // Определяем, что было до этого
         const wasWorking = this.state.isWorking;
-        
+
         if (wasWorking) {
             // Рабочий цикл закончился -> Начинаем паузу
             this.state.cycles++;
             this.state.isWorking = false;
-            
+
             const isLong = this.state.cycles % settings.longCycle === 0;
             this.state.timeLeft = (isLong ? settings.long : settings.short) * 60;
-            
-            this.sendNotification("Break Time!", isLong ? "Long Break" : "Short Break");
+
+            this.sendNotification(
+                "Break Time!",
+                isLong ? "Long Break" : "Short Break"
+            );
         } else {
             // Пауза закончилась -> Начинаем работу
             this.state.isWorking = true;
             this.state.timeLeft = settings.work * 60;
-            
+
             this.sendNotification("Work Time!", "Get back to it.");
         }
 
@@ -172,14 +189,14 @@ class PomodoroController {
         const now = Date.now();
         let diff = Math.round((this.state.endTime - now) / 1000);
         if (diff < 0) diff = 0;
-        
+
         // Обновляем только если время изменилось, чтобы не дергать UI лишний раз
         if (diff !== this.state.timeLeft) {
             this.state.timeLeft = diff;
 
             // Обновляем статистику (раз в секунду)
-            if (this.state.isWorking) Store.updatePomodoroStats('totalWork', 1);
-            else Store.updatePomodoroStats('totalBreak', 1);
+            if (this.state.isWorking) Store.updatePomodoroStats("totalWork", 1);
+            else Store.updatePomodoroStats("totalBreak", 1);
 
             UI.Timer.updateDisplay(this.state.timeLeft, this.state.isWorking);
         }
@@ -187,7 +204,7 @@ class PomodoroController {
         if (this.state.timeLeft <= 0) {
             // Смена фазы, обновление endTime и UI
             this.resetTimer();
-            
+
             // Выходим, интервал продолжит работу (this.state.isRunning == true)
             return;
         }
@@ -195,7 +212,7 @@ class PomodoroController {
 
     sendNotification(title, body) {
         if ("Notification" in window && Notification.permission === "granted") {
-            new Notification(title, { body, icon: '' });
+            new Notification(title, { body, icon: "" });
         }
     }
 
@@ -225,10 +242,10 @@ class WheelController {
             { text: "Успех", color: "#4ADE80" },
             { text: "Нюхать", color: "#86EFAC" },
             { text: "Окно", color: "#60A5FA" },
-            { text: "Уборка", color: "#C084FC" }
+            { text: "Уборка", color: "#C084FC" },
         ];
-        this.canvas = document.getElementById('wheelCanvas');
-        if (this.canvas) this.ctx = this.canvas.getContext('2d');
+        this.canvas = document.getElementById("wheelCanvas");
+        if (this.canvas) this.ctx = this.canvas.getContext("2d");
     }
 
     draw() {
@@ -287,13 +304,13 @@ class WheelController {
 
         // 2. Save to Store (Instantly - guarantees data persistence)
         Store.addToWheelHistory(result);
-        
+
         // Update UI counter immediately if on Wheel tab
-        const countEl = document.getElementById('wheelHistoryCount');
+        const countEl = document.getElementById("wheelHistoryCount");
         if (countEl) countEl.textContent = Store.data.wheel.history.length;
-        
+
         // Show Result Text immediately
-        const resEl = document.getElementById('wheelResult');
+        const resEl = document.getElementById("wheelResult");
         if (resEl) resEl.textContent = `🎉 ${result}`;
 
         // 3. Visual Animation (Async, Non-blocking)
@@ -326,5 +343,105 @@ class WheelController {
             };
             requestAnimationFrame(animate);
         });
+    }
+}
+
+/**
+ * ------------------------------------------------------------------
+ * NOTIFICATION SCHEDULER
+ * ------------------------------------------------------------------
+ */
+class NotificationScheduler {
+    constructor() {
+        this.checkInterval = null;
+    }
+
+    init() {
+        // Проверяем каждые 30 секунд
+        this.checkInterval = setInterval(() => this.check(), 30000);
+        // Первый запуск сразу (небольшая задержка)
+        setTimeout(() => this.check(), 2000);
+        console.log("Notification Scheduler Started");
+    }
+
+    stop() {
+        if (this.checkInterval) clearInterval(this.checkInterval);
+    }
+
+    check() {
+        if (!Store.data.notifications || Store.data.notifications.length === 0)
+            return;
+
+        const now = Date.now();
+        const toTrigger = Store.data.notifications.filter(
+            (n) => n.nextTrigger <= now
+        );
+
+        toTrigger.forEach((notif) => {
+            // Срабатываем
+            this.fire(notif);
+
+            // Обновляем время следующего срабатывания
+            Store.updateNotificationTrigger(notif.id);
+
+            // Сбрасываем статус клика, так как это новое срабатывание
+            // (или оставляем старый, если хотим историю)
+            // Давайте сбросим для чистоты:
+            const n = Store.data.notifications.find((x) => x.id === notif.id);
+            if (n) {
+                n.wasClicked = false;
+                n.lastTrigger = now; // Обновляем время срабатывания
+                Store.save();
+            }
+        });
+
+        // Обновляем UI
+        if (UI.renderNotificationsList) UI.renderNotificationsList();
+    }
+
+    fire(notif) {
+        if ("Notification" in window && Notification.permission === "granted") {
+            const options = {
+                body: `Интервал: ${notif.interval} мин. Нажмите, чтобы открыть приложение.`,
+                requireInteraction: true, // Не исчезает
+                tag: `notif-${notif.id}` // Группировка
+            };
+
+            const notification = new Notification(notif.title, options);
+
+            // ОБРАБОТЧИК КЛИКА: Открывает новое окно
+            notification.onclick = () => {
+                // 1. Открываем новое окно (или вкладку)
+                // _blank может открыться как новая вкладка, зависит от браузера
+                const newWin = window.open(window.location.href, '_blank', 'width=500,height=800');
+
+                // 2. Пытаемся фокусировать (на случай, если это была вкладка)
+                if (newWin) {
+                    try { newWin.focus(); } catch (e) { }
+                }
+
+                // 3. Помечаем в базе как "отвечено"
+                Store.markNotificationAsClicked(notif.id);
+
+                // 4. Обновляем UI списка
+                if (UI.renderNotificationsList) UI.renderNotificationsList();
+
+                // 5. Останавливаем мигание заголовка
+                UI.stopFlashTitle();
+
+                // 6. Закрываем системное уведомление
+                notification.close();
+            };
+
+            // Логика "Важно" (мигание и звук)
+            if (notif.isImportant) {
+                AudioEngine.playBeep();
+                setTimeout(() => AudioEngine.playBeep(), 250);
+                if (UI.flashTitle) UI.flashTitle("ВАЖНОЕ УВЕДОМЛЕНИЕ");
+
+                // Пробуем фокус текущую вкладку (может не сработать, но попробуем)
+                window.focus();
+            }
+        }
     }
 }

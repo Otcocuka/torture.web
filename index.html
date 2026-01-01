@@ -25,6 +25,10 @@
                     class="nav-btn px-4 py-2 rounded-md text-sm font-medium transition-standard hover:bg-white hover:shadow-sm text-gray-600">Статистика</button>
                 <button data-nav="view-todo"
                     class="nav-btn px-4 py-2 rounded-md text-sm font-medium transition-standard hover:bg-white hover:shadow-sm text-gray-600">TODO</button>
+                <button data-nav="view-notifications"
+                    class="nav-btn px-4 py-2 rounded-md text-sm font-medium transition-standard hover:bg-white hover:shadow-sm text-gray-600">
+                    <span>🔔</span> Уведомления
+                </button>
             </div>
         </div>
     </nav>
@@ -233,6 +237,50 @@
                 <div id="kanbanBoard" class="flex gap-4 overflow-x-auto pb-4 min-h-[500px] items-start">
                     <!-- Columns will be rendered here -->
                 </div>
+            </div>
+        </div>
+
+
+
+        <!-- 6. notifications VIEW -->
+        <div id="view-notifications" class="app-view hidden p-6 max-w-4xl mx-auto">
+            <h2 class="text-2xl font-bold mb-4">Гибкие уведомления</h2>
+            <!-- Вставьте внутрь <div id="view-notifications"> -->
+            <div class="bg-yellow-50 border border-yellow-200 text-yellow-800 p-3 rounded text-sm mb-4">
+                <strong>ℹ️ Как работает фокус:</strong> Браузеры запрещают автоматическое переключение вкладок из
+                соображений безопасности.
+                Вместо этого при срабатывании "Важного" уведомления откроется <strong>новое окно/вкладка</strong> с
+                приложением.
+                Если вкладка была свернута, вы увидите мигающий заголовок и услышите звук.
+            </div>
+            <!-- Форма добавления -->
+            <div class="bg-white p-4 rounded-lg shadow-sm mb-6 border border-gray-200">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Название</label>
+                        <input id="notifTitle" type="text" placeholder="Напоминание" class="w-full border p-2 rounded">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Каждые (мин)</label>
+                        <input id="notifInterval" type="number" value="20" min="1" class="w-full border p-2 rounded">
+                    </div>
+                    <div class="flex items-center gap-2 h-10">
+                        <label class="flex items-center gap-2 cursor-pointer select-none">
+                            <input id="notifImportant" type="checkbox" class="rounded text-red-500 w-5 h-5">
+                            <span class="font-medium text-red-600">Важно!</span>
+                        </label>
+                    </div>
+                    <button id="addNotifBtn"
+                        class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 font-medium">Добавить</button>
+                </div>
+                <div class="text-xs text-gray-500 mt-2">
+                    * Важные уведомления попытаются развернуть вкладку и заставят заголовок мигать.
+                </div>
+            </div>
+
+            <!-- Список уведомлений -->
+            <div id="notificationsList" class="space-y-2">
+                <!-- JS заполнит список -->
             </div>
         </div>
 
