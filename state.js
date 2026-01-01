@@ -14,13 +14,10 @@ const Store = {
             stats: { totalSessions: 0, totalWork: 0, totalBreak: 0, totalPaused: 0 },
             settings: { work: 25, short: 5, long: 15, longCycle: 4 },
         },
+        pomodoroState: null, // {isRunning, isWorking, timeLeft, cycles, endTime}
         wheel: { history: [] },
         appStats: { totalUptime: 0, lastSeen: Date.now() },
-        // НОВОЕ: Структура для Kanban
-        kanban: {
-            columns: [], // { id, title }
-            cards: [], // { id, columnId, title, description }
-        },
+        kanban: { columns: [], cards: [] },
         notifications: [],
     },
 
@@ -30,40 +27,30 @@ const Store = {
             if (raw) {
                 const parsed = JSON.parse(raw);
 
-                // Загрузка стандартных полей
                 this.data.habits = parsed.habits || [];
                 this.data.achievements = parsed.achievements || [];
-                this.data.habitSettings = {
-                    ...this.data.habitSettings,
-                    ...parsed.habitSettings,
-                };
+                this.data.habitSettings = { ...this.data.habitSettings, ...parsed.habitSettings };
                 this.data.tempSubtasks = parsed.tempSubtasks || [];
 
                 if (parsed.pomodoro) {
-                    this.data.pomodoro.stats = {
-                        ...this.data.pomodoro.stats,
-                        ...parsed.pomodoro.stats,
-                    };
-                    this.data.pomodoro.settings = {
-                        ...this.data.pomodoro.settings,
-                        ...parsed.pomodoro.settings,
-                    };
+                    this.data.pomodoro.stats = { ...this.data.pomodoro.stats, ...parsed.pomodoro.stats };
+                    this.data.pomodoro.settings = { ...this.data.pomodoro.settings, ...parsed.pomodoro.settings };
                 }
-                this.data.wheel.history = parsed.wheel?.history || [];
+                
+                // Восстановление состояния таймера
+                this.data.pomodoroState = parsed.pomodoroState || null;
 
-                // Загрузка Kanban (с миграцией)
+                this.data.wheel.history = parsed.wheel?.history || [];
+                
+                // Kanban
                 if (parsed.kanban) {
                     this.data.kanban = parsed.kanban;
                 } else {
-                    // Если нет данных, инициализируем дефолтные колонки для примера
-                    this.data.kanban = {
-                        columns: [
-                            { id: 1, title: "Бэклог" },
-                            { id: 2, title: "В работе" },
-                        ],
-                        cards: [],
-                    };
+                    this.data.kanban = { columns: [], cards: [] };
                 }
+
+                // Notifications
+                this.data.notifications = parsed.notifications || [];
 
                 // App Stats
                 if (!parsed.appStats) {
@@ -73,21 +60,9 @@ const Store = {
                     this.data.appStats.lastSeen = Date.now();
                 }
 
-                console.log("Данные загружены из LocalStorage.");
                 return true;
-            } else {
-                console.log("LocalStorage пуст.");
-                // Инициализация Kanban по умолчанию
-                this.data.kanban = {
-                    columns: [
-                        { id: 1, title: "Бэклог" },
-                        { id: 2, title: "В работе" },
-                    ],
-                    cards: [],
-                };
-                this.data.appStats = { totalUptime: 0, lastSeen: Date.now() };
-                return false;
             }
+            return false;
         } catch (e) {
             console.error("Ошибка загрузки:", e);
             return false;
@@ -110,54 +85,39 @@ const Store = {
             count: 0,
             goal: this.data.habitSettings.goal,
             color: this.data.habitSettings.color,
-            subtasks: this.data.tempSubtasks.map((st) => ({ ...st, dates: [] })),
+            subtasks: this.data.tempSubtasks.map(st => ({ ...st, dates: [] })),
             history: [],
         });
         this.data.tempSubtasks = [];
         this.save();
     },
     deleteHabit(id) {
-        this.data.habits = this.data.habits.filter((h) => h.id !== id);
+        this.data.habits = this.data.habits.filter(h => h.id !== id);
         this.save();
     },
     incrementHabit(id) {
-        const habit = this.data.habits.find((h) => h.id === id);
+        const habit = this.data.habits.find(h => h.id === id);
         if (!habit) return;
-
         habit.count++;
-        const today = new Date().toISOString().split("T")[0];
-        const completedIds = habit.subtasks
-            .filter((st) => st.completed)
-            .map((st) => st.id);
+        const today = new Date().toISOString().split('T')[0];
+        const completedIds = habit.subtasks.filter(st => st.completed).map(st => st.id);
         habit.history.push({ date: today, subtasks: completedIds });
-
-        habit.subtasks.forEach((st) => {
+        habit.subtasks.forEach(st => {
             if (st.completed) {
                 st.dates = st.dates || [];
                 st.dates.push(today);
                 st.completed = false;
             }
         });
-
-        if (
-            habit.count >= habit.goal &&
-            !this.data.achievements.some((a) => a.name === habit.name)
-        ) {
-            this.data.achievements.push({
-                name: habit.name,
-                goal: habit.goal,
-                date: today,
-            });
-            this.save();
-            return true;
+        if (habit.count >= habit.goal && !this.data.achievements.some(a => a.name === habit.name)) {
+            this.data.achievements.push({ name: habit.name, goal: habit.goal, date: today });
         }
         this.save();
-        return false;
     },
     toggleSubtask(habitId, subtaskId, status) {
-        const habit = this.data.habits.find((h) => h.id === habitId);
+        const habit = this.data.habits.find(h => h.id === habitId);
         if (habit) {
-            const st = habit.subtasks.find((s) => s.id === subtaskId);
+            const st = habit.subtasks.find(s => s.id === subtaskId);
             if (st) st.completed = status;
             this.save();
         }
@@ -165,10 +125,7 @@ const Store = {
 
     // --- POMODORO ---
     updatePomodoroSettings(settings) {
-        this.data.pomodoro.settings = {
-            ...this.data.pomodoro.settings,
-            ...settings,
-        };
+        this.data.pomodoro.settings = { ...this.data.pomodoro.settings, ...settings };
         this.save();
     },
     updatePomodoroStats(type, value) {
@@ -176,77 +133,57 @@ const Store = {
         this.save();
     },
     resetPomodoroStats() {
-        this.data.pomodoro.stats = {
-            totalSessions: 0,
-            totalWork: 0,
-            totalBreak: 0,
-            totalPaused: 0,
-        };
+        this.data.pomodoro.stats = { totalSessions: 0, totalWork: 0, totalBreak: 0, totalPaused: 0 };
+        this.save();
+    },
+    savePomodoroState(state) {
+        this.data.pomodoroState = { ...state, interval: null };
+        this.save();
+    },
+    clearPomodoroState() {
+        this.data.pomodoroState = null;
         this.save();
     },
 
     // --- WHEEL ---
     addToWheelHistory(activity) {
-        this.data.wheel.history.push({
-            activity,
-            date: new Date().toISOString(),
-        });
+        this.data.wheel.history.push({ activity, date: new Date().toISOString() });
         this.save();
     },
 
-    // --- APP STATS (UPTIME) ---
+    // --- APP STATS ---
     updateAppUptime(seconds) {
-        if (!this.data.appStats) {
-            this.data.appStats = { totalUptime: 0, lastSeen: Date.now() };
-        }
+        if (!this.data.appStats) this.data.appStats = { totalUptime: 0, lastSeen: Date.now() };
         this.data.appStats.totalUptime += seconds;
         this.data.appStats.lastSeen = Date.now();
     },
     getAppUptime() {
-        if (!this.data.appStats) return 0;
-        return this.data.appStats.totalUptime;
+        return this.data.appStats?.totalUptime || 0;
     },
 
-    // --- KANBAN (TODO) ---
+    // --- KANBAN ---
     addKanbanColumn(title) {
-        const id = Date.now();
-        this.data.kanban.columns.push({ id, title });
+        this.data.kanban.columns.push({ id: Date.now(), title });
         this.save();
     },
-
     addKanbanCard(columnId, title, description) {
-        this.data.kanban.cards.push({
-            id: Date.now(),
-            columnId: parseInt(columnId),
-            title,
-            description,
-        });
+        this.data.kanban.cards.push({ id: Date.now(), columnId: parseInt(columnId), title, description });
         this.save();
     },
-
     moveKanbanCard(cardId, newColumnId) {
-        const card = this.data.kanban.cards.find((c) => c.id === cardId);
+        const card = this.data.kanban.cards.find(c => c.id === cardId);
         if (card) {
             card.columnId = newColumnId;
             this.save();
         }
     },
-
     deleteKanbanColumn(columnId) {
-        // Удаляем колонку и все карточки в ней
-        this.data.kanban.columns = this.data.kanban.columns.filter(
-            (c) => c.id !== columnId
-        );
-        this.data.kanban.cards = this.data.kanban.cards.filter(
-            (c) => c.columnId !== columnId
-        );
+        this.data.kanban.columns = this.data.kanban.columns.filter(c => c.id !== columnId);
+        this.data.kanban.cards = this.data.kanban.cards.filter(c => c.columnId !== columnId);
         this.save();
     },
-
     deleteKanbanCard(cardId) {
-        this.data.kanban.cards = this.data.kanban.cards.filter(
-            (c) => c.id !== cardId
-        );
+        this.data.kanban.cards = this.data.kanban.cards.filter(c => c.id !== cardId);
         this.save();
     },
 
@@ -259,29 +196,25 @@ const Store = {
             isImportant: !!isImportant,
             lastTrigger: Date.now(),
             nextTrigger: Date.now() + parseInt(interval) * 60000,
-            wasClicked: false // НОВОЕ: статус ответа
+            wasClicked: false
         };
         this.data.notifications.push(notif);
         this.save();
         return notif;
     },
-
     deleteNotification(id) {
         this.data.notifications = this.data.notifications.filter(n => n.id !== id);
         this.save();
     },
-
     updateNotificationTrigger(id) {
         const notif = this.data.notifications.find(n => n.id === id);
         if (notif) {
             notif.lastTrigger = Date.now();
             notif.nextTrigger = Date.now() + notif.interval * 60000;
-            notif.wasClicked = false; // Сбрасываем при новом срабатывании
+            notif.wasClicked = false;
             this.save();
         }
     },
-
-    // НОВЫЙ МЕТОД: Пометить как "отвечено"
     markNotificationAsClicked(id) {
         const notif = this.data.notifications.find(n => n.id === id);
         if (notif) {
