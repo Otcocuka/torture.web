@@ -395,7 +395,7 @@ const UI = {
         };
     },
 
-    // --- TODO/KANBAN UI (С ПЕРЕТАСКИВАНИЕМ КОЛОНОК) ---
+    // --- TODO/KANBAN UI (С ПЕРЕТАСКИВАНИЕМ КОЛОНОК И РЕДАКТИРОВАНИЕМ КАРТОЧЕК) ---
     bindTodoEvents() {
         // Добавление колонки
         document.getElementById('addKanbanColBtn')?.addEventListener('click', () => {
@@ -420,7 +420,7 @@ const UI = {
             };
         });
 
-        // Обработка событий внутри доски (Drag & Drop для колонок и карточек)
+        // Обработка событий внутри доски (Drag & Drop + Click)
         const board = document.getElementById('kanbanBoard');
         if (board) {
             // --- DRAG START ---
@@ -543,7 +543,7 @@ const UI = {
                 }
             });
 
-            // --- ОБРАБОТЧИКИ КЛИКОВ (Для удаления и добавления) ---
+            // --- ОБРАБОТЧИКИ КЛИКОВ (Для добавления/удаления/РЕДАКТИРОВАНИЯ) ---
             board.addEventListener('click', (e) => {
                 const btn = e.target.closest('button');
                 if (!btn) return;
@@ -572,6 +572,38 @@ const UI = {
                             this.renderKanban();
                         }
                     };
+                }
+
+                // Редактирование карточки (НОВАЯ ЛОГИКА)
+                if (btn.dataset.action === 'edit-card') {
+                    const cardId = btn.dataset.cardId;
+                    const card = Store.data.kanban.cards.find(c => c.id == cardId);
+                    if (card) {
+                        this.renderModal('editCard', `
+                            <div class="bg-white rounded-lg p-6 w-80 shadow-xl">
+                                <h3 class="font-bold text-lg mb-4">Редактировать задачу</h3>
+                                <input id="editCardTitle" type="text" placeholder="Заголовок" value="${card.title}" class="w-full border p-2 rounded mb-2">
+                                <textarea id="editCardDesc" placeholder="Описание" class="w-full border p-2 rounded mb-4 h-24">${card.description || ''}</textarea>
+                                <div class="flex justify-end gap-2">
+                                    <button data-close-modal class="px-3 py-1 rounded hover:bg-gray-100">Отмена</button>
+                                    <button id="saveEditedCard" class="px-3 py-1 bg-blue-500 text-white rounded">Сохранить</button>
+                                </div>
+                            </div>
+                        `);
+
+                        // Сохранение изменений
+                        document.getElementById('saveEditedCard').onclick = () => {
+                            const newTitle = document.getElementById('editCardTitle').value.trim();
+                            const newDesc = document.getElementById('editCardDesc').value.trim();
+                            if (newTitle) {
+                                card.title = newTitle;
+                                card.description = newDesc;
+                                Store.save();
+                                this.closeModal('editCard');
+                                this.renderKanban();
+                            }
+                        };
+                    }
                 }
 
                 // Удаление колонки
@@ -626,10 +658,14 @@ const UI = {
                                  data-card-id="${card.id}" 
                                  data-column-id="${col.id}">
                                 <div class="flex justify-between items-start mb-1">
-                                    <span class="font-semibold text-sm text-gray-800">${card.title}</span>
-                                    <button data-action="delete-card" data-card-id="${card.id}" class="text-gray-300 hover:text-red-500 text-xs">×</button>
+                                    <span class="font-semibold text-sm text-gray-800 card-title">${card.title}</span>
+                                    <div class="flex gap-1">
+                                        <!-- Кнопка редактирования -->
+                                        <button data-action="edit-card" data-card-id="${card.id}" class="text-blue-400 hover:text-blue-600 text-xs px-1" title="Редактировать">✏️</button>
+                                        <button data-action="delete-card" data-card-id="${card.id}" class="text-gray-300 hover:text-red-500 text-xs px-1">×</button>
+                                    </div>
                                 </div>
-                                ${card.description ? `<div class="text-xs text-gray-500">${card.description}</div>` : ''}
+                                ${card.description ? `<div class="text-xs text-gray-500 card-desc">${card.description}</div>` : ''}
                             </div>
                         `).join('') : '<div class="text-xs text-gray-400 text-center py-2">Пусто</div>'}
                     </div>

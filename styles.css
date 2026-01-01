@@ -183,3 +183,11 @@
 .bg-blue-50 {
     background-color: #eff6ff !important; 
 }
+
+
+.kanban-card .card-title,
+.kanban-card .card-desc {
+    user-select: text;
+    -webkit-user-select: text;
+    cursor: text;
+}
