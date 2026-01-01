@@ -239,8 +239,16 @@ document.addEventListener('keydown', ...) на Escape закрывает люб�
 
 
 todo:
+second brain features=>learning module(books first, then other sources):
+-first adding the source
+-tracking inside module(time spent, pages, etc.) 
 
 
+
+
+
+-llm comments on that(late stage, with api)
+-quizes after reading(hooks on start and end of reading, simple knowledge-check questions like on w3)
 
 
 
