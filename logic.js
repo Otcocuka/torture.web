@@ -25,6 +25,38 @@ const AudioEngine = {
     }
 };
 
+
+/**
+ * ------------------------------------------------------------------
+ * READER FILE LOADER
+ * ------------------------------------------------------------------
+ */
+const FileReaderUtil = {
+    read(file) {
+        return new Promise((resolve, reject) => {
+            if (!file) return reject("Файл не выбран");
+
+            // Лимит 2MB
+            if (file.size > 2 * 1024 * 1024) return reject("Файл > 2MB");
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const text = e.target.result;
+                // Проверяем, что текст не пустой
+                if (text && text.trim().length > 0) resolve(text.trim());
+                else reject("Файл пустой");
+            };
+            reader.onerror = () => reject("Ошибка чтения файла");
+            reader.readAsText(file);
+        });
+    },
+    countWords(text) {
+        if (!text) return 0;
+        // Считаем слова, игнорируя лишние пробелы
+        return text.trim().split(/\s+/).length;
+    }
+};
+
 /**
  * ------------------------------------------------------------------
  * POMODORO CONTROLLER (FIXED)
@@ -44,15 +76,15 @@ class PomodoroController {
 
     init() {
         const saved = Store.loadPomodoroState();
-        
+
         // Если есть сохраненное состояние и время еще не вышло
         if (saved && saved.timeLeft > 0) {
             this.state = { ...saved, interval: null };
-            
+
             if (this.state.isRunning) {
                 const now = Date.now();
                 const diff = Math.floor((this.state.endTime - now) / 1000);
-                
+
                 if (diff <= 0) {
                     // Время вышло пока страницы не было, запускаем смену фазы
                     this.resetTimer(true); // true = не показывать уведомление повторно
@@ -98,7 +130,7 @@ class PomodoroController {
 
         clearInterval(this.state.interval);
         this.state.interval = setInterval(() => this.tick(), 1000);
-        
+
         Store.savePomodoroState(this.state);
         UI.Timer.toggleControls(true);
     }
@@ -177,9 +209,9 @@ class PomodoroController {
             AudioEngine.playBeep();
             UI.Timer.updateDisplay(this.state.timeLeft, this.state.isWorking);
         }
-        
+
         Store.savePomodoroState(this.state);
-        
+
         // Обновить UI, если вкладка была неактивна
         UI.Timer.toggleControls(false);
     }
@@ -198,7 +230,7 @@ class PomodoroController {
             else Store.updatePomodoroStats('totalBreak', 1);
 
             UI.Timer.updateDisplay(this.state.timeLeft, this.state.isWorking);
-            
+
             // Сохраняем каждую секунду (безопасно для простоты)
             Store.savePomodoroState(this.state);
         }
@@ -370,10 +402,10 @@ class NotificationScheduler {
             missed.forEach(notif => {
                 Store.updateNotificationTrigger(notif.id);
             });
-            
+
             // Обновляем UI
             if (UI.renderNotificationsList) UI.renderNotificationsList();
-            
+
             console.log(`Найдено ${missed.length} пропущенных уведомлений, время обновлено.`);
         }
     }

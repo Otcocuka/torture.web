@@ -21,14 +21,18 @@
                     class="nav-btn px-4 py-2 rounded-md text-sm font-medium transition-standard hover:bg-white hover:shadow-sm text-gray-600">Таймер</button>
                 <button data-nav="view-wheel"
                     class="nav-btn px-4 py-2 rounded-md text-sm font-medium transition-standard hover:bg-white hover:shadow-sm text-gray-600">Колесо</button>
-                <button data-nav="view-stats"
-                    class="nav-btn px-4 py-2 rounded-md text-sm font-medium transition-standard hover:bg-white hover:shadow-sm text-gray-600">Статистика</button>
                 <button data-nav="view-todo"
                     class="nav-btn px-4 py-2 rounded-md text-sm font-medium transition-standard hover:bg-white hover:shadow-sm text-gray-600">TODO</button>
                 <button data-nav="view-notifications"
                     class="nav-btn px-4 py-2 rounded-md text-sm font-medium transition-standard hover:bg-white hover:shadow-sm text-gray-600">
                     <span>🔔</span> Уведомления
                 </button>
+                <button data-nav="view-reader"
+                    class="nav-btn px-4 py-2 rounded-md text-sm font-medium transition-standard hover:bg-white hover:shadow-sm text-gray-600">📖
+                    Читалка</button>
+                <button data-nav="view-stats"
+                    class="nav-btn px-4 py-2 rounded-md text-sm font-medium transition-standard hover:bg-white hover:shadow-sm text-gray-600">Статистика</button>
+
             </div>
         </div>
     </nav>
@@ -281,6 +285,72 @@
             <!-- Список уведомлений -->
             <div id="notificationsList" class="space-y-2">
                 <!-- JS заполнит список -->
+            </div>
+        </div>
+
+
+        <!-- 7. reader VIEW -->
+        <div id="view-reader" class="app-view hidden p-6 max-w-6xl mx-auto w-full h-[calc(100vh-180px)]">
+            <div class="flex flex-col gap-4 h-full">
+
+                <!-- 1. Управление файлом -->
+                <div
+                    class="bg-white p-4 rounded-lg shadow-sm flex flex-wrap gap-4 items-center justify-between shrink-0">
+                    <div class="flex gap-2 items-center">
+                        <input type="file" id="readerFileInput" accept=".txt,.md,.html" class="hidden">
+                        <button id="readerLoadBtn" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">📂
+                            Загрузить файл</button>
+                        <button id="readerClearBtn"
+                            class="bg-red-50 text-red-600 px-4 py-2 rounded hover:bg-red-100">🗑️ Очистить</button>
+                    </div>
+                    <div class="flex gap-3 items-center text-sm">
+                        <label>Шрифт: <select id="readerFontSize" class="border rounded p-1 w-20">
+                                <option value="16">16</option>
+                                <option value="20" selected>20</option>
+                                <option value="24">24</option>
+                                <option value="28">28</option>
+                            </select></label>
+                        <label>Тема: <select id="readerTheme" class="border rounded p-1">
+                                <option value="light">Светлая</option>
+                                <option value="dark" selected>Темная</option>
+                            </select></label>
+                    </div>
+                </div>
+
+                <!-- 2. Область чтения -->
+                <div id="readerContent"
+                    class="flex-1 bg-gray-900 text-gray-100 p-8 rounded-lg overflow-y-auto shadow-inner transition-colors duration-300">
+                    <div class="text-gray-500 text-center mt-20">Загрузите файл для чтения</div>
+                </div>
+
+                <!-- 3. Панель сессии и статистики -->
+                <div class="bg-white p-4 rounded-lg shadow-sm shrink-0">
+                    <div class="flex justify-between items-center mb-3">
+                        <div class="flex gap-2">
+                            <button id="readerStartSession"
+                                class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">▶️ Начать
+                                сессию</button>
+                            <button id="readerStopSession"
+                                class="hidden bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">⏹️
+                                Завершить</button>
+                        </div>
+                        <div class="text-right">
+                            <button id="readerQuizBtn"
+                                class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">🧠 Сгенерировать
+                                квиз</button>
+                        </div>
+                    </div>
+
+                    <!-- Блок статистики (обновляется динамически) -->
+                    <div id="readerSessionStats" class="text-xs text-gray-500 bg-gray-50 p-2 rounded flex gap-4 hidden">
+                        <span>⏳ Время: <b id="sessionTime">00:00</b></span>
+                        <span>📊 Прочитано: <b id="sessionWords">0</b> слов</span>
+                        <span>📍 Прогресс: <b id="sessionProgress">0%</b></span>
+                    </div>
+
+                    <!-- История сессий -->
+                    <div id="readerHistory" class="mt-3 text-xs text-gray-400 max-h-16 overflow-y-auto"></div>
+                </div>
             </div>
         </div>
 

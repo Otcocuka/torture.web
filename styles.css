@@ -191,3 +191,33 @@
     -webkit-user-select: text;
     cursor: text;
 }
+
+
+
+/* Добавить в конец файла */
+#readerContent {
+    font-family: 'Georgia', serif;
+    line-height: 1.7;
+    scroll-behavior: smooth;
+    /* Плавный скролл */
+}
+
+#readerContent::-webkit-scrollbar { width: 8px; }
+#readerContent::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+
+/* Темы */
+.reader-theme-light {
+    background-color: #f8fafc !important; /* Очень светлый серый */
+    color: #1e293b !important;
+}
+
+.reader-theme-dark {
+    background-color: #0f172a !important; /* Темно-синий/серый */
+    color: #e2e8f0 !important;
+}
+
+/* Контейнер текста, чтобы не было в ширину на весь экран */
+.reader-text-container {
+    max-width: 700px;
+    margin: 0 auto;
+}

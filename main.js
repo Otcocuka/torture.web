@@ -52,7 +52,7 @@ window.addEventListener('DOMContentLoaded', () => {
     // 1. Загрузка данных
     Store.load();
 
-    // 2. Инициализация трекера времени
+    // 2. Инициализация трекера
     AppTracker.init();
 
     // 3. Создание контроллеров
@@ -62,28 +62,24 @@ window.addEventListener('DOMContentLoaded', () => {
         scheduler: new NotificationScheduler()
     };
 
-    // 4. Инициализация UI (включая навешивание событий)
+    // 4. Инициализация UI (ВАЖНО: bindReaderEvents сработает здесь)
     UI.init();
 
-    // 5. Восстановление Pomodoro (после UI)
+    // 5. Восстановление Pomodoro
     window.Controllers.pomodoro.init();
 
-    // 6. Восстановление Notifications (после UI)
+    // 6. Восстановление Notifications
     window.Controllers.scheduler.init();
 
-    // 7. Заполнение настроек в полях
+    // 7. Заполнение настроек Pomodoro
     const s = Store.data.pomodoro.settings;
-    const wIn = document.getElementById('settingWork');
-    if (wIn) wIn.value = s.work;
-    const shIn = document.getElementById('settingShort');
-    if (shIn) shIn.value = s.short;
-    const lIn = document.getElementById('settingLong');
-    if (lIn) lIn.value = s.long;
-    const cIn = document.getElementById('settingCycle');
-    if (cIn) cIn.value = s.longCycle;
+    const wIn = document.getElementById('settingWork'); if (wIn) wIn.value = s.work;
+    const shIn = document.getElementById('settingShort'); if (shIn) shIn.value = s.short;
+    const lIn = document.getElementById('settingLong'); if (lIn) lIn.value = s.long;
+    const cIn = document.getElementById('settingCycle'); if (cIn) cIn.value = s.longCycle;
 
-    // 8. Первоначальный рендер
+    // 8. Первоначальный рендер (добавляем рендер читалки если нужно, но UI.init уже все сделал)
     UI.renderHabits();
     UI.updateStats();
-    window.Controllers.wheel.draw();
+    if (window.Controllers && window.Controllers.wheel) window.Controllers.wheel.draw();
 });

@@ -14,11 +14,16 @@ const Store = {
             stats: { totalSessions: 0, totalWork: 0, totalBreak: 0, totalPaused: 0 },
             settings: { work: 25, short: 5, long: 15, longCycle: 4 },
         },
-        pomodoroState: null, // {isRunning, isWorking, timeLeft, cycles, endTime}
+        pomodoroState: null, 
         wheel: { history: [] },
         appStats: { totalUptime: 0, lastSeen: Date.now() },
         kanban: { columns: [], cards: [] },
         notifications: [],
+        reader: {
+            activeFileId: null, 
+            files: [],          
+            settings: { fontSize: 20, theme: 'dark' }
+        },
     },
 
     load() {
@@ -26,31 +31,39 @@ const Store = {
             const raw = localStorage.getItem(this.key);
             if (raw) {
                 const parsed = JSON.parse(raw);
-
+                
+                // Merge basics
                 this.data.habits = parsed.habits || [];
                 this.data.achievements = parsed.achievements || [];
                 this.data.habitSettings = { ...this.data.habitSettings, ...parsed.habitSettings };
                 this.data.tempSubtasks = parsed.tempSubtasks || [];
-
+                
+                // Merge Pomodoro
                 if (parsed.pomodoro) {
                     this.data.pomodoro.stats = { ...this.data.pomodoro.stats, ...parsed.pomodoro.stats };
                     this.data.pomodoro.settings = { ...this.data.pomodoro.settings, ...parsed.pomodoro.settings };
                 }
-                
-                // Восстановление состояния таймера
                 this.data.pomodoroState = parsed.pomodoroState || null;
 
+                // Merge Wheel
                 this.data.wheel.history = parsed.wheel?.history || [];
-                
-                // Kanban
+
+                // Merge Kanban
                 if (parsed.kanban) {
                     this.data.kanban = parsed.kanban;
                 } else {
                     this.data.kanban = { columns: [], cards: [] };
                 }
 
-                // Notifications
+                // Merge Notifications
                 this.data.notifications = parsed.notifications || [];
+
+                // Merge Reader (CRITICAL: Preserve old data if structure matches)
+                if (parsed.reader) {
+                    this.data.reader.activeFileId = parsed.reader.activeFileId || null;
+                    this.data.reader.files = parsed.reader.files || [];
+                    this.data.reader.settings = { ...this.data.reader.settings, ...parsed.reader.settings };
+                }
 
                 // App Stats
                 if (!parsed.appStats) {
@@ -59,7 +72,6 @@ const Store = {
                     this.data.appStats = { totalUptime: 0, ...parsed.appStats };
                     this.data.appStats.lastSeen = Date.now();
                 }
-
                 return true;
             }
             return false;
@@ -221,5 +233,68 @@ const Store = {
             notif.wasClicked = true;
             this.save();
         }
-    }
+    },
+
+    // --- READER ---
+    // Добавленный метод для поиска активного файла
+    getActiveFile() {
+        if (!this.data.reader.activeFileId) return null;
+        return this.data.reader.files.find(f => f.id === this.data.reader.activeFileId) || null;
+    },
+
+    addReaderFile(name, content) {
+        const id = Date.now() + Math.random();
+        this.data.reader.files.push({
+            id,
+            name,
+            content,
+            progress: { scrollTop: 0 },
+            stats: { totalTime: 0, totalSessions: 0, sessionsHistory: [] }
+        });
+        // Не ставим активным сразу, даем пользователю выбрать
+        this.save();
+        return id;
+    },
+    getReaderFiles() {
+        return this.data.reader.files;
+    },
+    setActiveFile(id) {
+        if (this.data.reader.files.some(f => f.id === id)) {
+            this.data.reader.activeFileId = id;
+            this.save();
+        }
+    },
+    clearActiveFile() {
+        this.data.reader.activeFileId = null;
+        this.save();
+    },
+    deleteReaderFile(id) {
+        this.data.reader.files = this.data.reader.files.filter(f => f.id !== id);
+        if (this.data.reader.activeFileId === id) this.data.reader.activeFileId = null;
+        this.save();
+    },
+    updateReaderFileProgress(id, scrollTop) {
+        const file = this.data.reader.files.find(f => f.id === id);
+        if (file) {
+            file.progress.scrollTop = scrollTop;
+            this.save();
+        }
+    },
+    addReaderSessionToFile(id, timeSeconds, wordsCount) {
+        const file = this.data.reader.files.find(f => f.id === id);
+        if (file) {
+            file.stats.totalSessions++;
+            file.stats.totalTime += timeSeconds;
+            file.stats.sessionsHistory.push({
+                date: new Date().toISOString(),
+                time: timeSeconds,
+                words: wordsCount
+            });
+            this.save();
+        }
+    },
+    updateReaderSettings(settings) {
+        this.data.reader.settings = { ...this.data.reader.settings, ...settings };
+        this.save();
+    },
 };
