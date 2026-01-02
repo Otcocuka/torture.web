@@ -246,6 +246,11 @@ second brain features=>learning module(books first, then other sources):
 -tracking inside module(time spent, pages, etc.)- almost 
 
 
+-fix themes in reader
+-pay for an api key- dirty deeds done dirt cheap
+-working quizes is the goal
+
+
 
 
 
