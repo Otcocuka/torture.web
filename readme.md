@@ -246,6 +246,10 @@ second brain features=>learning module(books first, then other sources):
 -tracking inside module(time spent, pages, etc.)- almost 
 
 
+
+-footnotes on rightclick on text in reader
+-how much do i want this info to stay in my head quiz before(after) reading(tg note has more detail)
+
 -fix themes in reader
 -pay for an api key- dirty deeds done dirt cheap
 -working quizes is the goal
