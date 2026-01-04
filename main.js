@@ -62,7 +62,7 @@ window.addEventListener('DOMContentLoaded', () => {
         scheduler: new NotificationScheduler()
     };
 
-    // 4. Инициализация UI (ВАЖНО: bindReaderEvents сработает здесь)
+    // 4. Инициализация UI
     UI.init();
 
     // 5. Восстановление Pomodoro
@@ -78,7 +78,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const lIn = document.getElementById('settingLong'); if (lIn) lIn.value = s.long;
     const cIn = document.getElementById('settingCycle'); if (cIn) cIn.value = s.longCycle;
 
-    // 8. Первоначальный рендер (добавляем рендер читалки если нужно, но UI.init уже все сделал)
+    // 8. Первоначальный рендер
     UI.renderHabits();
     UI.updateStats();
     if (window.Controllers && window.Controllers.wheel) window.Controllers.wheel.draw();

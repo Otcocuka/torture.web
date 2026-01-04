@@ -14,15 +14,19 @@ const Store = {
             stats: { totalSessions: 0, totalWork: 0, totalBreak: 0, totalPaused: 0 },
             settings: { work: 25, short: 5, long: 15, longCycle: 4 },
         },
-        pomodoroState: null, 
+        pomodoroState: null,
         wheel: { history: [] },
         appStats: { totalUptime: 0, lastSeen: Date.now() },
         kanban: { columns: [], cards: [] },
         notifications: [],
         reader: {
-            activeFileId: null, 
-            files: [],          
+            activeFileId: null,
+            files: [],
             settings: { fontSize: 20, theme: 'dark' }
+        },
+        chat: {
+            messages: [],
+            isTyping: false
         },
     },
 
@@ -31,13 +35,13 @@ const Store = {
             const raw = localStorage.getItem(this.key);
             if (raw) {
                 const parsed = JSON.parse(raw);
-                
+
                 // Merge basics
                 this.data.habits = parsed.habits || [];
                 this.data.achievements = parsed.achievements || [];
                 this.data.habitSettings = { ...this.data.habitSettings, ...parsed.habitSettings };
                 this.data.tempSubtasks = parsed.tempSubtasks || [];
-                
+
                 // Merge Pomodoro
                 if (parsed.pomodoro) {
                     this.data.pomodoro.stats = { ...this.data.pomodoro.stats, ...parsed.pomodoro.stats };
@@ -63,6 +67,12 @@ const Store = {
                     this.data.reader.activeFileId = parsed.reader.activeFileId || null;
                     this.data.reader.files = parsed.reader.files || [];
                     this.data.reader.settings = { ...this.data.reader.settings, ...parsed.reader.settings };
+                }
+
+                // Merge Chat
+                if (parsed.chat) {
+                    this.data.chat.messages = parsed.chat.messages || [];
+                    this.data.chat.isTyping = false;
                 }
 
                 // App Stats
@@ -236,12 +246,10 @@ const Store = {
     },
 
     // --- READER ---
-    // Добавленный метод для поиска активного файла
     getActiveFile() {
         if (!this.data.reader.activeFileId) return null;
         return this.data.reader.files.find(f => f.id === this.data.reader.activeFileId) || null;
     },
-
     addReaderFile(name, content) {
         const id = Date.now() + Math.random();
         this.data.reader.files.push({
@@ -251,7 +259,6 @@ const Store = {
             progress: { scrollTop: 0 },
             stats: { totalTime: 0, totalSessions: 0, sessionsHistory: [] }
         });
-        // Не ставим активным сразу, даем пользователю выбрать
         this.save();
         return id;
     },
@@ -297,4 +304,22 @@ const Store = {
         this.data.reader.settings = { ...this.data.reader.settings, ...settings };
         this.save();
     },
+
+    // --- CHAT ---
+    addChatMessage(role, content) {
+        this.data.chat.messages.push({
+            id: Date.now(),
+            role,
+            content,
+            timestamp: new Date().toLocaleTimeString()
+        });
+        this.save();
+    },
+    clearChatHistory() {
+        this.data.chat.messages = [];
+        this.save();
+    },
+    getChatMessages() {
+        return this.data.chat.messages;
+    }
 };

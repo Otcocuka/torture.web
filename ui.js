@@ -1,5 +1,67 @@
 /**
  * ------------------------------------------------------------------
+ * CHAT LOGIC LAYER (Version 1.2 - Bug Fix)
+ * ------------------------------------------------------------------
+ */
+const ChatLogic = {
+    async sendMessage(messagesHistory, newMessageText) {
+        const apiKey = window.appConfig?.MIMO_API_KEY;
+        if (!apiKey || apiKey === "ВАШ_API_КЛЮЧ_ЗДЕСЬ") {
+            return { success: false, error: "API_KEY_MISSING", message: "API ключ не задан в config.js" };
+        }
+
+        if (!newMessageText.trim()) {
+            return { success: false, error: "EMPTY_INPUT", message: "Сообщение пустое" };
+        }
+
+        const payload = {
+            model: window.appConfig.MIMO_MODEL,
+            messages: messagesHistory.map(m => ({ role: m.role, content: m.content })),
+        };
+
+        try {
+            const response = await fetch(window.appConfig.MIMO_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            // Если статус ОК (200)
+            if (response.ok) {
+                const data = await response.json();
+                const reply = data.choices?.[0]?.message?.content;
+                if (!reply) return { success: false, error: "PARSE_ERROR", message: "Нет поля content" };
+                return { success: true, data: reply };
+            }
+
+            // Если статус НЕ ОК (4xx, 5xx)
+            // ВАЖНО: Читаем тело ответа ОДИН РАЗ
+            const errorText = await response.text();
+            let errorMessage = `HTTP ${response.status}`;
+
+            try {
+                // Пытаемся распарсить JSON из текста ошибки
+                const errorJson = JSON.parse(errorText);
+                errorMessage += `: ${errorJson.error?.message || errorText}`;
+            } catch (e) {
+                // Если не JSON, берем текст как есть
+                errorMessage += `: ${errorText}`;
+            }
+
+            return { success: false, error: "HTTP_ERROR", message: errorMessage };
+
+        } catch (err) {
+            console.error(`[ChatLogic] Network Error:`, err);
+            return { success: false, error: "NETWORK_FAILURE", message: err.message };
+        }
+    }
+};
+
+/**
+ * ------------------------------------------------------------------
  * UI CONTROLLER (All Features)
  * ------------------------------------------------------------------
  */
@@ -9,15 +71,15 @@ const UI = {
         document.querySelectorAll("[data-nav]").forEach((btn) => {
             btn.addEventListener("click", (e) => {
                 const target = e.target.dataset.nav;
-                
-                // Специфичные действия перед переключением
+
                 if (target === "view-stats") UI.renderStatsView();
                 if (target === "view-todo") UI.renderKanban();
-                
-                // Вызываем нашу исправленную функцию переключения
+
+                // Обработка вью чата при переключении
+                if (target === "view-chat") UI.renderChatScreen();
+
                 UI.switchView(target);
 
-                // Стили кнопок
                 document.querySelectorAll("[data-nav]").forEach((b) =>
                     b.classList.remove("bg-white", "shadow-sm", "text-blue-600")
                 );
@@ -57,11 +119,12 @@ const UI = {
         this.bindTodoEvents();
         this.bindNotificationsEvents();
         this.bindReaderEvents();
+        // Chat events привяжем при рендеринге экрана, так как он динамический
 
         // --- Initial Renders ---
         this.renderHabits();
         this.renderNotificationsList();
-        
+
         // Start with Habits view (UI state)
         this.switchView("view-habits");
     },
@@ -77,38 +140,36 @@ const UI = {
         // 2. Show target
         const target = document.getElementById(viewId);
         if (target) {
-            target.style.display = "block"; // Use block to restore display
+            target.style.display = "block";
             target.classList.add("active");
 
-            // 3. LOGIC FOR READER VIEW (The Fix)
+            // 3. LOGIC FOR READER VIEW
             if (viewId === "view-reader") {
-                // IMPORTANT: Clear the view first to prevent HTML duplication
-                target.innerHTML = ""; 
-
-                // Check if we have an active file in Store
-                const file = Store.getActiveFile(); // Now this function exists in Store
-
+                target.innerHTML = "";
+                const file = Store.getActiveFile();
                 if (file) {
-                    // If file exists, show the reading interface
                     this.renderReaderView();
                 } else {
-                    // If no file active, show the Hub (list of files)
                     this.renderReaderHub();
                 }
             }
 
-            // 4. Logic for Wheel (Redraw canvas)
+            // 4. Logic for Wheel
             if (viewId === "view-wheel" && window.Controllers && window.Controllers.wheel) {
                 window.Controllers.wheel.draw();
                 const countEl = document.getElementById("wheelHistoryCount");
                 if (countEl) countEl.textContent = Store.data.wheel.history.length;
             }
+
+            // 5. Logic for Chat (Ensure bind happens)
+            if (viewId === "view-chat") {
+                // Убедимся, что контейнер есть перед рендерингом
+                this.renderChatScreen();
+            }
         }
     },
 
-    // --- READER UI HELPERS (Split logic) ---
-    
-    // Renders the list of files (Hub)
+    // --- READER UI HELPERS ---
     renderReaderHub() {
         const view = document.getElementById("view-reader");
         if (!view) return;
@@ -116,7 +177,6 @@ const UI = {
         const files = Store.getReaderFiles();
         const settings = Store.data.reader.settings;
 
-        // Setup container class
         view.className = `app-view active p-6 max-w-6xl mx-auto w-full ${settings.theme === "dark" ? "bg-gray-900 text-gray-100" : "bg-gray-50 text-gray-800"}`;
 
         let html = `
@@ -151,7 +211,7 @@ const UI = {
             const sortedFiles = [...files].reverse();
             sortedFiles.forEach((f) => {
                 const lastSess = f.stats.sessionsHistory.length
-                    ? new Date(f.stats.sessionsHistory[f.stats.sessionsHistory.length - 1].date).toLocaleDateString()
+                    ? new Date(f.stats.sessionsHistory[f.stats.sessionsHistory - 1].date).toLocaleDateString()
                     : "—";
                 const totalT = f.stats.totalTime;
                 const tStr = `${Math.floor(totalT / 60)}м${totalT % 60}с`;
@@ -165,7 +225,6 @@ const UI = {
                         </div>
                     </div>
                     <div class="flex gap-2 shrink-0">
-                        <!-- Кнопка Читать теперь вызывает setActiveFile и switchView -->
                         <button onclick="Store.setActiveFile(${f.id}); UI.switchView('view-reader');" 
                                 class="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700">Читать</button>
                         <button onclick="Store.deleteReaderFile(${f.id}); UI.renderReaderHub();" 
@@ -180,12 +239,10 @@ const UI = {
         view.innerHTML = html;
     },
 
-    // Renders the actual Text Reader
     renderReaderView() {
         const file = Store.getActiveFile();
         const view = document.getElementById("view-reader");
-        
-        // Если файла нет (вдруг удалили), возвращаем в хаб
+
         if (!file || !view) {
             this.switchView('view-reader');
             return;
@@ -254,33 +311,23 @@ const UI = {
         </div>
         `;
 
-        // Restore scroll
         setTimeout(() => {
             const content = document.getElementById("readerContent");
             if (content && file.progress) content.scrollTop = file.progress.scrollTop || 0;
         }, 50);
     },
 
-    // --- READER EVENTS (Updated) ---
+    // --- READER EVENTS ---
     bindReaderEvents() {
-        // Мы вешаем обработчики на document, так как контент reader динамический (меняется)
-        // Используем делегирование событий
-        
-        // 1. Клик (все кнопки внутри reader view)
         document.addEventListener("click", (e) => {
-            // Игнорируем, если клик не внутри view-reader
             if (!e.target.closest("#view-reader")) return;
-
             const btn = e.target.closest("button");
             if (!btn) return;
 
-            // Логика загрузки файла (изменение input)
             if (btn.id === "readerLoadBtn") {
                 document.getElementById("readerFileInput").click();
                 return;
             }
-            
-            // Логика сессий (только если есть активный файл)
             if (btn.id === "readerStartSession") {
                 this.startReaderSession();
                 return;
@@ -304,23 +351,19 @@ const UI = {
             }
         });
 
-        // 2. Change (File Input и Настройки)
         document.addEventListener("change", (e) => {
-            // Игнорируем, если не внутри view-reader
             if (!e.target.closest("#view-reader")) return;
 
-            // Загрузка файла
             if (e.target.id === "readerFileInput") {
                 const file = e.target.files[0];
                 if (!file) return;
-                
                 const btn = document.getElementById("readerLoadBtn");
                 if (btn) btn.disabled = true;
 
                 FileReaderUtil.read(file)
                     .then((text) => {
                         Store.addReaderFile(file.name, text);
-                        this.renderReaderHub(); // Обновляем список
+                        this.renderReaderHub();
                         this.showNotification(`✅ Загружено: ${file.name}`);
                         e.target.value = "";
                     })
@@ -328,22 +371,18 @@ const UI = {
                     .finally(() => { if (btn) btn.disabled = false; });
             }
 
-            // Настройки (шрифт/тема)
             if (e.target.id === "readerFontSize" || e.target.id === "readerTheme") {
                 const settings = {
                     fontSize: parseInt(document.getElementById("readerFontSize").value) || 20,
                     theme: document.getElementById("readerTheme").value
                 };
                 Store.updateReaderSettings(settings);
-                
-                // Перерисовываем текущий экран (хаб или читалку)
                 const file = Store.getActiveFile();
                 if (file) this.renderReaderView();
                 else this.renderReaderHub();
             }
         });
 
-        // 3. Scroll (Save Progress)
         document.addEventListener("scroll", (e) => {
             if (e.target.id === "readerContent") {
                 const file = Store.getActiveFile();
@@ -363,15 +402,13 @@ const UI = {
         if (this.readerSessionStartTime) return;
 
         this.readerSessionStartTime = Date.now();
-        
-        // UI Toggle
         const startBtn = document.getElementById("readerStartSession");
         const stopBtn = document.getElementById("readerStopSession");
         const statsBlock = document.getElementById("readerSessionStats");
-        
-        if(startBtn) startBtn.classList.add("hidden");
-        if(stopBtn) stopBtn.classList.remove("hidden");
-        if(statsBlock) statsBlock.classList.remove("hidden");
+
+        if (startBtn) startBtn.classList.add("hidden");
+        if (stopBtn) stopBtn.classList.remove("hidden");
+        if (statsBlock) statsBlock.classList.remove("hidden");
 
         this.readerSessionTimer = setInterval(() => {
             const elapsed = Math.floor((Date.now() - this.readerSessionStartTime) / 1000);
@@ -400,17 +437,16 @@ const UI = {
 
         Store.addReaderSessionToFile(file.id, duration, words);
 
-        // UI Toggle
         const startBtn = document.getElementById("readerStartSession");
         const stopBtn = document.getElementById("readerStopSession");
         const statsBlock = document.getElementById("readerSessionStats");
 
-        if(startBtn) startBtn.classList.remove("hidden");
-        if(stopBtn) stopBtn.classList.add("hidden");
-        if(statsBlock) statsBlock.classList.add("hidden");
+        if (startBtn) startBtn.classList.remove("hidden");
+        if (stopBtn) stopBtn.classList.add("hidden");
+        if (statsBlock) statsBlock.classList.add("hidden");
 
         this.readerSessionStartTime = 0;
-        this.renderReaderView(); // Refresh stats
+        this.renderReaderView();
         this.showNotification("Сессия сохранена!");
     },
 
@@ -420,10 +456,9 @@ const UI = {
             const input = document.getElementById("habitInput");
             const name = input.value.trim();
             if (name) {
-                const hadAchievement = Store.addHabit(name);
+                Store.addHabit(name);
                 input.value = "";
                 this.renderHabits();
-                if (hadAchievement) this.showNotification("🏆 Ачивка получена!");
             }
         };
         document.getElementById("habitSettingsBtn").onclick = () => this.showHabitSettingsModal();
@@ -509,14 +544,14 @@ const UI = {
                 </div>
                 <div class="mt-4 flex justify-end gap-2"><button data-close-modal class="px-3 py-1 rounded hover:bg-gray-100">Отмена</button><button id="saveHSet" class="px-3 py-1 bg-blue-500 text-white rounded">Сохранить</button></div>
             </div>`);
-        
+
         const renderTemp = () => {
             const list = document.getElementById("tempSubList");
             if (list) list.innerHTML = Store.data.tempSubtasks.map(s => `<div class="flex justify-between bg-gray-100 px-2 py-1 rounded"><span>${s.text}</span><span class="cursor-pointer text-red-500" onclick="Store.data.tempSubtasks = Store.data.tempSubtasks.filter(x=>x.id!==${s.id}); UI.renderTempSubtasksInternal()">×</span></div>`).join("");
         };
         this.renderTempSubtasksInternal = renderTemp;
         renderTemp();
-        
+
         const addBtn = document.getElementById("addSubBtn");
         if (addBtn) addBtn.onclick = () => {
             const val = document.getElementById("tempSubInput").value.trim();
@@ -561,7 +596,7 @@ const UI = {
         if (startBtn) startBtn.onclick = () => window.Controllers.pomodoro.start();
         if (pauseBtn) pauseBtn.onclick = () => window.Controllers.pomodoro.pause();
         if (resetBtn) resetBtn.onclick = () => { window.Controllers.pomodoro.reset(true); this.updateStats(); };
-        
+
         if (saveSetBtn) {
             saveSetBtn.onclick = () => {
                 const s = { work: parseInt(document.getElementById("settingWork").value) || 25, short: parseInt(document.getElementById("settingShort").value) || 5, long: parseInt(document.getElementById("settingLong").value) || 15, longCycle: parseInt(document.getElementById("settingCycle").value) || 4 };
@@ -601,7 +636,7 @@ const UI = {
         const m = Math.floor((sec % 3600) / 60);
         return h > 0 ? `${h}ч ${m}м` : `${m}м`;
     },
-    
+
     formatUptime(seconds) {
         const d = Math.floor(seconds / 86400);
         const h = Math.floor((seconds % 86400) / 3600);
@@ -632,7 +667,7 @@ const UI = {
         if (btn) btn.onclick = () => { if (window.Controllers && window.Controllers.wheel) { window.Controllers.wheel.spin(); } };
     },
 
-    // --- TODO/KANBAN UI (Kept brief for brevity, logic remains same) ---
+    // --- TODO/KANBAN UI ---
     bindTodoEvents() {
         document.getElementById("addKanbanColBtn")?.addEventListener("click", () => {
             this.renderModal("kanbanCol", `<div class="bg-white rounded-lg p-6 w-80 shadow-xl"><h3 class="font-bold text-lg mb-4">Новая колонка</h3><input id="kanbanColTitle" type="text" placeholder="Название..." class="w-full border p-2 rounded mb-4"><div class="flex justify-end gap-2"><button data-close-modal class="px-3 py-1 rounded hover:bg-gray-100">Отмена</button><button id="saveKanbanCol" class="px-3 py-1 bg-blue-500 text-white rounded">Создать</button></div></div>`);
@@ -773,7 +808,7 @@ const UI = {
         const s2 = document.getElementById("stat-t-work"); if (s2) s2.textContent = this.formatDuration(p.totalWork);
         const s3 = document.getElementById("stat-t-break"); if (s3) s3.textContent = this.formatDuration(p.totalBreak);
         const s4 = document.getElementById("stat-t-paused"); if (s4) s4.textContent = p.totalPaused + "с";
-        
+
         // 2. Uptime
         const uEl = document.getElementById("stat-total-uptime");
         if (uEl) {
@@ -917,7 +952,187 @@ const UI = {
         }).join("");
     },
 
-    // --- READER LOGIC VARIABLES ---
+    // --- CHAT UI LOGIC (Updated) ---
+
+    bindChatEvents() {
+        const view = document.getElementById('view-chat');
+        if (!view) return;
+
+        view.addEventListener('click', (e) => {
+            if (e.target.id === 'chatSendBtn') this.initiateChatSend();
+            if (e.target.id === 'chatClearBtn') {
+                Store.clearChatHistory();
+                this.renderChatMessages();
+            }
+        });
+
+        view.addEventListener('keydown', (e) => {
+            if (e.target.id === 'chatInput' && e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                this.initiateChatSend();
+            }
+        });
+    },
+
+    async initiateChatSend() {
+        const input = document.getElementById('chatInput');
+        const message = input.value.trim();
+        if (!message) return;
+
+        // UI: Показываем сообщение юзера (визуально)
+        // НЕ вызываем Store.addChatMessage('user', message) ЗДЕСЬ, если мы не уверены в успехе?
+        // Нет, лучше добавить, но если ошибка - удалить или пометить.
+
+        // Давайте сделаем так: Сохраняем только если успех.
+        // Но для визуала добавим временно.
+
+        const tempUserMsg = { id: Date.now(), role: 'user', content: message, timestamp: new Date().toLocaleTimeString() };
+
+        // 1. Визуально показываем
+        Store.data.chat.messages.push(tempUserMsg); // Временно в память
+        this.renderChatMessages();
+        this.scrollToChatBottom();
+        this.setChatTyping(true);
+        input.value = '';
+
+        // 2. Получаем ЧИСТУЮ историю (без системных сообщений ошибок)
+        // Фильтруем только user и assistant (успешные)
+        const cleanHistory = Store.data.chat.messages.filter(m => m.role === 'user' || (m.role === 'assistant' && !m.content.startsWith('❌')));
+
+        // 3. Логика
+        const result = await ChatLogic.sendMessage(cleanHistory, message);
+
+        // 4. Результат
+        if (result.success) {
+            // Сохраняем АССИСТЕНТА
+            Store.addChatMessage('assistant', result.data);
+            // Пользователь уже добавлен выше
+        } else {
+            // Удаляем визуально добавленное сообщение пользователя (так как запрос провалился)
+            Store.data.chat.messages = Store.data.chat.messages.filter(m => m.id !== tempUserMsg.id);
+            this.addSystemMessage(result.message);
+        }
+
+        this.setChatTyping(false);
+        this.renderChatMessages();
+        this.scrollToChatBottom();
+    },
+
+    setChatTyping(isTyping) {
+        const el = document.getElementById('chatTypingStatus');
+        if (el) el.classList.toggle('hidden', !isTyping);
+        const btn = document.getElementById('chatSendBtn');
+        if (btn) btn.disabled = isTyping;
+        const input = document.getElementById('chatInput');
+        if (input) input.disabled = isTyping;
+    },
+
+    addSystemMessage(text) {
+        // ВАЖНО: Мы добавляем сообщение в UI, НО НЕ сохраняем в Store
+        // Иначе ошибка улетит в следующий запрос к API
+        const container = document.getElementById('chatMessages');
+        if (container) {
+            const div = document.createElement('div');
+            div.className = "flex w-full justify-start";
+            div.innerHTML = `
+                <div class="max-w-[85%] p-3 rounded-xl bg-gray-100 text-gray-900 border border-gray-200">
+                    <div class="text-[10px] opacity-70 mb-1">System · ${new Date().toLocaleTimeString()}</div>
+                    <div class="whitespace-pre-wrap text-sm leading-relaxed text-red-600 font-bold">${text}</div>
+                </div>
+            `;
+            container.appendChild(div);
+            // Прокрутка вниз
+            const el = document.getElementById('chatMessages');
+            if (el) el.scrollTop = el.scrollHeight;
+        }
+    },
+
+    scrollToChatBottom() {
+        const el = document.getElementById('chatMessages');
+        if (el) el.scrollTop = el.scrollHeight;
+    },
+
+    renderChatScreen() {
+        const view = document.getElementById('view-chat');
+        if (!view) return;
+
+        const messages = Store.getChatMessages();
+        const modelName = window.appConfig?.MIMO_MODEL || "mimo-v2-flash";
+
+        view.innerHTML = `
+        <div class="flex flex-col h-full bg-white rounded-lg shadow overflow-hidden border border-gray-200">
+            <div class="bg-gray-900 text-white p-4 font-bold flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                    <span>💬 MiMo Chat</span>
+                    <span class="text-xs font-normal bg-gray-700 px-2 py-0.5 rounded">${modelName}</span>
+                </div>
+                <button id="chatClearBtn" class="text-xs bg-gray-700 px-3 py-1 rounded hover:bg-gray-600 transition">🗑️ Очистить</button>
+            </div>
+
+            <div id="chatMessages" class="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+                ${messages.length === 0 ? `
+                    <div class="flex h-full items-center justify-center text-gray-400 flex-col gap-2">
+                        <span class="text-2xl">🤖</span>
+                        <span>Напишите что-нибудь...</span>
+                    </div>
+                ` : ''}
+            </div>
+
+            <div id="chatTypingStatus" class="hidden px-4 py-2 text-xs text-gray-500 bg-gray-100 border-t animate-pulse">Бот печатает...</div>
+
+            <div class="p-4 border-t bg-white flex gap-2 items-end">
+                <textarea id="chatInput"
+                    class="flex-1 border border-gray-300 rounded-lg p-3 resize-none focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    placeholder="Введите сообщение... (Enter - отправить, Shift+Enter - новая строка)"
+                    rows="2"></textarea>
+                <button id="chatSendBtn"
+                    class="bg-indigo-600 text-white px-5 py-3 rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition whitespace-nowrap">
+                    Отправить
+                </button>
+            </div>
+        </div>
+        `;
+
+        // Важно: После перерисовки HTML, нужно заново привязать события
+        this.bindChatEvents();
+
+        // Заполняем сообщениями
+        this.renderChatMessages();
+    },
+
+    renderChatMessages() {
+        const container = document.getElementById('chatMessages');
+        if (!container) return;
+
+        const messages = Store.getChatMessages();
+
+        // Если сообщений нет, оставляем заглушку (но не перезатираем её, если она есть)
+        if (messages.length === 0) {
+            container.innerHTML = `
+                <div class="flex h-full items-center justify-center text-gray-400 flex-col gap-2">
+                    <span class="text-2xl">🤖</span>
+                    <span>Начните диалог</span>
+                </div>`;
+            return;
+        }
+
+        const html = messages.map(m => {
+            const isUser = m.role === 'user';
+            return `
+            <div class="flex w-full ${isUser ? 'justify-end' : 'justify-start'}">
+                <div class="max-w-[85%] p-3 rounded-xl ${isUser ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-900 border border-gray-200'}">
+                    <div class="text-[10px] opacity-70 mb-1">${isUser ? 'Вы' : 'MiMo'} · ${m.timestamp}</div>
+                    <div class="whitespace-pre-wrap text-sm leading-relaxed">${m.content.replace(/</g, "&lt;")}</div>
+                </div>
+            </div>
+        `;
+        }).join('');
+
+        container.innerHTML = html;
+    },
+
+    // --- Объявление переменных для Reader ---
     readerSessionTimer: null,
     readerSessionStartTime: 0,
+    originalTitle: document.title
 };
