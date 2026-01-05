@@ -29,7 +29,6 @@ const ChatLogic = {
                 body: JSON.stringify(payload)
             });
 
-            // Если статус ОК (200)
             if (response.ok) {
                 const data = await response.json();
                 const reply = data.choices?.[0]?.message?.content;
@@ -37,20 +36,14 @@ const ChatLogic = {
                 return { success: true, data: reply };
             }
 
-            // Если статус НЕ ОК (4xx, 5xx)
-            // ВАЖНО: Читаем тело ответа ОДИН РАЗ
             const errorText = await response.text();
             let errorMessage = `HTTP ${response.status}`;
-
             try {
-                // Пытаемся распарсить JSON из текста ошибки
                 const errorJson = JSON.parse(errorText);
                 errorMessage += `: ${errorJson.error?.message || errorText}`;
             } catch (e) {
-                // Если не JSON, берем текст как есть
                 errorMessage += `: ${errorText}`;
             }
-
             return { success: false, error: "HTTP_ERROR", message: errorMessage };
 
         } catch (err) {
@@ -60,6 +53,8 @@ const ChatLogic = {
     }
 };
 
+Store.load(); 
+
 /**
  * ------------------------------------------------------------------
  * UI CONTROLLER (All Features)
@@ -67,6 +62,12 @@ const ChatLogic = {
  */
 const UI = {
     init() {
+        
+        // 1. СНАЧАЛА ЗАГРУЖАЕМ ДАННЫЕ ИЗ LOCALSTORAGE
+        // Если метод называется load() — вызываем его
+        Store.load(); 
+
+        // 2. Дальше идет твоя навигация и привязка событий
         // Navigation
         document.querySelectorAll("[data-nav]").forEach((btn) => {
             btn.addEventListener("click", (e) => {
@@ -74,11 +75,13 @@ const UI = {
 
                 if (target === "view-stats") UI.renderStatsView();
                 if (target === "view-todo") UI.renderKanban();
-
-                // Обработка вью чата при переключении
                 if (target === "view-chat") UI.renderChatScreen();
-
-                UI.switchView(target);
+                if (target === "view-settings") {
+                    // Специальная логика для настроек: обновляем данные перед показом
+                    UI.renderSettingsView();
+                }
+                if (target === "view-reader") UI.switchView(target);
+                else if (target !== "view-settings") UI.switchView(target); // view-settings обрабатываем отдельно, чтобы не сбить логику switchView
 
                 document.querySelectorAll("[data-nav]").forEach((b) =>
                     b.classList.remove("bg-white", "shadow-sm", "text-blue-600")
@@ -119,7 +122,10 @@ const UI = {
         this.bindTodoEvents();
         this.bindNotificationsEvents();
         this.bindReaderEvents();
-        // Chat events привяжем при рендеринге экрана, так как он динамический
+        this.initSettings(); // Инициализация кнопки сохранения настроек
+
+        // *** NEW: Initialize Explanation Logic ***
+        this.bindReaderExplanationEvents();
 
         // --- Initial Renders ---
         this.renderHabits();
@@ -163,7 +169,6 @@ const UI = {
 
             // 5. Logic for Chat (Ensure bind happens)
             if (viewId === "view-chat") {
-                // Убедимся, что контейнер есть перед рендерингом
                 this.renderChatScreen();
             }
         }
@@ -315,6 +320,82 @@ const UI = {
             const content = document.getElementById("readerContent");
             if (content && file.progress) content.scrollTop = file.progress.scrollTop || 0;
         }, 50);
+    },
+
+    // --- SETTINGS UI ---
+    initSettings() {
+        const btn = document.getElementById('saveSettingsBtn');
+        if (btn) {
+            btn.onclick = () => {
+                const settings = {
+                    maxTokens: parseInt(document.getElementById('settingMaxTokens').value),
+                    temperature: parseFloat(document.getElementById('settingTemperature').value),
+                    autoRequest: document.getElementById('settingAutoRequest').checked,
+                    customSystemPrompt: document.getElementById('settingSystemPrompt').value
+                };
+
+                Store.updateExplanationSettings(settings);
+
+                // UI Feedback
+                const status = document.getElementById('saveStatus');
+                status.classList.remove('hidden');
+                setTimeout(() => status.classList.add('hidden'), 2000);
+            };
+        }
+    },
+
+    renderSettingsView() {
+        // Получаем настройки из Store
+        // Если настроек еще нет (первый запуск), берем дефолтные
+        const s = Store.data.explanationSettings || {
+            maxTokens: 500,
+            temperature: 0.2,
+            autoRequest: true,
+            customSystemPrompt: "Ты — эксперт. Объясни смысл выделенного фрагмента текста на русском языке."
+        };
+
+        const elMax = document.getElementById('settingMaxTokens');
+        const elTemp = document.getElementById('settingTemperature');
+        const elAuto = document.getElementById('settingAutoRequest');
+        const elPrompt = document.getElementById('settingSystemPrompt');
+
+        const labelMax = document.getElementById('labelMaxTokens');
+        const labelTemp = document.getElementById('labelTemp');
+
+        // Заполняем поля
+        if (elMax) {
+            elMax.value = s.maxTokens;
+            if (labelMax) labelMax.innerText = `(Текущее: ${s.maxTokens})`;
+            
+            // Событие для обновления лейбла в реальном времени
+            elMax.oninput = (e) => {
+                if (labelMax) labelMax.innerText = `(Текущее: ${e.target.value})`;
+            };
+        }
+        
+        if (elTemp) {
+            elTemp.value = s.temperature;
+            if (labelTemp) labelTemp.innerText = `(Текущее: ${s.temperature})`;
+            
+            elTemp.oninput = (e) => {
+                if (labelTemp) labelTemp.innerText = `(Текущее: ${e.target.value})`;
+            };
+        }
+
+        if (elAuto) elAuto.checked = s.autoRequest;
+        if (elPrompt) elPrompt.value = s.customSystemPrompt;
+
+        // Важно: Показываем view, если он скрыт (так как мы вызываем этот метод при клике на кнопку меню)
+        const view = document.getElementById("view-settings");
+        if (view && view.style.display === "none") {
+            // Скрываем остальные view
+            document.querySelectorAll(".app-view").forEach((el) => {
+                el.classList.remove("active");
+                el.style.display = "none";
+            });
+            view.style.display = "block";
+            view.classList.add("active");
+        }
     },
 
     // --- READER EVENTS ---
@@ -802,14 +883,12 @@ const UI = {
     },
 
     renderStatsView() {
-        // 1. Pomodoro
         const p = Store.data.pomodoro.stats;
         const s1 = document.getElementById("stat-t-sessions"); if (s1) s1.textContent = p.totalSessions;
         const s2 = document.getElementById("stat-t-work"); if (s2) s2.textContent = this.formatDuration(p.totalWork);
         const s3 = document.getElementById("stat-t-break"); if (s3) s3.textContent = this.formatDuration(p.totalBreak);
         const s4 = document.getElementById("stat-t-paused"); if (s4) s4.textContent = p.totalPaused + "с";
 
-        // 2. Uptime
         const uEl = document.getElementById("stat-total-uptime");
         if (uEl) {
             let uptimeSecs = Store.getAppUptime ? Store.getAppUptime() : 0;
@@ -820,7 +899,6 @@ const UI = {
             uEl.textContent = this.formatUptime(Math.floor(uptimeSecs));
         }
 
-        // 3. Habits
         const hCont = document.getElementById("stat-habits-container");
         const habits = Store.data.habits;
         const mContainer = document.getElementById("calendar-months");
@@ -851,7 +929,6 @@ const UI = {
             }
         }
 
-        // 4. Wheel
         const wCont = document.getElementById("stat-wheel-container");
         if (wCont) {
             const history = Store.data.wheel.history;
@@ -953,7 +1030,6 @@ const UI = {
     },
 
     // --- CHAT UI LOGIC (Updated) ---
-
     bindChatEvents() {
         const view = document.getElementById('view-chat');
         if (!view) return;
@@ -979,13 +1055,6 @@ const UI = {
         const message = input.value.trim();
         if (!message) return;
 
-        // UI: Показываем сообщение юзера (визуально)
-        // НЕ вызываем Store.addChatMessage('user', message) ЗДЕСЬ, если мы не уверены в успехе?
-        // Нет, лучше добавить, но если ошибка - удалить или пометить.
-
-        // Давайте сделаем так: Сохраняем только если успех.
-        // Но для визуала добавим временно.
-
         const tempUserMsg = { id: Date.now(), role: 'user', content: message, timestamp: new Date().toLocaleTimeString() };
 
         // 1. Визуально показываем
@@ -995,8 +1064,7 @@ const UI = {
         this.setChatTyping(true);
         input.value = '';
 
-        // 2. Получаем ЧИСТУЮ историю (без системных сообщений ошибок)
-        // Фильтруем только user и assistant (успешные)
+        // 2. Получаем ЧИСТУЮ историю
         const cleanHistory = Store.data.chat.messages.filter(m => m.role === 'user' || (m.role === 'assistant' && !m.content.startsWith('❌')));
 
         // 3. Логика
@@ -1004,11 +1072,8 @@ const UI = {
 
         // 4. Результат
         if (result.success) {
-            // Сохраняем АССИСТЕНТА
             Store.addChatMessage('assistant', result.data);
-            // Пользователь уже добавлен выше
         } else {
-            // Удаляем визуально добавленное сообщение пользователя (так как запрос провалился)
             Store.data.chat.messages = Store.data.chat.messages.filter(m => m.id !== tempUserMsg.id);
             this.addSystemMessage(result.message);
         }
@@ -1028,8 +1093,6 @@ const UI = {
     },
 
     addSystemMessage(text) {
-        // ВАЖНО: Мы добавляем сообщение в UI, НО НЕ сохраняем в Store
-        // Иначе ошибка улетит в следующий запрос к API
         const container = document.getElementById('chatMessages');
         if (container) {
             const div = document.createElement('div');
@@ -1041,7 +1104,6 @@ const UI = {
                 </div>
             `;
             container.appendChild(div);
-            // Прокрутка вниз
             const el = document.getElementById('chatMessages');
             if (el) el.scrollTop = el.scrollHeight;
         }
@@ -1093,10 +1155,7 @@ const UI = {
         </div>
         `;
 
-        // Важно: После перерисовки HTML, нужно заново привязать события
         this.bindChatEvents();
-
-        // Заполняем сообщениями
         this.renderChatMessages();
     },
 
@@ -1106,7 +1165,6 @@ const UI = {
 
         const messages = Store.getChatMessages();
 
-        // Если сообщений нет, оставляем заглушку (но не перезатираем её, если она есть)
         if (messages.length === 0) {
             container.innerHTML = `
                 <div class="flex h-full items-center justify-center text-gray-400 flex-col gap-2">
@@ -1134,5 +1192,186 @@ const UI = {
     // --- Объявление переменных для Reader ---
     readerSessionTimer: null,
     readerSessionStartTime: 0,
-    originalTitle: document.title
+    originalTitle: document.title,
+
+    // *** NEW: Explanation Logic Logic Wrapper ***
+    // Инициализация слушателей (вызывается в UI.init)
+    bindReaderExplanationEvents() {
+        // Мы вешаем слушатель на document, но проверяем, что клик был в читалке
+        document.addEventListener('contextmenu', (e) => {
+            // 1. Проверяем, активна ли вкладка "Читалка"
+            const readerView = document.getElementById('view-reader');
+            if (!readerView || !readerView.classList.contains('active')) return;
+
+            // 2. Проверяем, попал ли клик внутрь текста (readerContent)
+            const readerContent = document.getElementById('readerContent');
+            if (!readerContent || !readerContent.contains(e.target)) return;
+
+            // 3. Получаем выделенный текст
+            const selection = window.getSelection();
+            const text = selection.toString().trim();
+
+            // 4. Отменяем стандартное меню Windows/Браузера
+            e.preventDefault();
+
+            // 5. Если текст выделен — показываем наше меню
+            if (text.length > 2) {
+                this.showContextMenu(e.pageX, e.pageY, text);
+            }
+        });
+
+        // Скрываем меню при клике в другом месте
+        document.addEventListener('click', (e) => {
+            const ctxMenu = document.getElementById('custom-context-menu');
+            if (ctxMenu && !ctxMenu.contains(e.target)) {
+                ctxMenu.remove();
+            }
+        });
+    },
+
+    // Показываем наше контекстное меню
+    showContextMenu(x, y, text) {
+        // Удаляем старое меню, если есть
+        const oldMenu = document.getElementById('custom-context-menu');
+        if (oldMenu) oldMenu.remove();
+
+        const menu = document.createElement('div');
+        menu.id = 'custom-context-menu';
+        menu.style.cssText = `
+            position: absolute; left: ${x}px; top: ${y}px;
+            width: 180px; background: #fff; border: 1px solid #ccc;
+            border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            z-index: 10000; font-family: sans-serif; font-size: 14px;
+            overflow: hidden;
+        `;
+
+        // Пункт: Сноска
+        const item1 = document.createElement('div');
+        item1.innerText = '📝 Сноска (MiMo)';
+        item1.style.cssText = 'padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #eee;';
+        item1.onmouseover = () => item1.style.backgroundColor = '#f3f4f6';
+        item1.onmouseout = () => item1.style.backgroundColor = '#fff';
+
+        // Обработчик клика по "Сноска"
+        item1.onclick = (e) => {
+            e.stopPropagation(); // Чтобы не всплывало событие клика по document (который скрывает меню)
+            menu.remove();
+            this.handleExplanationRequest(text, x, y); // Запускаем запрос
+        };
+
+        menu.appendChild(item1);
+        document.body.appendChild(menu);
+    },
+
+    // Обработчик запроса на сноску
+    async handleExplanationRequest(text, x, y) {
+        // Безопасное получение настроек
+        const s = Store.data.explanationSettings || {
+            maxTokens: 500,
+            temperature: 0.2,
+            customSystemPrompt: "Ты — эксперт. Объясни смысл выделенного фрагмента текста на русском языке."
+        };
+
+        // Визуальный фидбэк
+        this.showExplanationTooltip("⏳ Запрос к MiMo...", x, y);
+
+        try {
+            const response = await fetch(window.appConfig.MIMO_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${window.appConfig.MIMO_API_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: window.appConfig.MIMO_MODEL,
+                    messages: [
+                        { role: "system", content: s.customSystemPrompt },
+                        { role: "user", content: `Объясни это: "${text}"` }
+                    ],
+                    // Если maxTokens 0 или null, не шлем параметр (API сам решит)
+                    ...(s.maxTokens && { max_completion_tokens: s.maxTokens }),
+                    temperature: s.temperature
+                })
+            });
+
+            if (!response.ok) throw new Error("API Error");
+
+            const data = await response.json();
+            const explanation = data.choices[0].message.content;
+            this.showExplanationTooltip(explanation, x, y);
+
+        } catch (e) {
+            this.showExplanationTooltip("⚠️ Ошибка: " + e.message, x, y);
+        }
+    },
+
+    // Показ тултипа с результатом (с вертикальным скроллом)
+    showExplanationTooltip(text, x, y) {
+        const old = document.getElementById('explanation-tooltip');
+        if (old) old.remove();
+
+        const div = document.createElement('div');
+        div.id = 'explanation-tooltip';
+
+        // Стили самого контейнера
+        div.style.cssText = `
+            position: absolute; 
+            left: ${x}px; 
+            top: ${y}px;
+            width: 340px; 
+            background: #ffffff; 
+            border: 1px solid #ccc;
+            border-radius: 8px; 
+            box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+            z-index: 9999; 
+            display: flex; flex-direction: column;
+            max-height: 50vh; /* Ограничиваем ВЕСЬ попап по высоте экрана */
+            overflow: hidden; /* Скрываем всё, что вылезает за пределы самого попапа */
+            font-family: system-ui, sans-serif;
+        `;
+
+        // Хедер
+        const header = document.createElement('div');
+        header.style.cssText = `
+            padding: 8px 12px; 
+            background: #f8f9fa; 
+            border-bottom: 1px solid #eee; 
+            font-weight: bold; 
+            font-size: 13px;
+            display: flex; justify-content: space-between; align-items: center;
+            color: #333;
+            flex-shrink: 0; /* Запрещаем сжиматься */
+        `;
+        header.innerText = 'Результат MiMo';
+
+        const closeBtn = document.createElement('span');
+        closeBtn.innerText = '×';
+        closeBtn.style.cssText = 'cursor: pointer; font-size: 18px; line-height: 1; padding: 0 4px;';
+        closeBtn.onclick = (e) => { e.stopPropagation(); div.remove(); };
+        header.appendChild(closeBtn);
+
+        // Тело (Контент)
+        const content = document.createElement('div');
+        content.style.cssText = `
+            padding: 12px; 
+            overflow-y: auto; /* ВКЛЮЧАЕМ СКРОЛЛ ТОЛЬКО ЗДЕСЬ */
+            font-size: 14px; 
+            line-height: 1.5; 
+            color: #111;
+            white-space: pre-wrap; 
+            flex: 1; /* Занимает всё доступное место под хедером */
+            word-wrap: break-word; /* Перенос длинных слов */
+        `;
+        content.innerText = text;
+
+        // Анимация появления
+        div.style.opacity = '0';
+        div.style.transition = 'opacity 0.15s ease-out';
+
+        div.appendChild(header);
+        div.appendChild(content);
+        document.body.appendChild(div);
+
+        setTimeout(() => div.style.opacity = '1', 10);
+    },
 };

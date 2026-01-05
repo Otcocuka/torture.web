@@ -248,6 +248,10 @@ second brain features=>learning module(books first, then other sources):
 
 
 -footnotes on rightclick on text in reader
+-after it's done- feature to set level of knowledge in the field to tune the responce(i.e. explain it to a kid/know something, have little context/i'm an expert, don't simplify)
+
+
+
 -how much do i want this info to stay in my head quiz before(after) reading(tg note has more detail)
 
 -fix themes in reader

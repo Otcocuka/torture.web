@@ -160,7 +160,8 @@
 }
 
 .kanban-column-inner {
-    min-height: 100px; /* Чтобы можно было бросать в пустую колонку */
+    min-height: 100px;
+    /* Чтобы можно было бросать в пустую колонку */
     transition: background-color 0.2s;
 }
 
@@ -181,7 +182,7 @@
 
 /* Фидбэк при наведении на колонку */
 .bg-blue-50 {
-    background-color: #eff6ff !important; 
+    background-color: #eff6ff !important;
 }
 
 
@@ -202,17 +203,25 @@
     /* Плавный скролл */
 }
 
-#readerContent::-webkit-scrollbar { width: 8px; }
-#readerContent::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+#readerContent::-webkit-scrollbar {
+    width: 8px;
+}
+
+#readerContent::-webkit-scrollbar-thumb {
+    background: #4b5563;
+    border-radius: 4px;
+}
 
 /* Темы */
 .reader-theme-light {
-    background-color: #f8fafc !important; /* Очень светлый серый */
+    background-color: #f8fafc !important;
+    /* Очень светлый серый */
     color: #1e293b !important;
 }
 
 .reader-theme-dark {
-    background-color: #0f172a !important; /* Темно-синий/серый */
+    background-color: #0f172a !important;
+    /* Темно-синий/серый */
     color: #e2e8f0 !important;
 }
 
@@ -221,3 +230,23 @@
     max-width: 700px;
     margin: 0 auto;
 }
+
+
+#explanation-tooltip {
+    animation: fadeIn 0.2s ease-in-out;
+    overflow-y: auto;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+

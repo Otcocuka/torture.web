@@ -28,60 +28,78 @@ const Store = {
             messages: [],
             isTyping: false
         },
+        // Важно: структура должна быть идентичной той, что сохраняется
+        explanationSettings: {
+            maxTokens: 500,
+            temperature: 0.2,
+            autoRequest: true,
+            customSystemPrompt: "Ты — эксперт. Объясни смысл выделенного фрагмента текста на русском языке."
+        },
     },
 
+    // Метод инициализации и загрузки данных
     load() {
         try {
             const raw = localStorage.getItem(this.key);
             if (raw) {
                 const parsed = JSON.parse(raw);
 
-                // Merge basics
+                // --- Логика слияния (Merge) ---
+
+                // Basics
                 this.data.habits = parsed.habits || [];
                 this.data.achievements = parsed.achievements || [];
                 this.data.habitSettings = { ...this.data.habitSettings, ...parsed.habitSettings };
                 this.data.tempSubtasks = parsed.tempSubtasks || [];
 
-                // Merge Pomodoro
+                // Pomodoro
                 if (parsed.pomodoro) {
                     this.data.pomodoro.stats = { ...this.data.pomodoro.stats, ...parsed.pomodoro.stats };
                     this.data.pomodoro.settings = { ...this.data.pomodoro.settings, ...parsed.pomodoro.settings };
                 }
                 this.data.pomodoroState = parsed.pomodoroState || null;
 
-                // Merge Wheel
+                // Wheel
                 this.data.wheel.history = parsed.wheel?.history || [];
 
-                // Merge Kanban
+                // Kanban
                 if (parsed.kanban) {
                     this.data.kanban = parsed.kanban;
                 } else {
                     this.data.kanban = { columns: [], cards: [] };
                 }
 
-                // Merge Notifications
+                // Notifications
                 this.data.notifications = parsed.notifications || [];
 
-                // Merge Reader (CRITICAL: Preserve old data if structure matches)
+                // Reader
                 if (parsed.reader) {
                     this.data.reader.activeFileId = parsed.reader.activeFileId || null;
                     this.data.reader.files = parsed.reader.files || [];
                     this.data.reader.settings = { ...this.data.reader.settings, ...parsed.reader.settings };
                 }
 
-                // Merge Chat
+                // Chat
                 if (parsed.chat) {
                     this.data.chat.messages = parsed.chat.messages || [];
                     this.data.chat.isTyping = false;
                 }
 
+                // *** ИСПРАВЛЕНО: Загрузка настроек сносок ***
+                // Если в хранилище есть эти настройки, берем их, иначе останутся дефолтные
+                if (parsed.explanationSettings) {
+                    this.data.explanationSettings = { 
+                        ...this.data.explanationSettings, 
+                        ...parsed.explanationSettings 
+                    };
+                }
+
                 // App Stats
-                if (!parsed.appStats) {
-                    this.data.appStats = { totalUptime: 0, lastSeen: Date.now() };
-                } else {
+                if (parsed.appStats) {
                     this.data.appStats = { totalUptime: 0, ...parsed.appStats };
                     this.data.appStats.lastSeen = Date.now();
                 }
+                
                 return true;
             }
             return false;
@@ -91,6 +109,7 @@ const Store = {
         }
     },
 
+    // Метод сохранения
     save() {
         try {
             localStorage.setItem(this.key, JSON.stringify(this.data));
@@ -321,5 +340,23 @@ const Store = {
     },
     getChatMessages() {
         return this.data.chat.messages;
-    }
+    },
+
+    // --- EXPLANATION SETTINGS (NEW) ---
+    updateExplanationSettings(newSettings) {
+        // 1. Проверяем, есть ли текущие настройки
+        if (!this.data.explanationSettings) {
+            this.data.explanationSettings = {};
+        }
+
+        // 2. Объединяем старые и новые настройки (...spread оператор)
+        this.data.explanationSettings = {
+            ...this.data.explanationSettings,
+            ...newSettings
+        };
+
+        // 3. Сохраняем в localStorage
+        this.save();
+        console.log("Настройки сносок сохранены:", this.data.explanationSettings);
+    },
 };

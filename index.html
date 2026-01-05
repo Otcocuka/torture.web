@@ -33,6 +33,9 @@
                 <button data-nav="view-chat"
                     class="nav-btn px-4 py-2 rounded-md text-sm font-medium transition-standard hover:bg-white hover:shadow-sm text-gray-600">💬
                     Чат</button>
+                <button data-nav="view-settings"
+                    class="nav-btn px-4 py-2 rounded-md text-sm font-medium transition-standard hover:bg-white hover:shadow-sm text-gray-600">⚙️
+                    Настройки</button>
                 <button data-nav="view-stats"
                     class="nav-btn px-4 py-2 rounded-md text-sm font-medium transition-standard hover:bg-white hover:shadow-sm text-gray-600">Статистика</button>
 
@@ -400,6 +403,72 @@
                         class="bg-indigo-600 text-white px-5 py-3 rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition whitespace-nowrap">
                         Отправить
                     </button>
+                </div>
+            </div>
+        </div>
+
+
+
+
+        <!-- 9. SETTINGS VIEW -->
+        <div id="view-settings" class="app-view hidden p-6 max-w-3xl mx-auto">
+            <div class="bg-white p-6 rounded-xl shadow-sm">
+                <h2 class="text-2xl font-bold mb-6 text-gray-800 border-b pb-2">⚙️ Настройки приложения</h2>
+
+                <!-- Группа: Сноски (Explanation) -->
+                <div class="mb-8">
+                    <h3 class="text-lg font-semibold text-blue-600 mb-4">🧠 Настройки Сносок (MiMo)</h3>
+
+                    <div class="space-y-4">
+                        <!-- Макс. токенов -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                Максимальная длина ответа
+                                <span id="labelMaxTokens" class="text-xs text-gray-500">(Текущее: 500)</span>
+                            </label>
+                            <input type="range" id="settingMaxTokens" min="50" max="2000" step="50"
+                                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                            <div class="text-xs text-gray-400 flex justify-between"><span>Кратко (50)</span><span>Много
+                                    (2000)</span></div>
+                        </div>
+
+                        <!-- Temperature -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                Точность / Креативность
+                                <span id="labelTemp" class="text-xs text-gray-500">(Текущее: 0.2)</span>
+                            </label>
+                            <input type="range" id="settingTemperature" min="0" max="1" step="0.1"
+                                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                            <div class="text-xs text-gray-400 flex justify-between"><span>Точно
+                                    (0.0)</span><span>Свободно (1.0)</span></div>
+                        </div>
+
+                        <!-- Авто-запрос -->
+                        <div class="flex items-center">
+                            <input type="checkbox" id="settingAutoRequest"
+                                class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
+                            <label for="settingAutoRequest" class="ml-2 text-sm font-medium text-gray-700">Запрашивать
+                                сноску сразу при выделении</label>
+                        </div>
+
+                        <!-- Промпт -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Системный промпт (инструкция
+                                AI)</label>
+                            <textarea id="settingSystemPrompt" rows="3"
+                                class="w-full p-2 text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500"></textarea>
+                            <p class="text-xs text-gray-400 mt-1">Инструкция, которой AI будет следовать при ответе.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Кнопка сохранения -->
+                <div class="mt-6 pt-4 border-t">
+                    <button id="saveSettingsBtn"
+                        class="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium shadow-sm">Сохранить
+                        настройки</button>
+                    <span id="saveStatus" class="ml-3 text-sm text-green-600 hidden">✅ Сохранено</span>
                 </div>
             </div>
         </div>
