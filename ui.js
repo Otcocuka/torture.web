@@ -53,8 +53,6 @@ const ChatLogic = {
     }
 };
 
-Store.load(); 
-
 /**
  * ------------------------------------------------------------------
  * UI CONTROLLER (All Features)
@@ -62,12 +60,6 @@ Store.load();
  */
 const UI = {
     init() {
-        
-        // 1. СНАЧАЛА ЗАГРУЖАЕМ ДАННЫЕ ИЗ LOCALSTORAGE
-        // Если метод называется load() — вызываем его
-        Store.load(); 
-
-        // 2. Дальше идет твоя навигация и привязка событий
         // Navigation
         document.querySelectorAll("[data-nav]").forEach((btn) => {
             btn.addEventListener("click", (e) => {
@@ -77,11 +69,10 @@ const UI = {
                 if (target === "view-todo") UI.renderKanban();
                 if (target === "view-chat") UI.renderChatScreen();
                 if (target === "view-settings") {
-                    // Специальная логика для настроек: обновляем данные перед показом
-                    UI.renderSettingsView();
+                    UI.renderSettingsView(); // Обновляем UI пресетов перед показом
                 }
                 if (target === "view-reader") UI.switchView(target);
-                else if (target !== "view-settings") UI.switchView(target); // view-settings обрабатываем отдельно, чтобы не сбить логику switchView
+                else if (target !== "view-settings") UI.switchView(target);
 
                 document.querySelectorAll("[data-nav]").forEach((b) =>
                     b.classList.remove("bg-white", "shadow-sm", "text-blue-600")
@@ -122,7 +113,7 @@ const UI = {
         this.bindTodoEvents();
         this.bindNotificationsEvents();
         this.bindReaderEvents();
-        this.initSettings(); // Инициализация кнопки сохранения настроек
+        this.initSettings();
 
         // *** NEW: Initialize Explanation Logic ***
         this.bindReaderExplanationEvents();
@@ -137,19 +128,16 @@ const UI = {
 
     // --- CORE NAVIGATION ---
     switchView(viewId) {
-        // 1. Hide all views
         document.querySelectorAll(".app-view").forEach((el) => {
             el.classList.remove("active");
             el.style.display = "none";
         });
 
-        // 2. Show target
         const target = document.getElementById(viewId);
         if (target) {
             target.style.display = "block";
             target.classList.add("active");
 
-            // 3. LOGIC FOR READER VIEW
             if (viewId === "view-reader") {
                 target.innerHTML = "";
                 const file = Store.getActiveFile();
@@ -160,14 +148,12 @@ const UI = {
                 }
             }
 
-            // 4. Logic for Wheel
             if (viewId === "view-wheel" && window.Controllers && window.Controllers.wheel) {
                 window.Controllers.wheel.draw();
                 const countEl = document.getElementById("wheelHistoryCount");
                 if (countEl) countEl.textContent = Store.data.wheel.history.length;
             }
 
-            // 5. Logic for Chat (Ensure bind happens)
             if (viewId === "view-chat") {
                 this.renderChatScreen();
             }
@@ -322,73 +308,132 @@ const UI = {
         }, 50);
     },
 
-    // --- SETTINGS UI ---
+    // --- SETTINGS UI (UPDATED FOR PRESETS) ---
     initSettings() {
         const btn = document.getElementById('saveSettingsBtn');
         if (btn) {
             btn.onclick = () => {
+                // 1. Сохраняем настройки API
                 const settings = {
                     maxTokens: parseInt(document.getElementById('settingMaxTokens').value),
                     temperature: parseFloat(document.getElementById('settingTemperature').value),
                     autoRequest: document.getElementById('settingAutoRequest').checked,
-                    customSystemPrompt: document.getElementById('settingSystemPrompt').value
                 };
-
                 Store.updateExplanationSettings(settings);
+
+                // 2. Собираем и сохраняем пресеты
+                const presets = [];
+                const presetContainers = document.querySelectorAll('.preset-item');
+                
+                presetContainers.forEach(item => {
+                    const id = item.dataset.id;
+                    const nameInput = item.querySelector('.preset-name');
+                    const promptInput = item.querySelector('.preset-prompt');
+                    
+                    if (nameInput.value.trim() && promptInput.value.trim()) {
+                        presets.push({
+                            id: id || Date.now().toString(), // Новый ID, если не задан
+                            name: nameInput.value.trim(),
+                            prompt: promptInput.value.trim()
+                        });
+                    }
+                });
+
+                if (presets.length > 0) {
+                    Store.updateExplanationPresets(presets);
+                }
 
                 // UI Feedback
                 const status = document.getElementById('saveStatus');
                 status.classList.remove('hidden');
                 setTimeout(() => status.classList.add('hidden'), 2000);
+                
+                // Обновляем UI (на случай если добавились новые пресеты)
+                this.renderSettingsView();
             };
         }
     },
 
     renderSettingsView() {
-        // Получаем настройки из Store
-        // Если настроек еще нет (первый запуск), берем дефолтные
-        const s = Store.data.explanationSettings || {
-            maxTokens: 500,
-            temperature: 0.2,
-            autoRequest: true,
-            customSystemPrompt: "Ты — эксперт. Объясни смысл выделенного фрагмента текста на русском языке."
-        };
-
+        // 1. Заполняем стандартные настройки
+        const s = Store.data.explanationSettings || { maxTokens: 500, temperature: 0.2, autoRequest: false };
         const elMax = document.getElementById('settingMaxTokens');
         const elTemp = document.getElementById('settingTemperature');
         const elAuto = document.getElementById('settingAutoRequest');
-        const elPrompt = document.getElementById('settingSystemPrompt');
 
-        const labelMax = document.getElementById('labelMaxTokens');
-        const labelTemp = document.getElementById('labelTemp');
-
-        // Заполняем поля
         if (elMax) {
             elMax.value = s.maxTokens;
+            const labelMax = document.getElementById('labelMaxTokens');
             if (labelMax) labelMax.innerText = `(Текущее: ${s.maxTokens})`;
-            
-            // Событие для обновления лейбла в реальном времени
-            elMax.oninput = (e) => {
-                if (labelMax) labelMax.innerText = `(Текущее: ${e.target.value})`;
-            };
+            elMax.oninput = (e) => { if(labelMax) labelMax.innerText = `(Текущее: ${e.target.value})`; };
         }
-        
         if (elTemp) {
             elTemp.value = s.temperature;
+            const labelTemp = document.getElementById('labelTemp');
             if (labelTemp) labelTemp.innerText = `(Текущее: ${s.temperature})`;
-            
-            elTemp.oninput = (e) => {
-                if (labelTemp) labelTemp.innerText = `(Текущее: ${e.target.value})`;
+            elTemp.oninput = (e) => { if(labelTemp) labelTemp.innerText = `(Текущее: ${e.target.value})`; };
+        }
+        if (elAuto) elAuto.checked = s.autoRequest;
+
+        // 2. Рендерим пресеты
+        const container = document.getElementById('presetsContainer');
+        if (container) {
+            const presets = Store.data.explanationPresets || [];
+            container.innerHTML = '';
+
+            presets.forEach((p, index) => {
+                const div = document.createElement('div');
+                div.className = 'preset-item bg-gray-50 p-3 rounded border border-gray-200 relative';
+                div.dataset.id = p.id;
+                
+                div.innerHTML = `
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
+                        <div>
+                            <label class="block text-xs text-gray-500">Название</label>
+                            <input type="text" class="preset-name w-full border rounded px-2 py-1 text-sm" value="${p.name}">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-xs text-gray-500">Системный промпт</label>
+                            <input type="text" class="preset-prompt w-full border rounded px-2 py-1 text-sm" value="${p.prompt}">
+                        </div>
+                    </div>
+                    <div class="flex justify-end">
+                        <button class="text-red-500 hover:text-red-700 text-xs delete-preset">Удалить</button>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+
+            // Кнопка добавления нового пресета
+            const addBtn = document.createElement('button');
+            addBtn.className = 'w-full py-2 border border-dashed border-blue-300 text-blue-500 rounded hover:bg-blue-50 text-sm';
+            addBtn.innerText = '+ Добавить пресет';
+            addBtn.onclick = () => {
+                // Добавляем пустой элемент в UI (сохранится при нажатии основной кнопки)
+                const div = document.createElement('div');
+                div.className = 'preset-item bg-blue-50 p-3 rounded border border-blue-200';
+                div.innerHTML = `
+                     <div class="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
+                        <div><input type="text" class="preset-name w-full border rounded px-2 py-1 text-sm" placeholder="Название (например: Детский)"></div>
+                        <div class="md:col-span-2"><input type="text" class="preset-prompt w-full border rounded px-2 py-1 text-sm" placeholder="Промпт..."></div>
+                    </div>
+                    <div class="flex justify-end"><button class="text-red-500 hover:text-red-700 text-xs delete-preset">Отмена</button></div>
+                `;
+                container.insertBefore(div, container.firstChild); // Вверху списка
             };
+            container.appendChild(addBtn);
+
+            // Обработчик удаления (делегирование событий, так как элементы динамические)
+            container.addEventListener('click', (e) => {
+                if (e.target.classList.contains('delete-preset')) {
+                    e.target.closest('.preset-item').remove();
+                }
+            });
         }
 
-        if (elAuto) elAuto.checked = s.autoRequest;
-        if (elPrompt) elPrompt.value = s.customSystemPrompt;
-
-        // Важно: Показываем view, если он скрыт (так как мы вызываем этот метод при клике на кнопку меню)
+        // Показываем view, если он скрыт (при переключении из меню)
         const view = document.getElementById("view-settings");
         if (view && view.style.display === "none") {
-            // Скрываем остальные view
             document.querySelectorAll(".app-view").forEach((el) => {
                 el.classList.remove("active");
                 el.style.display = "none";
@@ -1195,32 +1240,37 @@ const UI = {
     originalTitle: document.title,
 
     // *** NEW: Explanation Logic Logic Wrapper ***
-    // Инициализация слушателей (вызывается в UI.init)
     bindReaderExplanationEvents() {
-        // Мы вешаем слушатель на document, но проверяем, что клик был в читалке
         document.addEventListener('contextmenu', (e) => {
-            // 1. Проверяем, активна ли вкладка "Читалка"
             const readerView = document.getElementById('view-reader');
             if (!readerView || !readerView.classList.contains('active')) return;
 
-            // 2. Проверяем, попал ли клик внутрь текста (readerContent)
             const readerContent = document.getElementById('readerContent');
             if (!readerContent || !readerContent.contains(e.target)) return;
 
-            // 3. Получаем выделенный текст
             const selection = window.getSelection();
             const text = selection.toString().trim();
 
-            // 4. Отменяем стандартное меню Windows/Браузера
             e.preventDefault();
 
-            // 5. Если текст выделен — показываем наше меню
             if (text.length > 2) {
-                this.showContextMenu(e.pageX, e.pageY, text);
+                // Проверяем авто-запрос в настройках
+                const settings = Store.data.explanationSettings || {};
+                
+                // Если авто-запрос ВЫКЛЮЧЕН (false) - показываем меню выбора пресета
+                if (!settings.autoRequest) {
+                    this.showPresetMenu(e.pageX, e.pageY, text);
+                } else {
+                    // Если авто-запрос ВКЛЮЧЕН - сразу запрашиваем первый пресет (как было раньше)
+                    // Но лучше все равно спрашивать, это удобнее.
+                    // Давайте сделаем так: если авто-запрос включен, мы все равно показываем меню,
+                    // но просто быстрее (или можно вызвать дефолтный).
+                    // Лучше: ПКМ всегда вызывает меню выбора. Это явное действие.
+                    this.showPresetMenu(e.pageX, e.pageY, text);
+                }
             }
         });
 
-        // Скрываем меню при клике в другом месте
         document.addEventListener('click', (e) => {
             const ctxMenu = document.getElementById('custom-context-menu');
             if (ctxMenu && !ctxMenu.contains(e.target)) {
@@ -1229,51 +1279,62 @@ const UI = {
         });
     },
 
-    // Показываем наше контекстное меню
-    showContextMenu(x, y, text) {
+    // Показываем меню с выбором пресета
+    showPresetMenu(x, y, text) {
         // Удаляем старое меню, если есть
         const oldMenu = document.getElementById('custom-context-menu');
         if (oldMenu) oldMenu.remove();
+
+        // Получаем пресеты из Store
+        const presets = Store.data.explanationPresets || [];
+        if (presets.length === 0) return; // Если нет пресетов, ничего не делаем
 
         const menu = document.createElement('div');
         menu.id = 'custom-context-menu';
         menu.style.cssText = `
             position: absolute; left: ${x}px; top: ${y}px;
-            width: 180px; background: #fff; border: 1px solid #ccc;
+            width: 280px; background: #fff; border: 1px solid #ccc;
             border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
             z-index: 10000; font-family: sans-serif; font-size: 14px;
             overflow: hidden;
         `;
 
-        // Пункт: Сноска
-        const item1 = document.createElement('div');
-        item1.innerText = '📝 Сноска (MiMo)';
-        item1.style.cssText = 'padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #eee;';
-        item1.onmouseover = () => item1.style.backgroundColor = '#f3f4f6';
-        item1.onmouseout = () => item1.style.backgroundColor = '#fff';
+        // Заголовок
+        const header = document.createElement('div');
+        header.innerText = '📝 Выберите уровень объяснения';
+        header.style.cssText = 'padding: 8px 12px; background: #f3f4f6; font-weight: bold; font-size: 12px; color: #333; border-bottom: 1px solid #eee;';
+        menu.appendChild(header);
 
-        // Обработчик клика по "Сноска"
-        item1.onclick = (e) => {
-            e.stopPropagation(); // Чтобы не всплывало событие клика по document (который скрывает меню)
-            menu.remove();
-            this.handleExplanationRequest(text, x, y); // Запускаем запрос
-        };
+        // Пункты меню из пресетов
+        presets.forEach(preset => {
+            const item = document.createElement('div');
+            item.innerText = preset.name;
+            item.style.cssText = 'padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #f0f0f0;';
+            
+            // Стили при наведении
+            item.onmouseover = () => item.style.backgroundColor = '#f0f9ff'; // Светло-голубой
+            item.onmouseout = () => item.style.backgroundColor = '#fff';
+            
+            // Обработчик клика
+            item.onclick = (e) => {
+                e.stopPropagation();
+                menu.remove();
+                this.handleExplanationRequest(text, x, y, preset);
+            };
+            
+            menu.appendChild(item);
+        });
 
-        menu.appendChild(item1);
         document.body.appendChild(menu);
     },
 
-    // Обработчик запроса на сноску
-    async handleExplanationRequest(text, x, y) {
-        // Безопасное получение настроек
-        const s = Store.data.explanationSettings || {
-            maxTokens: 500,
-            temperature: 0.2,
-            customSystemPrompt: "Ты — эксперт. Объясни смысл выделенного фрагмента текста на русском языке."
-        };
+    // Обработчик запроса на сноску (обновлен для пресетов)
+    async handleExplanationRequest(text, x, y, preset) {
+        // Визуальный фидбэк: "Загрузка..." в тултипе
+        this.showExplanationTooltip(`⏳ Запрос: ${preset.name}...`, x, y);
 
-        // Визуальный фидбэк
-        this.showExplanationTooltip("⏳ Запрос к MiMo...", x, y);
+        // Получаем общие настройки (токены, температуру)
+        const settings = Store.data.explanationSettings || {};
 
         try {
             const response = await fetch(window.appConfig.MIMO_API_URL, {
@@ -1285,12 +1346,12 @@ const UI = {
                 body: JSON.stringify({
                     model: window.appConfig.MIMO_MODEL,
                     messages: [
-                        { role: "system", content: s.customSystemPrompt },
+                        { role: "system", content: preset.prompt }, // ИСПОЛЬЗУЕМ ПРЕСЕТ
                         { role: "user", content: `Объясни это: "${text}"` }
                     ],
-                    // Если maxTokens 0 или null, не шлем параметр (API сам решит)
-                    ...(s.maxTokens && { max_completion_tokens: s.maxTokens }),
-                    temperature: s.temperature
+                    // Используем общие настройки, если они есть, иначе дефолт
+                    ...(settings.maxTokens && { max_completion_tokens: settings.maxTokens }),
+                    temperature: settings.temperature || 0.2
                 })
             });
 
@@ -1313,7 +1374,7 @@ const UI = {
         const div = document.createElement('div');
         div.id = 'explanation-tooltip';
 
-        // Стили самого контейнера
+        // Стили контейнера
         div.style.cssText = `
             position: absolute; 
             left: ${x}px; 
@@ -1325,8 +1386,8 @@ const UI = {
             box-shadow: 0 8px 24px rgba(0,0,0,0.25);
             z-index: 9999; 
             display: flex; flex-direction: column;
-            max-height: 50vh; /* Ограничиваем ВЕСЬ попап по высоте экрана */
-            overflow: hidden; /* Скрываем всё, что вылезает за пределы самого попапа */
+            max-height: 50vh; 
+            overflow: hidden; 
             font-family: system-ui, sans-serif;
         `;
 
@@ -1340,7 +1401,7 @@ const UI = {
             font-size: 13px;
             display: flex; justify-content: space-between; align-items: center;
             color: #333;
-            flex-shrink: 0; /* Запрещаем сжиматься */
+            flex-shrink: 0;
         `;
         header.innerText = 'Результат MiMo';
 
@@ -1354,13 +1415,13 @@ const UI = {
         const content = document.createElement('div');
         content.style.cssText = `
             padding: 12px; 
-            overflow-y: auto; /* ВКЛЮЧАЕМ СКРОЛЛ ТОЛЬКО ЗДЕСЬ */
+            overflow-y: auto; 
             font-size: 14px; 
             line-height: 1.5; 
             color: #111;
             white-space: pre-wrap; 
-            flex: 1; /* Занимает всё доступное место под хедером */
-            word-wrap: break-word; /* Перенос длинных слов */
+            flex: 1; 
+            word-wrap: break-word;
         `;
         content.innerText = text;
 

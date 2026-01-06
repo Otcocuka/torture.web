@@ -248,7 +248,7 @@ second brain features=>learning module(books first, then other sources):
 
 
 -footnotes on rightclick on text in reader
--after it's done- feature to set level of knowledge in the field to tune the responce(i.e. explain it to a kid/know something, have little context/i'm an expert, don't simplify)
+-after it's done- feature to set level of knowledge in the field to tune the responce(i.e. explain it to a kid/know something, have little context/i'm an expert, don't simplify)- done, wanna put it into a nested menu on RMB in reader next
 
 
 
