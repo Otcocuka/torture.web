@@ -182,12 +182,12 @@ const UI = {
 
             <div class="p-4 border rounded flex gap-4 items-center text-sm ${settings.theme === "dark" ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-white"}">
                 <span class="font-semibold">Настройки:</span>
-                <label>Шрифт: <select id="readerFontSize" class="border rounded p-1">
+                <label>Шрифт: <select id="readerFontSize" class="border rounded p-1 ${settings.theme === "dark" ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-white"}">
                     <option value="16" ${settings.fontSize === 16 ? "selected" : ""}>16</option>
                     <option value="20" ${settings.fontSize === 20 ? "selected" : ""}>20</option>
                     <option value="24" ${settings.fontSize === 24 ? "selected" : ""}>24</option>
                 </select></label>
-                <label>Тема: <select id="readerTheme" class="border rounded p-1">
+                <label>Тема: <select id="readerTheme" class="border rounded p-1 ${settings.theme === "dark" ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-white"}">
                     <option value="light" ${settings.theme === "light" ? "selected" : ""}>Светлая</option>
                     <option value="dark" ${settings.theme === "dark" ? "selected" : ""}>Темная</option>
                 </select></label>
@@ -254,19 +254,19 @@ const UI = {
             <!-- Top Panel -->
             <div class="p-3 rounded-lg shadow-sm flex justify-between items-center ${settings.theme === "dark" ? "bg-gray-800" : "bg-white"}">
                 <div class="flex items-center gap-3">
-                    <button onclick="Store.clearActiveFile(); UI.switchView('view-reader')" class="bg-gray-200 px-3 py-1 rounded hover:bg-gray-300 text-sm font-bold">← Список</button>
+                    <button onclick="Store.clearActiveFile(); UI.switchView('view-reader')" class="bg-gray-200 ${settings.theme === "dark" ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-white"} px-3 py-1 rounded hover:bg-gray-300 text-sm font-bold">← Список</button>
                     <div>
                         <div class="font-bold text-lg">${file.name}</div>
                         <div class="text-xs opacity-70">${FileReaderUtil.countWords(file.content)} слов</div>
                     </div>
                 </div>
                 <div class="flex gap-2 items-center text-sm">
-                    <label>Шрифт: <select id="readerFontSize" class="border rounded p-1 w-16">
+                    <label>Шрифт: <select id="readerFontSize" class="border rounded p-1 w-16 ${settings.theme === "dark" ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-white"}">
                         <option value="16" ${settings.fontSize === 16 ? "selected" : ""}>16</option>
                         <option value="20" ${settings.fontSize === 20 ? "selected" : ""}>20</option>
                         <option value="24" ${settings.fontSize === 24 ? "selected" : ""}>24</option>
                     </select></label>
-                    <label>Тема: <select id="readerTheme" class="border rounded p-1">
+                    <label>Тема: <select id="readerTheme" class="border rounded p-1 ${settings.theme === "dark" ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-white"}">
                         <option value="light" ${settings.theme === "light" ? "selected" : ""}>Светлая</option>
                         <option value="dark" ${settings.theme === "dark" ? "selected" : ""}>Темная</option>
                     </select></label>

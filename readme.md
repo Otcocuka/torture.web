@@ -243,7 +243,8 @@ document.addEventListener('keydown', ...) на Escape закрывает люб�
 todo:
 second brain features=>learning module(books first, then other sources):
 -first adding the source-done
--tracking inside module(time spent, pages, etc.)- almost 
+-tracking inside module(time spent, pages, etc.)- done
+-smart features(in progress) 
 
 
 
@@ -254,8 +255,6 @@ second brain features=>learning module(books first, then other sources):
 
 -how much do i want this info to stay in my head quiz before(after) reading(tg note has more detail)
 
--fix themes in reader
--pay for an api key- dirty deeds done dirt cheap
 -working quizes is the goal
 
 
