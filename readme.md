@@ -257,7 +257,7 @@ second brain features=>learning module(books first, then other sources):
 
 -working quizes is the goal
 
-
+-YT video analysis+parsing for short summaries NEXT
 
 
 
