@@ -1,61 +1,6 @@
 /**
  * ------------------------------------------------------------------
- * CHAT LOGIC LAYER (Version 1.2 - Bug Fix)
- * ------------------------------------------------------------------
- */
-const ChatLogic = {
-    async sendMessage(messagesHistory, newMessageText) {
-        const apiKey = window.appConfig?.MIMO_API_KEY;
-        if (!apiKey || apiKey === "ВАШ_API_КЛЮЧ_ЗДЕСЬ") {
-            return { success: false, error: "API_KEY_MISSING", message: "API ключ не задан в config.js" };
-        }
-
-        if (!newMessageText.trim()) {
-            return { success: false, error: "EMPTY_INPUT", message: "Сообщение пустое" };
-        }
-
-        const payload = {
-            model: window.appConfig.MIMO_MODEL,
-            messages: messagesHistory.map(m => ({ role: m.role, content: m.content })),
-        };
-
-        try {
-            const response = await fetch(window.appConfig.MIMO_API_URL, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${apiKey}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(payload)
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                const reply = data.choices?.[0]?.message?.content;
-                if (!reply) return { success: false, error: "PARSE_ERROR", message: "Нет поля content" };
-                return { success: true, data: reply };
-            }
-
-            const errorText = await response.text();
-            let errorMessage = `HTTP ${response.status}`;
-            try {
-                const errorJson = JSON.parse(errorText);
-                errorMessage += `: ${errorJson.error?.message || errorText}`;
-            } catch (e) {
-                errorMessage += `: ${errorText}`;
-            }
-            return { success: false, error: "HTTP_ERROR", message: errorMessage };
-
-        } catch (err) {
-            console.error(`[ChatLogic] Network Error:`, err);
-            return { success: false, error: "NETWORK_FAILURE", message: err.message };
-        }
-    }
-};
-
-/**
- * ------------------------------------------------------------------
- * UI CONTROLLER (All Features)
+ * UI CONTROLLER (All Features) - UPDATED FOR LAYERED CONTEXT MENU
  * ------------------------------------------------------------------
  */
 const UI = {
@@ -69,7 +14,7 @@ const UI = {
                 if (target === "view-todo") UI.renderKanban();
                 if (target === "view-chat") UI.renderChatScreen();
                 if (target === "view-settings") {
-                    UI.renderSettingsView(); // Обновляем UI пресетов перед показом
+                    UI.renderSettingsView(); 
                 }
                 if (target === "view-reader") UI.switchView(target);
                 else if (target !== "view-settings") UI.switchView(target);
@@ -94,6 +39,10 @@ const UI = {
 
         document.addEventListener("keydown", (e) => {
             if (e.key === "Escape") {
+                // Закрываем контекстные меню ридера
+                this.cleanupContextMenus();
+                
+                // Закрываем модальные окна
                 const container = document.getElementById("modalContainer");
                 if (container && container.children.length > 0) {
                     const modalElement = container.firstElementChild;
@@ -115,8 +64,8 @@ const UI = {
         this.bindReaderEvents();
         this.initSettings();
 
-        // *** NEW: Initialize Explanation Logic ***
-        this.bindReaderExplanationEvents();
+        // *** NEW: Initialize Layered Context Menu Logic ***
+        this.initReaderContextLogic();
 
         // --- Initial Renders ---
         this.renderHabits();
@@ -128,6 +77,9 @@ const UI = {
 
     // --- CORE NAVIGATION ---
     switchView(viewId) {
+        // При переключении вьюхи обязательно закрываем любые висящие контекстные меню
+        this.cleanupContextMenus();
+
         document.querySelectorAll(".app-view").forEach((el) => {
             el.classList.remove("active");
             el.style.display = "none";
@@ -182,7 +134,7 @@ const UI = {
 
             <div class="p-4 border rounded flex gap-4 items-center text-sm ${settings.theme === "dark" ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-white"}">
                 <span class="font-semibold">Настройки:</span>
-                <label>Шрифт: <select id="readerFontSize" class="border rounded p-1 ${settings.theme === "dark" ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-white"}">
+                <label>Шрифт: <select id="readerFontSize" class="border rounded p-1 w-20 ${settings.theme === "dark" ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-white"}">
                     <option value="16" ${settings.fontSize === 16 ? "selected" : ""}>16</option>
                     <option value="20" ${settings.fontSize === 20 ? "selected" : ""}>20</option>
                     <option value="24" ${settings.fontSize === 24 ? "selected" : ""}>24</option>
@@ -297,6 +249,7 @@ const UI = {
                 <div class="mt-2 text-xs ${settings.theme === "dark" ? "text-gray-400" : "text-gray-500"}">
                     <div class="font-semibold mb-1">История сессий (${file.stats.totalSessions}):</div>
                     <div class="max-h-16 overflow-y-auto">${historyHtml}</div>
+                    <div class="mt-1 opacity-70">💡 <i>ПКМ по тексту для объяснения через MiMo</i></div>
                 </div>
             </div>
         </div>
@@ -443,7 +396,7 @@ const UI = {
         }
     },
 
-    // --- READER EVENTS ---
+    // --- READER EVENTS (Without Context Menu Logic) ---
     bindReaderEvents() {
         document.addEventListener("click", (e) => {
             if (!e.target.closest("#view-reader")) return;
@@ -650,7 +603,7 @@ const UI = {
                 ${h.history.length ? `
                     <details class="mt-2 text-xs text-gray-500">
                         <summary class="cursor-pointer hover:text-blue-500">История (${h.history.length})</summary>
-                        <div class="mt-1 bg-gray-50 p-2 rounded max-h-20 overflow-y-auto">
+                        <div class="mt-1 bg-gray-50 p-2 rounded max-h-16 overflow-y-auto">
                             ${h.history.slice(-3).reverse().map((hi) => `<div>${new Date(hi.date).toLocaleDateString()}: ${hi.subtasks.length} подп.</div>`).join("")}
                         </div>
                     </details>` : ""}
@@ -1239,83 +1192,143 @@ const UI = {
     readerSessionStartTime: 0,
     originalTitle: document.title,
 
-    // *** NEW: Explanation Logic Logic Wrapper ***
-    bindReaderExplanationEvents() {
+    // ------------------------------------------------------------------
+    // NEW: LAYERED CONTEXT MENU LOGIC FOR READER
+    // ------------------------------------------------------------------
+    
+    initReaderContextLogic() {
         document.addEventListener('contextmenu', (e) => {
+            // 1. Проверяем, активен ли ридер
             const readerView = document.getElementById('view-reader');
-            if (!readerView || !readerView.classList.contains('active')) return;
+            if (!readerView || readerView.style.display === 'none') return;
 
+            // 2. Проверяем, кликнули ли мы внутри текстового блока
             const readerContent = document.getElementById('readerContent');
             if (!readerContent || !readerContent.contains(e.target)) return;
 
+            // 3. Получаем выделенный текст
             const selection = window.getSelection();
             const text = selection.toString().trim();
 
             e.preventDefault();
 
-            if (text.length > 2) {
-                // Проверяем авто-запрос в настройках
-                const settings = Store.data.explanationSettings || {};
-                
-                // Если авто-запрос ВЫКЛЮЧЕН (false) - показываем меню выбора пресета
-                if (!settings.autoRequest) {
-                    this.showPresetMenu(e.pageX, e.pageY, text);
-                } else {
-                    // Если авто-запрос ВКЛЮЧЕН - сразу запрашиваем первый пресет (как было раньше)
-                    // Но лучше все равно спрашивать, это удобнее.
-                    // Давайте сделаем так: если авто-запрос включен, мы все равно показываем меню,
-                    // но просто быстрее (или можно вызвать дефолтный).
-                    // Лучше: ПКМ всегда вызывает меню выбора. Это явное действие.
-                    this.showPresetMenu(e.pageX, e.pageY, text);
-                }
-            }
+            // 4. Вызываем Первый Уровень (всегда, даже без текста, для UX)
+            // Передаем text и флаг hasSelection
+            this.showLevel1Menu(e.pageX, e.pageY, text.length > 2, text);
         });
 
+        // Закрытие меню по клику вне меню
         document.addEventListener('click', (e) => {
-            const ctxMenu = document.getElementById('custom-context-menu');
-            if (ctxMenu && !ctxMenu.contains(e.target)) {
-                ctxMenu.remove();
-            }
+            this.cleanupContextMenus();
         });
     },
 
-    // Показываем меню с выбором пресета
-    showPresetMenu(x, y, text) {
-        // Удаляем старое меню, если есть
-        const oldMenu = document.getElementById('custom-context-menu');
-        if (oldMenu) oldMenu.remove();
-
-        // Получаем пресеты из Store
-        const presets = Store.data.explanationPresets || [];
-        if (presets.length === 0) return; // Если нет пресетов, ничего не делаем
+    showLevel1Menu(x, y, hasSelection, text) {
+        this.cleanupContextMenus();
 
         const menu = document.createElement('div');
-        menu.id = 'custom-context-menu';
+        menu.className = 'context-menu-layer'; 
+        menu.id = 'context-menu-level-1';
+        
+        menu.style.cssText = `
+            position: absolute; left: ${x}px; top: ${y}px;
+            width: 220px; background: #fff; border: 1px solid #ccc;
+            border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            z-index: 10001; font-family: sans-serif; font-size: 14px;
+            overflow: hidden; opacity: 0; transform: scale(0.95);
+            transition: opacity 0.15s, transform 0.15s;
+        `;
+
+        // Пункт: Сноска (Мнемоника)
+        const item1 = document.createElement('div');
+        item1.innerHTML = hasSelection ? '📝 <b>Сноска (MiMo)</b>' : '📝 <span style="color:#999">Сноска (нет текста)</span>';
+        item1.style.cssText = `
+            padding: 10px 15px; 
+            cursor: ${hasSelection ? 'pointer' : 'not-allowed'}; 
+            background: ${hasSelection ? '#fff' : '#f3f4f6'}; 
+            border-bottom: 1px solid #f0f0f0;
+        `;
+        
+        if (hasSelection) {
+            item1.onmouseover = () => item1.style.backgroundColor = '#f0f9ff';
+            item1.onmouseout = () => item1.style.backgroundColor = '#fff';
+            // При нажатии на "Сноска" вызываем Второй Уровень
+            item1.onclick = (e) => {
+                e.stopPropagation();
+                this.showLevel2Menu(x + 5, y + 5, text); 
+            };
+        }
+
+        // Пункт: Прочитать вслух (доступен всегда, если есть текст)
+        if (text && text.length > 0) {
+            const item2 = document.createElement('div');
+            item2.innerHTML = '🔊 Прочитать выделенное';
+            item2.style.cssText = 'padding: 10px 15px; cursor: pointer;';
+            item2.onmouseover = () => item2.style.backgroundColor = '#f9f9f9';
+            item2.onmouseout = () => item2.style.backgroundColor = '#fff';
+            item2.onclick = (e) => {
+                e.stopPropagation();
+                this.speakText(text);
+                this.cleanupContextMenus();
+            };
+            menu.appendChild(item2);
+        }
+
+        // Добавляем "Сноска" первым, если есть выделение
+        if (hasSelection) menu.appendChild(item1);
+
+        document.body.appendChild(menu);
+        requestAnimationFrame(() => {
+            menu.style.opacity = '1';
+            menu.style.transform = 'scale(1)';
+        });
+    },
+
+    showLevel2Menu(x, y, text) {
+        this.cleanupContextMenus();
+
+        const presets = Store.data.explanationPresets || [];
+        if (presets.length === 0) return; 
+
+        const menu = document.createElement('div');
+        menu.className = 'context-menu-layer';
+        menu.id = 'context-menu-level-2';
+        
         menu.style.cssText = `
             position: absolute; left: ${x}px; top: ${y}px;
             width: 280px; background: #fff; border: 1px solid #ccc;
-            border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-            z-index: 10000; font-family: sans-serif; font-size: 14px;
-            overflow: hidden;
+            border-radius: 6px; box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+            z-index: 10002; font-family: sans-serif; font-size: 14px;
+            overflow: hidden; opacity: 0; transition: opacity 0.2s;
         `;
 
-        // Заголовок
+        // Заголовок с кнопкой "Назад"
         const header = document.createElement('div');
-        header.innerText = '📝 Выберите уровень объяснения';
-        header.style.cssText = 'padding: 8px 12px; background: #f3f4f6; font-weight: bold; font-size: 12px; color: #333; border-bottom: 1px solid #eee;';
+        header.style.cssText = 'padding: 8px 12px; background: #f8f9fa; border-bottom: 1px solid #eee; font-weight: bold; font-size: 12px; display: flex; align-items: center; gap: 8px;';
+        
+        const backBtn = document.createElement('span');
+        backBtn.innerHTML = '← Назад';
+        backBtn.style.cssText = 'cursor: pointer; color: #555; font-weight: normal; font-size: 12px; padding: 2px 6px; border-radius: 4px; border: 1px solid #ddd; user-select: none;';
+        backBtn.onclick = (e) => {
+            e.stopPropagation();
+            // Возвращаемся к первому меню, чуть сдвинув координаты
+            this.showLevel1Menu(x - 20, y - 20, true, text);
+        };
+
+        header.appendChild(backBtn);
+        header.appendChild(document.createTextNode('Уровень объяснения'));
+
         menu.appendChild(header);
 
-        // Пункты меню из пресетов
+        // Генерация пресетов
         presets.forEach(preset => {
             const item = document.createElement('div');
             item.innerText = preset.name;
             item.style.cssText = 'padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #f0f0f0;';
             
-            // Стили при наведении
-            item.onmouseover = () => item.style.backgroundColor = '#f0f9ff'; // Светло-голубой
+            item.onmouseover = () => item.style.backgroundColor = '#f0f9ff'; 
             item.onmouseout = () => item.style.backgroundColor = '#fff';
             
-            // Обработчик клика
             item.onclick = (e) => {
                 e.stopPropagation();
                 menu.remove();
@@ -1325,15 +1338,37 @@ const UI = {
             menu.appendChild(item);
         });
 
+        // Кнопка отмены
+        const cancel = document.createElement('div');
+        cancel.innerText = 'Отмена';
+        cancel.style.cssText = 'padding: 10px; text-align: center; color: #888; cursor: pointer; background: #fafafa;';
+        cancel.onclick = (e) => { e.stopPropagation(); this.cleanupContextMenus(); };
+        menu.appendChild(cancel);
+
         document.body.appendChild(menu);
+        
+        requestAnimationFrame(() => menu.style.opacity = '1');
     },
 
-    // Обработчик запроса на сноску (обновлен для пресетов)
+    cleanupContextMenus() {
+        const menus = document.querySelectorAll('.context-menu-layer');
+        menus.forEach(m => m.remove());
+    },
+
+    speakText(text) {
+        if ('speechSynthesis' in window) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'ru-RU';
+            window.speechSynthesis.speak(utterance);
+        } else {
+            this.showNotification('Синтез речи не поддерживается');
+        }
+    },
+
+    // Обработчик запроса (вызывается из Level 2)
     async handleExplanationRequest(text, x, y, preset) {
-        // Визуальный фидбэк: "Загрузка..." в тултипе
         this.showExplanationTooltip(`⏳ Запрос: ${preset.name}...`, x, y);
 
-        // Получаем общие настройки (токены, температуру)
         const settings = Store.data.explanationSettings || {};
 
         try {
@@ -1346,10 +1381,9 @@ const UI = {
                 body: JSON.stringify({
                     model: window.appConfig.MIMO_MODEL,
                     messages: [
-                        { role: "system", content: preset.prompt }, // ИСПОЛЬЗУЕМ ПРЕСЕТ
+                        { role: "system", content: preset.prompt }, 
                         { role: "user", content: `Объясни это: "${text}"` }
                     ],
-                    // Используем общие настройки, если они есть, иначе дефолт
                     ...(settings.maxTokens && { max_completion_tokens: settings.maxTokens }),
                     temperature: settings.temperature || 0.2
                 })
@@ -1366,7 +1400,6 @@ const UI = {
         }
     },
 
-    // Показ тултипа с результатом (с вертикальным скроллом)
     showExplanationTooltip(text, x, y) {
         const old = document.getElementById('explanation-tooltip');
         if (old) old.remove();
@@ -1374,65 +1407,62 @@ const UI = {
         const div = document.createElement('div');
         div.id = 'explanation-tooltip';
 
-        // Стили контейнера
+        // Позиционирование (корректировка, чтобы не вылетало за экран)
+        const maxX = window.innerWidth - 360;
+        const finalX = x > maxX ? maxX : x;
+
         div.style.cssText = `
-            position: absolute; 
-            left: ${x}px; 
+            position: fixed; 
+            left: ${finalX}px; 
             top: ${y}px;
             width: 340px; 
             background: #ffffff; 
-            border: 1px solid #ccc;
+            border: 1px solid #d1d5db;
             border-radius: 8px; 
-            box-shadow: 0 8px 24px rgba(0,0,0,0.25);
-            z-index: 9999; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            z-index: 10003; 
             display: flex; flex-direction: column;
-            max-height: 50vh; 
+            max-height: 60vh; 
             overflow: hidden; 
-            font-family: system-ui, sans-serif;
+            font-family: ui-sans-serif, system-ui, sans-serif;
+            opacity: 0; animation: fadeIn 0.2s forwards;
         `;
 
-        // Хедер
+        // Header
         const header = document.createElement('div');
-        header.style.cssText = `
-            padding: 8px 12px; 
-            background: #f8f9fa; 
-            border-bottom: 1px solid #eee; 
-            font-weight: bold; 
-            font-size: 13px;
-            display: flex; justify-content: space-between; align-items: center;
-            color: #333;
-            flex-shrink: 0;
-        `;
+        header.style.cssText = 'padding: 10px 12px; background: #f1f5f9; border-bottom: 1px solid #e2e8f0; font-weight: 600; font-size: 13px; display: flex; justify-content: space-between; align-items: center; color: #1e293b;';
         header.innerText = 'Результат MiMo';
+        
+        const controls = document.createElement('div');
+        controls.style.display = 'flex';
+        controls.style.gap = '8px';
 
-        const closeBtn = document.createElement('span');
-        closeBtn.innerText = '×';
-        closeBtn.style.cssText = 'cursor: pointer; font-size: 18px; line-height: 1; padding: 0 4px;';
+        const copyBtn = document.createElement('button');
+        copyBtn.innerText = '📋';
+        copyBtn.title = 'Копировать';
+        copyBtn.style.cssText = 'cursor: pointer; background: none; border: none; padding: 0; font-size: 14px; opacity: 0.7;';
+        copyBtn.onclick = (e) => {
+            e.stopPropagation();
+            navigator.clipboard.writeText(text);
+            copyBtn.innerText = '✅';
+            setTimeout(() => copyBtn.innerText = '📋', 1000);
+        };
+
+        const closeBtn = document.createElement('button');
+        closeBtn.innerText = '✕';
+        closeBtn.style.cssText = 'cursor: pointer; background: none; border: none; padding: 0; font-size: 16px; font-weight: bold; opacity: 0.5;';
         closeBtn.onclick = (e) => { e.stopPropagation(); div.remove(); };
-        header.appendChild(closeBtn);
 
-        // Тело (Контент)
+        controls.appendChild(copyBtn);
+        controls.appendChild(closeBtn);
+        header.appendChild(controls);
+
         const content = document.createElement('div');
-        content.style.cssText = `
-            padding: 12px; 
-            overflow-y: auto; 
-            font-size: 14px; 
-            line-height: 1.5; 
-            color: #111;
-            white-space: pre-wrap; 
-            flex: 1; 
-            word-wrap: break-word;
-        `;
+        content.style.cssText = 'padding: 12px; overflow-y: auto; font-size: 14px; line-height: 1.6; color: #334155; white-space: pre-wrap; flex: 1;';
         content.innerText = text;
-
-        // Анимация появления
-        div.style.opacity = '0';
-        div.style.transition = 'opacity 0.15s ease-out';
 
         div.appendChild(header);
         div.appendChild(content);
         document.body.appendChild(div);
-
-        setTimeout(() => div.style.opacity = '1', 10);
-    },
+    }
 };
