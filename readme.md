@@ -260,6 +260,9 @@ second brain features=>learning module(books first, then other sources):
 -YT video analysis+parsing for short summaries NEXT
 
 
+asd
+
+
 
 -llm comments on that(late stage, with api)- next todo
 -quizes after reading(hooks on start and end of reading, simple knowledge-check questions like on w3)-next todo
