@@ -260,7 +260,7 @@ second brain features=>learning module(books first, then other sources):
 -YT video analysis+parsing for short summaries NEXT
 
 
-asd
+-tomorrow last try to begin
 
 
 
