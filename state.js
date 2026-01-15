@@ -52,6 +52,31 @@ const Store = {
                 prompt: 'Ты — профессионал. Дай краткий, структурированный разбор, убери "воду". Я знаком с контекстом, мне нужны только ключевые выводы.'
             }
         ],
+
+        // ------------------------------------------------------------------
+        // NEW: COGNITIVE CORE ARCHITECTURE (PHASE 1)
+        // ------------------------------------------------------------------
+        cognitive: {
+            // Документы: связь между Reader файлами и семантической моделью
+            documents: [],
+            // Семантические блоки: структурированные фрагменты текста
+            semanticBlocks: [],
+            // Атомы знаний: индексируемые сущности (факты, концепции, процедуры)
+            knowledgeUnits: [],
+            // Состояние знаний пользователя: прогресс для каждого атома
+            userKnowledgeStates: [],
+            // Когнитивный аватар: профиль пользователя и фокусы
+            cognitiveAvatar: {
+                id: 'main',
+                knowledgeGraph: [], // IDs userKnowledgeStates
+                focusTopics: [], // titles knowledgeUnits
+                stats: {
+                    totalUnits: 0,
+                    masteredUnits: 0,
+                    conceptsLearned: 0
+                }
+            }
+        }
     },
 
     // Метод инициализации и загрузки данных
@@ -103,7 +128,6 @@ const Store = {
                 }
 
                 // *** ИСПРАВЛЕНО: Загрузка настроек сносок ***
-                // Если в хранилище есть эти настройки, берем их, иначе останутся дефолтные
                 if (parsed.explanationSettings) {
                     this.data.explanationSettings = {
                         ...this.data.explanationSettings,
@@ -115,6 +139,22 @@ const Store = {
                 if (parsed.appStats) {
                     this.data.appStats = { totalUptime: 0, ...parsed.appStats };
                     this.data.appStats.lastSeen = Date.now();
+                }
+
+                // *** NEW: COGNITIVE CORE LOAD ***
+                if (parsed.cognitive) {
+                    this.data.cognitive = {
+                        documents: parsed.cognitive.documents || [],
+                        semanticBlocks: parsed.cognitive.semanticBlocks || [],
+                        knowledgeUnits: parsed.cognitive.knowledgeUnits || [],
+                        userKnowledgeStates: parsed.cognitive.userKnowledgeStates || [],
+                        cognitiveAvatar: {
+                            id: 'main',
+                            knowledgeGraph: parsed.cognitive.cognitiveAvatar?.knowledgeGraph || [],
+                            focusTopics: parsed.cognitive.cognitiveAvatar?.focusTopics || [],
+                            stats: { totalUnits: 0, masteredUnits: 0, conceptsLearned: 0, ...(parsed.cognitive.cognitiveAvatar?.stats || {}) }
+                        }
+                    };
                 }
 
                 return true;
@@ -381,5 +421,371 @@ const Store = {
     updateExplanationPresets(newPresets) {
         this.data.explanationPresets = newPresets;
         this.save();
+    },
+
+    // ------------------------------------------------------------------
+    // NEW: COGNITIVE MODULE METHODS (PHASE 1 + 2)
+    // ------------------------------------------------------------------
+
+    /**
+     * Создает новую запись Документа в системе когнитивного чтения.
+     * @param {string} name - Имя документа
+     * @param {number} sourceFileId - ID файла из Reader
+     * @returns {string} - ID созданного документа
+     */
+    createCognitiveDocument(name, sourceFileId) {
+        const docId = `doc_${Date.now()}`;
+        this.data.cognitive.documents.push({
+            id: docId,
+            name,
+            sourceFileId,
+            status: 'raw',
+            createdAt: Date.now()
+        });
+        this.save();
+        return docId;
+    },
+
+    /**
+     * Создает или обновляет Атом Знания (KnowledgeUnit).
+     * Логика обновления: если знание с таким title и type уже существует,
+     * обновляем description и добавляем sourceBlockId в историю.
+     * Иначе создаем новое.
+     * @param {object} unitData - { title, type, description, sourceBlockId, confidence }
+     * @returns {string} - ID знания
+     */
+    upsertKnowledgeUnit(unitData) {
+        const { title, type, description, sourceBlockId, confidence } = unitData;
+
+        // Простая нормализация (lowercase, trim)
+        const normTitle = title.trim().toLowerCase();
+
+        // Поиск существующего (простая логика для MVP)
+        let existing = this.data.cognitive.knowledgeUnits.find(
+            u => u.title.toLowerCase() === normTitle && u.type === type
+        );
+
+        if (existing) {
+            // Обновляем
+            if (description) existing.description = description;
+            if (sourceBlockId && !existing.sourceBlockIds.includes(sourceBlockId)) {
+                existing.sourceBlockIds.push(sourceBlockId);
+            }
+            existing.confidence = Math.max(existing.confidence || 0, confidence);
+        } else {
+            // Создаем новое
+            const unitId = `unit_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+            this.data.cognitive.knowledgeUnits.push({
+                id: unitId,
+                title: title.trim(),
+                type, // 'concept', 'fact', 'procedure', 'relation', 'example'
+                description: description.trim(),
+                sourceBlockIds: [sourceBlockId],
+                confidence: confidence || 0.5
+            });
+
+            // Сразу создаем состояние знания для пользователя (статус unknown)
+            this.createUserKnowledgeState(unitId);
+        }
+
+        this.save();
+        return existing ? existing.id : this.data.cognitive.knowledgeUnits[this.data.cognitive.knowledgeUnits.length - 1].id;
+    },
+
+    /**
+     * Создает начальное состояние знания для пользователя.
+     * @param {string} unitId
+     */
+    createUserKnowledgeState(unitId) {
+        const stateId = `uk_${Date.now()}`;
+        const newState = {
+            id: stateId,
+            unitId,
+            status: 'unknown', // unknown, learning, learned, mastered
+            level: 0, // 0 - 1
+            history: [{ action: 'read', timestamp: Date.now() }],
+            lastUpdated: Date.now()
+        };
+
+        this.data.cognitive.userKnowledgeStates.push(newState);
+
+        // Ссылка в аватаре (проверяем дубликаты)
+        if (!this.data.cognitive.cognitiveAvatar.knowledgeGraph.includes(stateId)) {
+            this.data.cognitive.cognitiveAvatar.knowledgeGraph.push(stateId);
+        }
+
+        // Обновляем статистику
+        this.data.cognitive.cognitiveAvatar.stats.totalUnits += 1;
+
+        this.save();
+    },
+
+    /**
+     * Обновляет статус знания пользователя (основной механизм интерактивности).
+     * @param {string} unitId
+     * @param {string} action - 'read', 'tested', 'explained', 'mastered'
+     * @param {number} level - опциональный уровень (0-1)
+     */
+    updateCognitiveState(unitId, action, level = null) {
+        const state = this.data.cognitive.userKnowledgeStates.find(s => s.unitId === unitId);
+        if (!state) {
+            // Если состояния нет (например, старый KnowledgeUnit), создаем его
+            this.createUserKnowledgeState(unitId);
+            return this.updateCognitiveState(unitId, action, level);
+        }
+
+        state.history.push({ action, timestamp: Date.now() });
+        state.lastUpdated = Date.now();
+
+        // Логика изменения статуса и уровня на основе действия
+        // Это упрощенная логика для MVP. В реальности нужна более сложная модель.
+        if (action === 'read') {
+            if (state.status === 'unknown') state.status = 'learning';
+            state.level = Math.min(1, state.level + 0.1);
+        } else if (action === 'tested') {
+            state.level = Math.min(1, state.level + 0.2); // Углубляем знание
+            if (state.level >= 0.5 && state.status === 'learning') state.status = 'learned';
+        } else if (action === 'mastered') {
+            state.status = 'mastered';
+            state.level = 1.0;
+            this.data.cognitive.cognitiveAvatar.stats.masteredUnits += 1;
+        } else if (action === 'explained') { // Объяснение другому
+            state.level = Math.min(1, state.level + 0.15);
+            if (state.level >= 0.7) state.status = 'learned';
+        }
+
+        this.save();
+    },
+
+    /**
+     * Получение данных для следующего шага (Фаза 2).
+     * Возвращает ID документа и его текст, готовый к сегментации.
+     * @param {string} documentId
+     * @returns {object|null}
+     */
+    getCognitiveDocumentData(documentId) {
+        const doc = this.data.cognitive.documents.find(d => d.id === documentId);
+        if (!doc) return null;
+
+        const file = this.data.reader.files.find(f => f.id === doc.sourceFileId);
+        if (!file) return null;
+
+        return {
+            document: doc,
+            rawText: file.content
+        };
+    },
+
+    /**
+     * Добавление семантического блока.
+     * @param {object} blockData
+     */
+    addSemanticBlock(blockData) {
+        const blockId = `sb_${Date.now()}`;
+        this.data.cognitive.semanticBlocks.push({
+            id: blockId,
+            ...blockData
+        });
+        this.save();
+        return blockId;
+    },
+
+    /**
+     * MVP: Полный цикл обработки документа для извлечения знаний.
+     * 1. Получает текст.
+     * 2. Делит на блоки (простейшая логика).
+     * 3. Отправляет каждый блок в LLM.
+     * 4. Сохраняет знания.
+     * @param {string} documentId - ID документа в cognitive.documents
+     * @param {function} onProgress - callback для UI (опционально)
+     */
+    async processDocumentToKnowledge(documentId, onProgress = null) {
+        const docData = this.getCognitiveDocumentData(documentId);
+        if (!docData) return { error: "Документ не найден" };
+
+        const { document, rawText } = docData;
+
+        // Запоминаем начальное количество знаний для подсчета итога
+        const initialUnitsCount = this.data.cognitive.knowledgeUnits.length;
+
+        // 1. СЕГМЕНТАЦИЯ ТЕКСТА (SemanticBlock)
+        // Простейший парсер: разбиваем по заголовкам (#) и пустым строкам.
+        const blocks = this._segmentText(rawText);
+
+        for (let i = 0; i < blocks.length; i++) {
+            const block = blocks[i];
+
+            // Сохраняем блок в Store
+            const blockId = this.addSemanticBlock({
+                documentId: document.id,
+                type: block.type,
+                sourceRange: block.range,
+                summary: block.text.substring(0, 100) + (block.text.length > 100 ? '...' : '')
+            });
+
+            // Callback прогресса для UI
+            if (onProgress) onProgress(`Обработка блока ${i + 1} из ${blocks.length}`);
+
+            // 2. ЭКСТРАКЦИЯ ЗНАНИЙ (LLM)
+            try {
+                const atoms = await this._extractKnowledgeFromBlock(block.text, block.type);
+
+                if (atoms && atoms.length) {
+                    atoms.forEach(atom => {
+                        // 3. СОХРАНЕНИЕ (Upsert)
+                        this.upsertKnowledgeUnit({
+                            title: atom.title,
+                            type: atom.type,
+                            description: atom.description,
+                            sourceBlockId: blockId,
+                            confidence: 0.8 // AI дает уверенность 0.8 для MVP
+                        });
+                    });
+                }
+            } catch (e) {
+                console.warn(`Ошибка обработки блока ${blockId}:`, e);
+            }
+        }
+
+        // Обновляем статус документа
+        const docIndex = this.data.cognitive.documents.findIndex(d => d.id === documentId);
+        if (docIndex !== -1) {
+            this.data.cognitive.documents[docIndex].status = 'processed';
+            this.save();
+        }
+
+        // Считаем количество новых знаний
+        const unitsCount = this.data.cognitive.knowledgeUnits.length - initialUnitsCount;
+
+        return { success: true, blocksProcessed: blocks.length, unitsCount: unitsCount };
+    },
+
+    // ВСПОМОГАТЕЛЬНЫЙ МЕТОД: Сегментация текста (простейшая логика)
+    _segmentText(text) {
+        const lines = text.split('\n');
+        const blocks = [];
+        let currentBlock = [];
+        let currentType = 'paragraph';
+        let currentStartChar = 0;
+        let globalCharPos = 0;
+
+        // Проходим по всем строкам
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const trimmed = line.trim();
+
+            // Определение типа блока по началу строки
+            if (trimmed.startsWith('#')) {
+                // Если был предыдущий блок, сохраняем его
+                if (currentBlock.length > 0) {
+                    const text = currentBlock.join('\n');
+                    blocks.push({
+                        type: currentType,
+                        text: text,
+                        range: { start: currentStartChar, end: currentStartChar + text.length }
+                    });
+                    currentBlock = [];
+                }
+                currentType = 'header';
+                currentStartChar = globalCharPos;
+            } else if (trimmed === '') {
+                // Пустая строка — разделитель абзацев
+                if (currentBlock.length > 0) {
+                    const text = currentBlock.join('\n');
+                    blocks.push({
+                        type: currentType,
+                        text: text,
+                        range: { start: currentStartChar, end: currentStartChar + text.length }
+                    });
+                    currentBlock = [];
+                    currentType = 'paragraph'; // Сброс к абзацу
+                    currentStartChar = globalCharPos + 1; // Смещаемся за пустую строку
+                }
+            }
+
+            // Добавляем строку в текущий блок (даже если это заголовок)
+            // Заголовок добавляется как часть своего блока
+            if (trimmed !== '') {
+                currentBlock.push(line);
+            }
+
+            globalCharPos += line.length + 1; // +1 для \n
+        }
+
+        // Добавляем последний блок
+        if (currentBlock.length > 0) {
+            const text = currentBlock.join('\n');
+            blocks.push({
+                type: currentType,
+                text: text,
+                range: { start: currentStartChar, end: currentStartChar + text.length }
+            });
+        }
+
+        return blocks;
+    },
+
+    // ВСПОМОГАТЕЛЬНЫЙ МЕТОД: Запрос к LLM для извлечения знаний
+    // ВСПОМОГАТЕЛЬНЫЙ МЕТОД: Запрос к LLM для извлечения знаний
+    async _extractKnowledgeFromBlock(text, type) {
+        if (!window.appConfig || !window.appConfig.MIMO_API_URL) {
+            console.warn("Конфиг API не найден");
+            return [];
+        }
+
+        // Строгий промпт с маркерами JSON
+        const systemPrompt = `Ты — AI-аналитик. Проанализируй текст и верни только JSON.
+        Тип блока: ${type}.
+        Определи 1-3 атома знаний (concept, fact, procedure).
+        Формат: <BEGIN_KNOWLEDGE_JSON>
+        { "atoms": [{ "title": "...", "type": "concept|fact|procedure", "description": "..." }] }
+        <END_KNOWLEDGE_JSON>`;
+
+        const payload = {
+            model: window.appConfig.MIMO_MODEL || "mimo-v2-flash",
+            messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: `Текст: "${text.substring(0, 1000)}"` } // Безопасное ограничение длины
+            ],
+            max_tokens: 1000,
+            temperature: 0.1
+        };
+
+        try {
+            const response = await fetch(window.appConfig.MIMO_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${window.appConfig.MIMO_API_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+            const data = await response.json();
+            const content = data.choices[0].message.content;
+
+            // Лог для отладки (сырой ответ)
+            console.log(`[LLM Raw Response for ${type}]:`, content);
+
+            // Извлекаем JSON между маркерами
+            const jsonRegex = /<BEGIN_KNOWLEDGE_JSON>([\s\S]*?)<END_KNOWLEDGE_JSON>/;
+            const match = content.match(jsonRegex);
+
+            if (!match || !match[1]) {
+                console.warn("LLM ответ не содержит валидных маркеров JSON");
+                return [];
+            }
+
+            const jsonStr = match[1].trim();
+            const parsed = JSON.parse(jsonStr);
+
+            return parsed.atoms || [];
+
+        } catch (e) {
+            console.warn("Ошибка запроса LLM или парсинга:", e);
+            return [];
+        }
     },
 };

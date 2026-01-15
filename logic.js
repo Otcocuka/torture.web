@@ -460,3 +460,74 @@ class NotificationScheduler {
         }
     }
 }
+
+
+/**
+ * ------------------------------------------------------------------
+ * COGNITIVE PROCESSOR (MVP)
+ * ------------------------------------------------------------------
+ * Обертка для вызова когнитивной логики из Store.
+ * Используется для запуска процесса из UI.
+ */
+const CognitiveProcessor = {
+    /**
+     * Запускает обработку документа.
+     * @param {number} fileId - ID файла из Reader
+     * @returns {Promise<{success: boolean, unitsCount?: number, error?: string}>}
+     */
+    async processFile(fileId) {
+        // 1. Проверяем, есть ли уже Cognitive Document для этого файла
+        const existingDoc = Store.data.cognitive.documents.find(d => d.sourceFileId === fileId);
+        let documentId;
+
+        if (existingDoc) {
+            documentId = existingDoc.id;
+            console.log(`CognitiveProcessor: Документ уже существует, ID: ${documentId}`);
+        } else {
+            // Создаем новый документ в Cognitive Core
+            const file = Store.data.reader.files.find(f => f.id === fileId);
+            if (!file) {
+                console.error("Файл не найден");
+                return { success: false, error: "Файл не найден" };
+            }
+            documentId = Store.createCognitiveDocument(file.name, fileId);
+            console.log(`CognitiveProcessor: Создан новый документ, ID: ${documentId}`);
+        }
+
+        // 2. Запускаем процессор из Store
+        // Передаем callback для логирования (можно заменить на UI-обновление)
+        const result = await Store.processDocumentToKnowledge(documentId, (progress) => {
+            console.log(`[CognitiveProcessor Progress] ${progress}`);
+        });
+
+        if (result.success) {
+            console.log(`CognitiveProcessor: Успех! Обработано блоков: ${result.blocksProcessed}, извлечено знаний: ${result.unitsCount}`);
+            // Логируем итоги для отладки
+            if (result.unitsCount > 0) {
+                console.log("Новые Knowledge Units:", Store.data.cognitive.knowledgeUnits.slice(-result.unitsCount));
+            }
+
+            // Возвращаем объект с результатом для UI
+            return { success: true, unitsCount: result.unitsCount };
+        } else {
+            console.error("CognitiveProcessor: Ошибка", result.error);
+            return { success: false, error: result.error };
+        }
+    },
+
+    /**
+     * (Отладочная) Пример функции для обновления статуса знания "вручную".
+     * Демонстрирует, как UI может взаимодействовать с когнитивным ядром.
+     * @param {string} unitTitle - Название понятия
+     * @param {string} action - Действие: 'read', 'tested', 'explained'
+     */
+    logUserAction(unitTitle, action) {
+        const unit = Store.data.cognitive.knowledgeUnits.find(u => u.title === unitTitle);
+        if (unit) {
+            Store.updateCognitiveState(unit.id, action);
+            console.log(`CognitiveProcessor: Статус для "${unitTitle}" обновлен: ${action}`);
+        } else {
+            console.warn(`CognitiveProcessor: Знание "${unitTitle}" не найдено`);
+        }
+    }
+};
