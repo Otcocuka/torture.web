@@ -241,6 +241,11 @@ document.addEventListener('keydown', ...) на Escape закрывает люб�
 
 
 todo:
+FINISH KNOWLEDGE AVATAR THINGY
+
+
+
+
 second brain features=>learning module(books first, then other sources):
 -first adding the source-done
 -tracking inside module(time spent, pages, etc.)- done
