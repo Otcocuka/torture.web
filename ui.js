@@ -284,171 +284,249 @@ const UI = {
         const view = document.getElementById("view-knowledge-avatar");
         if (!view) return;
 
-        const avatar = Store.data.cognitive.cognitiveAvatar;
-        const states = Store.data.cognitive.userKnowledgeStates;
-        const units = Store.data.cognitive.knowledgeUnits;
+        const stats = Store.getCognitiveAvatarStats();
+        
+        // Группируем знания по статусу
+        const allUnits = Store.data.cognitive.knowledgeUnits;
+        const grouped = { active: [], muted: [], ignored: [], mastered: [] };
 
-        // Собираем данные для отображения
-        const data = states
-            .map(state => {
-                const unit = units.find(u => u.id === state.unitId);
-                if (!unit) return null;
-                return { ...state, ...unit };
-            })
-            .filter(Boolean) // Удаляем null (если знание удалено)
-            .sort((a, b) => {
-                // Сортировка: сначала активные, потом по уровню
-                if (a.status === 'ignored' && b.status !== 'ignored') return 1;
-                if (a.status !== 'ignored' && b.status === 'ignored') return -1;
-                return b.level - a.level;
-            });
-
-        // Базовая статистика
-        const activeCount = data.filter(d => d.status !== 'ignored').length;
-        const total = data.length;
-
-        const cardsHtml = data.map(item => {
-            let statusColor = 'bg-gray-100 text-gray-700';
-            let statusLabel = 'Активен';
-            let actionLabel = 'Приглушить';
-            let actionAction = 'mute';
-            let nextStatus = 'muted';
-
-            if (item.status === 'muted') {
-                statusColor = 'bg-blue-100 text-blue-700';
-                statusLabel = 'Приглушен';
-                actionLabel = 'Вернуть';
-                actionAction = 'active';
-                nextStatus = 'active';
-            } else if (item.status === 'ignored') {
-                statusColor = 'bg-red-100 text-red-700';
-                statusLabel = 'Игнорируется';
-                actionLabel = 'Игнорировать'; // Оставляем как есть, для возврата нужно подтвердить
-                actionAction = 'restore';
-                nextStatus = 'active';
+        allUnits.forEach(unit => {
+            const state = Store.data.cognitive.userKnowledgeStates.find(s => s.unitId === unit.id);
+            const status = state ? state.status : 'active';
+            if (grouped[status]) {
+                grouped[status].push({ ...unit, state });
             }
+        });
 
-            // Определяем иконку по типу
-            const typeIcons = {
-                concept: '🔷',
-                fact: '📌',
-                procedure: '⚙️',
-                relation: '🔗',
-                example: '💡'
-            };
-            const icon = typeIcons[item.type] || '📄';
-
-            return `
-            <div class="border rounded-lg p-3 ${item.status === 'ignored' ? 'opacity-50' : ''} shadow-sm hover:shadow-md transition-shadow" data-unit-id="${item.id}">
-                <div class="flex justify-between items-start mb-1">
-                    <div class="font-semibold">${icon} ${item.title}</div>
-                    <div class="text-xs px-2 py-0.5 rounded ${statusColor}">${statusLabel}</div>
-                </div>
-                <div class="text-xs text-gray-500 mb-2">Тип: ${item.type.toUpperCase()} | Уровень: ${(item.level * 100).toFixed(0)}%</div>
-                <div class="text-sm text-gray-700 mb-2">${item.description}</div>
+        const renderSection = (title, items, colorClass) => {
+            if (items.length === 0) return '';
+            const cards = items.map(item => {
+                const state = item.state || { level: 0, status: 'active' };
+                const progress = Math.round(state.level * 100);
+                const color = state.status === 'mastered' ? 'bg-green-500' : 
+                              state.status === 'ignored' ? 'bg-red-400' : 'bg-blue-500';
                 
-                <div class="flex gap-2 mt-2">
-                    <!-- Кнопка управления статусом -->
-                    <button onclick="UI.changeKnowledgeStatus('${item.id}', '${nextStatus}')" 
-                            class="text-xs px-2 py-1 rounded border hover:bg-gray-50">
-                        ${actionLabel}
-                    </button>
-                    <!-- Кнопка игнорирования (прямо к Ignored) -->
-                    ${item.status !== 'ignored' ? `
-                        <button onclick="UI.changeKnowledgeStatus('${item.id}', 'ignored')" 
-                                class="text-xs px-2 py-1 rounded border border-red-200 text-red-600 hover:bg-red-50">
-                            Игнорировать
+                return `
+                <div class="bg-white p-3 rounded border shadow-sm hover:shadow-md transition cursor-pointer group relative" onclick="UI.showKnowledgeDetails('${item.id}')">
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="font-semibold text-gray-800 truncate mr-2">${item.title}</span>
+                        <span class="text-xs px-2 py-0.5 rounded ${color} text-white shrink-0">${state.status}</span>
+                    </div>
+                    <div class="text-xs text-gray-500 mb-2 line-clamp-2">${item.description}</div>
+                    <div class="w-full bg-gray-200 rounded-full h-1.5 mt-2">
+                        <div class="${color} h-1.5 rounded-full" style="width: ${progress}%"></div>
+                    </div>
+                    <div class="text-right text-xs text-gray-400 mt-1">${progress}%</div>
+                    
+                    <!-- Быстрые действия (по наведению) -->
+                    <div class="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition flex gap-1">
+                         <button onclick="event.stopPropagation(); UI.quickChangeStatus('${item.id}', '${state.status === 'ignored' ? 'active' : 'ignored'}')" 
+                            class="text-xs px-2 py-1 ${state.status === 'ignored' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'} rounded">
+                            ${state.status === 'ignored' ? 'Вернуть' : 'Игнор'}
                         </button>
-                    ` : ''}
+                    </div>
+                </div>
+                `;
+            }).join('');
+            
+            return `
+            <div class="mb-6">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-lg font-bold ${colorClass}">${title} (${items.length})</h3>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    ${cards}
                 </div>
             </div>
             `;
-        }).join('');
+        };
 
         view.innerHTML = `
         <div class="p-6 max-w-6xl mx-auto">
-            <div class="flex justify-between items-center mb-6">
+            <!-- Шапка -->
+            <div class="flex justify-between items-end mb-6 border-b pb-4">
                 <div>
-                    <h2 class="text-2xl font-bold">🧠 Аватар знаний</h2>
-                    <p class="text-gray-600">Управляйте тем, что система считает вашими знаниями.</p>
+                    <h2 class="text-2xl font-bold flex items-center gap-2">
+                        <span>🧠</span> Мой Когнитивный Аватар
+                    </h2>
+                    <p class="text-gray-500">Система хранит ${stats.total} атомов знаний.</p>
                 </div>
-                <div class="text-right text-sm">
-                    <div><span class="font-bold">${activeCount}</span> активных знаний</div>
-                    <div class="text-gray-400">Всего: ${total}</div>
+                <div class="text-right">
+                    <div class="text-3xl font-bold text-blue-600">${stats.avgLevel}%</div>
+                    <div class="text-xs text-gray-400">Средний уровень владения</div>
                 </div>
             </div>
 
-            <!-- Фильтры и тулбар -->
-            <div class="flex gap-2 mb-4">
-                <button onclick="UI.filterAvatar('all')" class="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300 text-sm">Все</button>
-                <button onclick="UI.filterAvatar('active')" class="px-3 py-1 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 text-sm">Активные</button>
-                <button onclick="UI.filterAvatar('muted')" class="px-3 py-1 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 text-sm">Приглушенные</button>
-                <button onclick="UI.filterAvatar('ignored')" class="px-3 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200 text-sm">Игнорируемые</button>
+            <!-- Панель управления -->
+            <div class="bg-blue-50 p-4 rounded-lg mb-6 flex justify-between items-center">
+                <div>
+                    <span class="text-sm font-semibold text-blue-800">Всего активных для повторения: ${stats.active}</span>
+                    <p class="text-xs text-blue-600">Игнорируемые знания не участвуют в квизах.</p>
+                </div>
+                ${grouped.active.length > 0 ? `
+                    <button onclick="UI.startQuizFromAvatar()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 font-medium shadow">
+                        📝 Начать проверку знаний
+                    </button>
+                ` : ''}
             </div>
 
-            <div id="avatarCardsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                ${cardsHtml || '<div class="col-span-full text-center text-gray-500 py-10">Нет знаний. Проанализируйте документ через Reader.</div>'}
+            <!-- Секции -->
+            <div class="space-y-4">
+                ${renderSection('Усваиваемые (Active)', grouped.active, 'text-blue-600')}
+                ${renderSection('Приглушенные (Muted)', grouped.muted, 'text-purple-600')}
+                ${renderSection('Мастер (Mastered)', grouped.mastered, 'text-green-600')}
+                ${renderSection('Игнорируемые (Ignored)', grouped.ignored, 'text-red-600')}
             </div>
+            
+            ${allUnits.length === 0 ? `
+                <div class="text-center py-12 text-gray-400 border-2 border-dashed rounded-xl">
+                    <p>Знания еще не извлечены.</p>
+                    <p class="text-sm">Загрузите файл в Reader и запустите AI-анализ.</p>
+                </div>
+            ` : ''}
         </div>
         `;
     },
 
-    /**
-     * Изменяет статус знания (Контроль пользователя)
-     * @param {string} unitId - ID знания
-     * @param {string} status - 'active', 'muted', 'ignored'
-     */
-    changeKnowledgeStatus(unitId, status) {
+    // Быстрое изменение статуса (внутри Аватара)
+    quickChangeStatus(unitId, newStatus) {
         const stateIndex = Store.data.cognitive.userKnowledgeStates.findIndex(s => s.unitId === unitId);
-        if (stateIndex === -1) {
-            console.warn("Knowledge state not found for unit:", unitId);
+        if (stateIndex === -1) return;
+
+        Store.data.cognitive.userKnowledgeStates[stateIndex].status = newStatus;
+        Store.data.cognitive.userKnowledgeStates[stateIndex].lastUpdated = Date.now();
+        Store.save();
+        
+        this.renderKnowledgeAvatarView();
+        this.showNotification(`Статус изменен на: ${newStatus}`);
+    },
+
+    // Запуск квиза со страницы Аватара (берет активный файл)
+    startQuizFromAvatar() {
+        const file = Store.getActiveFile();
+        if (!file) {
+            this.showNotification("Нет активного файла для проверки");
+            return;
+        }
+        
+        this.renderModal("quizModal", `<div id="quizContainer"><div class="text-center p-4">Инициализация квиза...</div></div>`);
+        this.renderQuizModal(file.id);
+    },
+
+    // Детальный просмотр знания
+    showKnowledgeDetails(unitId) {
+        const unit = Store.data.cognitive.knowledgeUnits.find(u => u.id === unitId);
+        if (!unit) return;
+        
+        const block = Store.data.cognitive.semanticBlocks.find(b => b.id === unit.sourceBlockIds[0]);
+        const sourceText = block ? block.summary : "Источник не найден";
+
+        this.renderModal("knowledgeDetail", `
+            <div class="bg-white rounded-lg p-6 w-[700px] max-h-[80vh] overflow-y-auto shadow-xl">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-800">${unit.title}</h2>
+                        <span class="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">${unit.type}</span>
+                    </div>
+                    <button onclick="UI.closeModal('knowledgeDetail')" class="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+                </div>
+                
+                <div class="mb-6">
+                    <h4 class="text-sm font-bold text-gray-500 uppercase">Описание</h4>
+                    <p class="text-gray-800 mt-1">${unit.description}</p>
+                </div>
+                
+                <div class="bg-gray-50 p-4 rounded border mb-4">
+                    <h4 class="text-sm font-bold text-gray-500 uppercase">Источник (контекст)</h4>
+                    <p class="text-sm text-gray-600 mt-1 italic">"${sourceText}"</p>
+                </div>
+
+                <div class="flex justify-end gap-2 mt-6">
+                    <button onclick="UI.closeModal('knowledgeDetail')" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">Закрыть</button>
+                </div>
+            </div>
+        `);
+    },
+
+    // Логика рендера квиза
+    renderQuizModal(fileId) {
+        const container = document.getElementById("quizContainer");
+        if (!container) return;
+        
+        CognitiveQuiz.startSession(fileId).then(result => {
+            if (!result.success) {
+                container.innerHTML = `<div class="text-red-500 p-4">${result.message}</div>`;
+                return;
+            }
+            this.showQuizQuestion(container);
+        });
+    },
+
+    showQuizQuestion(container) {
+        const q = CognitiveQuiz.getCurrentQuestion();
+        if (!q) {
+            container.innerHTML = `
+                <div class="text-center p-6">
+                    <h3 class="text-xl font-bold text-green-600 mb-2">✅ Квиз завершен!</h3>
+                    <p class="text-gray-600">Вы повторили знания. Уровень владения обновлен.</p>
+                    <button onclick="UI.closeModal('quizModal')" class="mt-4 px-4 py-2 bg-blue-500 text-white rounded">Закрыть</button>
+                </div>
+            `;
+            CognitiveQuiz.reset();
             return;
         }
 
-        // Обновляем статус и уровень (для игнорируемых — сбрасываем уровень)
-        Store.data.cognitive.userKnowledgeStates[stateIndex].status = status;
-        if (status === 'ignored') {
-            Store.data.cognitive.userKnowledgeStates[stateIndex].level = 0;
-        }
-        // Обновляем таймстемп
-        Store.data.cognitive.userKnowledgeStates[stateIndex].lastUpdated = Date.now();
-
-        // Сохраняем
-        Store.save();
-
-        // Обновляем отображение
-        this.renderKnowledgeAvatarView();
-        
-        // Feedback
-        this.showNotification(`Статус обновлен: ${status}`);
+        container.innerHTML = `
+            <div class="bg-white rounded-lg p-6 w-[600px] shadow-xl">
+                <div class="flex justify-between items-center mb-4">
+                    <span class="text-sm text-gray-500">Вопрос ${CognitiveQuiz.currentQuestionIndex + 1} из ${CognitiveQuiz.currentQuiz.questions.length}</span>
+                    <span class="text-xs px-2 py-1 bg-gray-100 rounded">${q.type.toUpperCase()}</span>
+                </div>
+                
+                <h3 class="text-xl font-bold text-gray-800 mb-6">${q.questionText}</h3>
+                
+                <textarea id="quizAnswerInput" class="w-full border rounded p-3 h-24 mb-4 focus:ring-2 focus:ring-blue-400 outline-none" placeholder="Введите ваш ответ..."></textarea>
+                
+                <div class="flex justify-end gap-3">
+                    <button onclick="UI.processQuizAnswer('${q.id}')" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Проверить</button>
+                </div>
+                <div id="quizFeedback" class="mt-2 h-6 text-sm font-bold"></div>
+            </div>
+        `;
     },
 
-    /**
-     * Фильтрация списка в Аватаре
-     * @param {string} filter - 'all', 'active', 'muted', 'ignored'
-     */
-    filterAvatar(filter) {
-        const container = document.getElementById("avatarCardsContainer");
-        if (!container) return;
-
-        // Берем все карточки
-        const cards = container.querySelectorAll("[data-unit-id]");
+    async processQuizAnswer(unitId) {
+        const input = document.getElementById("quizAnswerInput");
+        const feedback = document.getElementById("quizFeedback");
+        const q = CognitiveQuiz.getCurrentQuestion();
         
-        cards.forEach(card => {
-            const state = Store.data.cognitive.userKnowledgeStates.find(s => s.unitId === card.dataset.unitId);
-            if (!state) {
-                card.style.display = "none";
-                return;
-            }
+        if (!q) return;
 
-            let show = false;
-            if (filter === 'all') show = true;
-            else if (filter === 'active' && state.status === 'active') show = true;
-            else if (filter === 'muted' && state.status === 'muted') show = true;
-            else if (filter === 'ignored' && state.status === 'ignored') show = true;
+        input.disabled = true;
+        feedback.textContent = "Проверка ответа...";
 
-            card.style.display = show ? "block" : "none";
-        });
+        const isCorrect = await CognitiveQuiz.checkAnswer(input.value, q);
+        
+        if (isCorrect) {
+            feedback.textContent = "✅ Верно!";
+            feedback.className = "mt-2 h-6 text-sm font-bold text-green-600";
+            Store.updateKnowledgeAfterQuiz(unitId, true);
+        } else {
+            feedback.textContent = `❌ Неверно. Контекст: "${q.description.substring(0, 50)}..."`;
+            feedback.className = "mt-2 h-6 text-sm font-bold text-red-600";
+            Store.updateKnowledgeAfterQuiz(unitId, false);
+        }
+
+        // Меняем кнопку на "Далее"
+        const btn = document.querySelector('#quizModal button');
+        if (btn) {
+            btn.textContent = "Далее";
+            btn.className = "px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600";
+            btn.onclick = () => {
+                CognitiveQuiz.nextQuestion();
+                this.showQuizQuestion(input.closest('#quizModal').querySelector('.bg-white'));
+            };
+        }
     },
 
     // --- SETTINGS UI (UPDATED FOR PRESETS) ---
@@ -610,14 +688,10 @@ const UI = {
             if (btn.id === "readerQuizBtn") {
                 const file = Store.getActiveFile();
                 if (!file) return this.showNotification("Нет активного файла");
-                this.renderModal("quizModal", `
-                    <div class="bg-white rounded-lg p-6 w-[500px] shadow-xl">
-                        <h3 class="font-bold text-lg mb-2">Квиз: ${file.name}</h3>
-                        <div class="bg-gray-100 p-3 rounded mb-4 text-sm font-serif">"...${file.content.substring(0, 300)}..."</div>
-                        <p class="text-sm mb-2">Вопрос: О чем текст?</p>
-                        <div class="mt-4 text-right"><button data-close-modal class="bg-gray-800 text-white px-4 py-2 rounded">Закрыть</button></div>
-                    </div>
-                `);
+                
+                // Используем новый интеллектуальный квиз
+                this.renderModal("quizModal", `<div id="quizContainer"><div class="text-center p-4">Инициализация квиза...</div></div>`);
+                this.renderQuizModal(file.id);
                 return;
             }
 

@@ -788,4 +788,84 @@ const Store = {
             return [];
         }
     },
+
+    // ------------------------------------------------------------------
+    // NEW: COGNITIVE QUIZ & CONTROL METHODS
+    // ------------------------------------------------------------------
+
+    /**
+     * Получает данные для квиза по ID документа.
+     * Фильтрует знания со статусом 'ignored'.
+     * @param {string} documentId
+     */
+    getCognitiveUnitsForQuiz(documentId) {
+        // 1. Находим блоки текста, принадлежащие документу
+        const blockIds = this.data.cognitive.semanticBlocks
+            .filter(b => b.documentId === documentId)
+            .map(b => b.id);
+
+        // 2. Находим знания, связанные с этими блоками
+        const relevantUnits = this.data.cognitive.knowledgeUnits.filter(u =>
+            u.sourceBlockIds.some(blockId => blockIds.includes(blockId))
+        );
+
+        // 3. Расширяем данными состояния пользователя
+        const quizData = relevantUnits.map(unit => {
+            const state = this.data.cognitive.userKnowledgeStates.find(s => s.unitId === unit.id);
+            return {
+                ...unit,
+                userStatus: state ? state.status : 'active',
+                userLevel: state ? state.level : 0,
+                userStateId: state ? state.id : null
+            };
+        });
+
+        // 4. Исключаем игнорируемые
+        return quizData.filter(item => item.userStatus !== 'ignored');
+    },
+
+    /**
+     * Обновляет состояние знания после ответа на вопрос.
+     * @param {string} unitId
+     * @param {boolean} isCorrect
+     */
+    updateKnowledgeAfterQuiz(unitId, isCorrect) {
+        const stateIndex = this.data.cognitive.userKnowledgeStates.findIndex(s => s.unitId === unitId);
+        if (stateIndex === -1) return; // Не нашли состояние
+
+        const state = this.data.cognitive.userKnowledgeStates[stateIndex];
+        const action = isCorrect ? 'tested_success' : 'tested_fail';
+
+        // Логика изменения уровня
+        const levelChange = isCorrect ? 0.15 : -0.05;
+        state.level = Math.max(0, Math.min(1, state.level + levelChange));
+
+        // Логика смены статуса
+        if (state.level >= 0.7 && state.status === 'learning') state.status = 'learned';
+        if (state.level >= 0.9 && state.status === 'learned') state.status = 'mastered';
+        if (state.level <= 0.1 && state.status === 'learned') state.status = 'learning'; // Откат
+
+        state.history.push({ action, timestamp: Date.now() });
+        state.lastUpdated = Date.now();
+        
+        this.save();
+    },
+
+    /**
+     * Статистика аватара для UI.
+     */
+    getCognitiveAvatarStats() {
+        const units = this.data.cognitive.knowledgeUnits;
+        const states = this.data.cognitive.userKnowledgeStates;
+        
+        const total = units.length;
+        const active = states.filter(s => s.status === 'active').length;
+        const mastered = states.filter(s => s.status === 'mastered').length;
+        
+        const avgLevel = states.length > 0 
+            ? (states.reduce((sum, s) => sum + s.level, 0) / states.length) * 100 
+            : 0;
+
+        return { total, active, mastered, avgLevel: avgLevel.toFixed(1) };
+    }
 };

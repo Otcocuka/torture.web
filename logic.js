@@ -531,3 +531,156 @@ const CognitiveProcessor = {
         }
     }
 };
+
+/**
+ * ------------------------------------------------------------------
+ * COGNITIVE QUIZ ENGINE
+ * ------------------------------------------------------------------
+ * Генерирует вопросы на основе KnowledgeUnit и обрабатывает ответы.
+ */
+const CognitiveQuiz = {
+    currentQuiz: null,
+    currentQuestionIndex: 0,
+
+    /**
+     * Запускает сессию квиза для документа.
+     * @param {string} fileId - ID файла из Reader
+     */
+    async startSession(fileId) {
+        // 1. Получаем Cognitive Document для файла
+        const doc = Store.data.cognitive.documents.find(d => d.sourceFileId === fileId);
+        if (!doc) {
+            return { success: false, message: "Для этого файла еще не проведен AI-анализ." };
+        }
+
+        // 2. Получаем знания (без игнорируемых)
+        const rawData = Store.getCognitiveUnitsForQuiz(doc.id);
+        
+        if (rawData.length === 0) {
+            return { success: false, message: "Нет знаний для проверки (возможно, все игнорируются)." };
+        }
+
+        // 3. Выбираем вопросы (максимум 3, сортируем по низкому level)
+        const questionsData = rawData.sort((a, b) => a.userLevel - b.userLevel).slice(0, 3);
+
+        // 4. Генерируем текстовые вопросы через LLM
+        const questions = [];
+        for (const item of questionsData) {
+            const question = await this.generateQuestionForUnit(item);
+            if (question) {
+                questions.push({
+                    ...item,
+                    questionText: question,
+                    userAnswer: null,
+                    isCorrect: null
+                });
+            }
+        }
+
+        if (questions.length === 0) {
+            return { success: false, message: "Ошибка генерации вопросов." };
+        }
+
+        this.currentQuiz = {
+            questions: questions,
+            docId: doc.id,
+            fileId: fileId,
+            startTime: Date.now()
+        };
+        this.currentQuestionIndex = 0;
+
+        return { success: true, totalQuestions: questions.length };
+    },
+
+    /**
+     * Генерация вопроса для конкретной единицы знания через LLM.
+     */
+    async generateQuestionForUnit(unit) {
+        const systemPrompt = `Ты — система проверки знаний.
+        Знание: "${unit.title}" (Тип: ${unit.type}).
+        Описание: "${unit.description}".
+        Создай ОДИН конкретный вопрос, на который можно ответить кратким текстом.
+        Не используй формулировки "Опиши" или "Объясни". Задавай вопрос прямо.`;
+
+        try {
+            const response = await fetch(window.appConfig.MIMO_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${window.appConfig.MIMO_API_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: window.appConfig.MIMO_MODEL,
+                    messages: [
+                        { role: "system", content: systemPrompt },
+                        { role: "user", content: "Сгенерируй вопрос на русском языке." }
+                    ],
+                    max_tokens: 150,
+                    temperature: 0.7
+                })
+            });
+
+            if (!response.ok) throw new Error('LLM Error');
+            const data = await response.json();
+            return data.choices[0].message.content.trim();
+        } catch (e) {
+            console.warn("Ошибка генерации вопроса:", e);
+            return `Что такое "${unit.title}"?`;
+        }
+    },
+
+    /**
+     * Проверка ответа пользователя через LLM.
+     */
+    async checkAnswer(userAnswer, correctUnit) {
+        try {
+            const systemPrompt = `Ты — система оценки знаний.
+            Вопрос: "${correctUnit.questionText}"
+            Контекст знания (правильный ответ): "${correctUnit.description}"
+            Ответ пользователя: "${userAnswer}"
+            
+            Оцени, насколько ответ пользователя близок к правильному контексту.
+            Ответь строго одним словом: "correct" или "incorrect".`;
+
+            const response = await fetch(window.appConfig.MIMO_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${window.appConfig.MIMO_API_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: window.appConfig.MIMO_MODEL,
+                    messages: [{ role: "system", content: systemPrompt }, { role: "user", content: "Оцени ответ." }],
+                    max_tokens: 10,
+                    temperature: 0.1
+                })
+            });
+
+            const data = await response.json();
+            const resultText = data.choices[0].message.content.toLowerCase();
+            return resultText.includes('correct');
+        } catch (e) {
+            console.warn("Ошибка проверки ответа:", e);
+            // Fallback: если больше 5 символов, считаем "правильным" для MVP
+            return userAnswer.length > 5;
+        }
+    },
+
+    getCurrentQuestion() {
+        if (!this.currentQuiz || this.currentQuestionIndex >= this.currentQuiz.questions.length) return null;
+        return this.currentQuiz.questions[this.currentQuestionIndex];
+    },
+
+    nextQuestion() {
+        this.currentQuestionIndex++;
+        if (this.currentQuestionIndex >= this.currentQuiz.questions.length) {
+            return null;
+        }
+        return this.getCurrentQuestion();
+    },
+
+    reset() {
+        this.currentQuiz = null;
+        this.currentQuestionIndex = 0;
+    }
+};

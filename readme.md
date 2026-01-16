@@ -242,7 +242,7 @@ document.addEventListener('keydown', ...) на Escape закрывает люб�
 
 todo:
 FINISH KNOWLEDGE AVATAR THINGY
-
+-something was done, it didn't ruin anything i suppose, but i don't know wtf is this- get deeper on what stage the project is and wtf is this now
 
 
 
