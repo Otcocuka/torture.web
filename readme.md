@@ -242,9 +242,17 @@ document.addEventListener('keydown', ...) на Escape закрывает люб�
 
 todo:
 FINISH KNOWLEDGE AVATAR THINGY
--something was done, it didn't ruin anything i suppose, but i don't know wtf is this- get deeper on what stage the project is and wtf is this now
+-dissects text into knowledge atoms, stores them in "user avatar". Can now generate questions for checking yourself 
+-fix ui for avatar view
+-next interactions with atoms from reader
+-make context window significantly more than 1k for 1 atom
+- 
 
 
+
+
+VIDEO- 
+-transcribe like notebooklm
 
 second brain features=>learning module(books first, then other sources):
 -first adding the source-done
