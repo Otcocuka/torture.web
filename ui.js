@@ -280,21 +280,29 @@ const UI = {
     },
 
     // --- KNOWLEDGE AVATAR VIEW (NEW) ---
-    renderKnowledgeAvatarView() {
+        renderKnowledgeAvatarView() {
         const view = document.getElementById("view-knowledge-avatar");
         if (!view) return;
 
         const stats = Store.getCognitiveAvatarStats();
         
-        // Группируем знания по статусу
+        // Группируем знания по статусу (обрабатываем unknown как active)
         const allUnits = Store.data.cognitive.knowledgeUnits;
         const grouped = { active: [], muted: [], ignored: [], mastered: [] };
 
         allUnits.forEach(unit => {
-            const state = Store.data.cognitive.userKnowledgeStates.find(s => s.unitId === unit.id);
-            const status = state ? state.status : 'active';
-            if (grouped[status]) {
-                grouped[status].push({ ...unit, state });
+            let state = Store.data.cognitive.userKnowledgeStates.find(s => s.unitId === unit.id);
+            
+            // Фикс: Если состояния нет (на всякий случай), создаем виртуальное
+            if (!state) {
+                state = { id: 'missing', unitId: unit.id, status: 'active', level: 0, history: [], lastUpdated: 0 };
+            }
+            
+            // Фикс: Статус 'unknown' считаем 'active' для отображения
+            const displayStatus = state.status === 'unknown' ? 'active' : state.status;
+            
+            if (grouped[displayStatus]) {
+                grouped[displayStatus].push({ ...unit, state });
             }
         });
 

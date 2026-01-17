@@ -451,40 +451,51 @@ const Store = {
      * Логика обновления: если знание с таким title и type уже существует,
      * обновляем description и добавляем sourceBlockId в историю.
      * Иначе создаем новое.
-     * @param {object} unitData - { title, type, description, sourceBlockId, confidence }
-     * @returns {string} - ID знания
+        /**
+     * Создает или обновляет Атом Знания (KnowledgeUnit).
+     * @param {object} unitData
+     * @returns {string} ID знания
      */
     upsertKnowledgeUnit(unitData) {
         const { title, type, description, sourceBlockId, confidence } = unitData;
-
-        // Простая нормализация (lowercase, trim)
         const normTitle = title.trim().toLowerCase();
 
-        // Поиск существующего (простая логика для MVP)
         let existing = this.data.cognitive.knowledgeUnits.find(
             u => u.title.toLowerCase() === normTitle && u.type === type
         );
 
         if (existing) {
-            // Обновляем
+            // 1. Обновляем данные знания
             if (description) existing.description = description;
             if (sourceBlockId && !existing.sourceBlockIds.includes(sourceBlockId)) {
                 existing.sourceBlockIds.push(sourceBlockId);
             }
             existing.confidence = Math.max(existing.confidence || 0, confidence);
+
+            // 2. КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Проверяем и создаем состояние
+            const state = this.data.cognitive.userKnowledgeStates.find(s => s.unitId === existing.id);
+            if (!state) {
+                // Если состояния нет (старый KnowledgeUnit), создаем
+                this.createUserKnowledgeState(existing.id);
+            } else if (state.status === 'unknown') {
+                // Если статус 'unknown', переводим в 'active' (первый раз видим)
+                state.status = 'active';
+                state.level = Math.max(state.level, 0.1);
+                state.lastUpdated = Date.now();
+            }
         } else {
-            // Создаем новое
+            // Создаем новое знание
             const unitId = `unit_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
             this.data.cognitive.knowledgeUnits.push({
                 id: unitId,
                 title: title.trim(),
-                type, // 'concept', 'fact', 'procedure', 'relation', 'example'
+                type,
                 description: description.trim(),
                 sourceBlockIds: [sourceBlockId],
                 confidence: confidence || 0.5
             });
 
-            // Сразу создаем состояние знания для пользователя (статус unknown)
+            // Создаем состояние
             this.createUserKnowledgeState(unitId);
         }
 
