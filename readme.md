@@ -243,13 +243,13 @@ document.addEventListener('keydown', ...) на Escape закрывает люб�
 todo:
 FINISH KNOWLEDGE AVATAR THINGY
 -dissects text into knowledge atoms, stores them in "user avatar". Can now generate questions for checking yourself 
--fix ui for avatar view
+-fix skip button for avatar quiz for avatar view
 -next interactions with atoms from reader
--make context window significantly more than 1k for 1 atom
-- 
 
 
-
+USECASE:
+-U downloads a book. A c++ book for example. Reads first chapter once, closes app. Next time it's opened, there's a quiz to remind and check knowledge from first chapter.....................(if the check is positive- atoms are considered mastered, if no- go to circulation with different methods of increased memory retention)
+-
 
 VIDEO- 
 -transcribe like notebooklm

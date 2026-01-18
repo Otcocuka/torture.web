@@ -25,6 +25,7 @@ const UI = {
         });
 
         // --- Глобальные обработчики (Modals) ---
+        // ИСПРАВЛЕНО: Обработчик закрытия модалок по клику на кнопку (оставлен)
         document.addEventListener("click", (e) => {
             if (e.target.matches("[data-close-modal]") || e.target.closest("[data-close-modal]")) {
                 const modalContent = e.target.closest('[id^="modal_content_"]');
@@ -280,84 +281,36 @@ const UI = {
     },
 
     // --- KNOWLEDGE AVATAR VIEW (NEW) ---
-        renderKnowledgeAvatarView() {
+    renderKnowledgeAvatarView() {
         const view = document.getElementById("view-knowledge-avatar");
         if (!view) return;
 
         const stats = Store.getCognitiveAvatarStats();
-        
-        // Группируем знания по статусу (обрабатываем unknown как active)
         const allUnits = Store.data.cognitive.knowledgeUnits;
-        const grouped = { active: [], muted: [], ignored: [], mastered: [] };
 
+        // Группировка данных
+        const grouped = { active: [], muted: [], ignored: [], mastered: [] };
         allUnits.forEach(unit => {
             let state = Store.data.cognitive.userKnowledgeStates.find(s => s.unitId === unit.id);
-            
-            // Фикс: Если состояния нет (на всякий случай), создаем виртуальное
             if (!state) {
                 state = { id: 'missing', unitId: unit.id, status: 'active', level: 0, history: [], lastUpdated: 0 };
             }
-            
-            // Фикс: Статус 'unknown' считаем 'active' для отображения
+            // 'unknown' трактуем как 'active' для UX
             const displayStatus = state.status === 'unknown' ? 'active' : state.status;
-            
             if (grouped[displayStatus]) {
                 grouped[displayStatus].push({ ...unit, state });
             }
         });
 
-        const renderSection = (title, items, colorClass) => {
-            if (items.length === 0) return '';
-            const cards = items.map(item => {
-                const state = item.state || { level: 0, status: 'active' };
-                const progress = Math.round(state.level * 100);
-                const color = state.status === 'mastered' ? 'bg-green-500' : 
-                              state.status === 'ignored' ? 'bg-red-400' : 'bg-blue-500';
-                
-                return `
-                <div class="bg-white p-3 rounded border shadow-sm hover:shadow-md transition cursor-pointer group relative" onclick="UI.showKnowledgeDetails('${item.id}')">
-                    <div class="flex justify-between items-start mb-2">
-                        <span class="font-semibold text-gray-800 truncate mr-2">${item.title}</span>
-                        <span class="text-xs px-2 py-0.5 rounded ${color} text-white shrink-0">${state.status}</span>
-                    </div>
-                    <div class="text-xs text-gray-500 mb-2 line-clamp-2">${item.description}</div>
-                    <div class="w-full bg-gray-200 rounded-full h-1.5 mt-2">
-                        <div class="${color} h-1.5 rounded-full" style="width: ${progress}%"></div>
-                    </div>
-                    <div class="text-right text-xs text-gray-400 mt-1">${progress}%</div>
-                    
-                    <!-- Быстрые действия (по наведению) -->
-                    <div class="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition flex gap-1">
-                         <button onclick="event.stopPropagation(); UI.quickChangeStatus('${item.id}', '${state.status === 'ignored' ? 'active' : 'ignored'}')" 
-                            class="text-xs px-2 py-1 ${state.status === 'ignored' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'} rounded">
-                            ${state.status === 'ignored' ? 'Вернуть' : 'Игнор'}
-                        </button>
-                    </div>
-                </div>
-                `;
-            }).join('');
-            
-            return `
-            <div class="mb-6">
-                <div class="flex justify-between items-center mb-3">
-                    <h3 class="text-lg font-bold ${colorClass}">${title} (${items.length})</h3>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    ${cards}
-                </div>
-            </div>
-            `;
-        };
-
         view.innerHTML = `
-        <div class="p-6 max-w-6xl mx-auto">
+        <div class="p-6 max-w-4xl mx-auto">
             <!-- Шапка -->
             <div class="flex justify-between items-end mb-6 border-b pb-4">
                 <div>
                     <h2 class="text-2xl font-bold flex items-center gap-2">
                         <span>🧠</span> Мой Когнитивный Аватар
                     </h2>
-                    <p class="text-gray-500">Система хранит ${stats.total} атомов знаний.</p>
+                    <p class="text-gray-500 text-sm">Система хранит ${stats.total} атомов знаний.</p>
                 </div>
                 <div class="text-right">
                     <div class="text-3xl font-bold text-blue-600">${stats.avgLevel}%</div>
@@ -366,37 +319,160 @@ const UI = {
             </div>
 
             <!-- Панель управления -->
-            <div class="bg-blue-50 p-4 rounded-lg mb-6 flex justify-between items-center">
-                <div>
-                    <span class="text-sm font-semibold text-blue-800">Всего активных для повторения: ${stats.active}</span>
-                    <p class="text-xs text-blue-600">Игнорируемые знания не участвуют в квизах.</p>
+            <div class="bg-blue-50 p-4 rounded-lg mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="text-center md:text-left">
+                    <div class="text-sm font-bold text-blue-800 space-x-2">
+                        <span class="bg-white px-2 py-1 rounded border">💡 Активных: ${grouped.active.length}</span>
+                        <span class="bg-white px-2 py-1 rounded border">🏆 Мастер: ${grouped.mastered.length}</span>
+                        <span class="bg-white px-2 py-1 rounded border">🙈 Игнор: ${grouped.ignored.length}</span>
+                    </div>
+                    <p class="text-xs text-blue-600 mt-1">Игнорируемые знания не участвуют в квизах.</p>
                 </div>
                 ${grouped.active.length > 0 ? `
-                    <button onclick="UI.startQuizFromAvatar()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 font-medium shadow">
-                        📝 Начать проверку знаний
+                    <button onclick="UI.startQuizFromAvatar('active')" class="bg-blue-600 text-white px-5 py-2 rounded-lg font-medium shadow hover:bg-blue-700 transition whitespace-nowrap">
+                        📝 Проверить активные
                     </button>
                 ` : ''}
             </div>
 
-            <!-- Секции -->
-            <div class="space-y-4">
-                ${renderSection('Усваиваемые (Active)', grouped.active, 'text-blue-600')}
-                ${renderSection('Приглушенные (Muted)', grouped.muted, 'text-purple-600')}
-                ${renderSection('Мастер (Mastered)', grouped.mastered, 'text-green-600')}
-                ${renderSection('Игнорируемые (Ignored)', grouped.ignored, 'text-red-600')}
+            <!-- Переключатель вкладок -->
+            <div class="flex border-b border-gray-200 mb-4 overflow-x-auto">
+                <button onclick="UI.switchAvatarTab('active')" class="tab-btn px-4 py-2 font-medium text-blue-600 border-b-2 border-blue-600 hover:bg-blue-50" data-tab="active">
+                    Активные
+                </button>
+                <button onclick="UI.switchAvatarTab('mastered')" class="tab-btn px-4 py-2 font-medium text-gray-500 hover:text-blue-600 hover:bg-blue-50" data-tab="mastered">
+                    Мастер
+                </button>
+                <button onclick="UI.switchAvatarTab('muted')" class="tab-btn px-4 py-2 font-medium text-gray-500 hover:text-blue-600 hover:bg-blue-50" data-tab="muted">
+                    Приглушенные
+                </button>
+                <button onclick="UI.switchAvatarTab('ignored')" class="tab-btn px-4 py-2 font-medium text-gray-500 hover:text-blue-600 hover:bg-blue-50" data-tab="ignored">
+                    Игнорируемые
+                </button>
             </div>
-            
+
+            <!-- Контейнер контента -->
+            <div id="avatar-content-container" class="min-h-[200px]">
+            </div>
+
+            <!-- Состояние пустоты -->
             ${allUnits.length === 0 ? `
-                <div class="text-center py-12 text-gray-400 border-2 border-dashed rounded-xl">
-                    <p>Знания еще не извлечены.</p>
-                    <p class="text-sm">Загрузите файл в Reader и запустите AI-анализ.</p>
+                <div class="text-center py-12 text-gray-400 border-2 border-dashed rounded-xl mt-4">
+                    <p class="text-lg font-medium text-gray-500">Знания еще не извлечены</p>
+                    <p class="text-sm mt-2">Загрузите книгу в Reader и запустите <b>AI-анализ</b>.</p>
                 </div>
             ` : ''}
         </div>
         `;
+
+        // Отображаем контент по умолчанию (вкладка Активные)
+        this.renderAvatarTabContent('active', grouped);
     },
 
-    // Быстрое изменение статуса (внутри Аватара)
+    // Переключение вкладок Аватара
+    switchAvatarTab(tabName) {
+        // Обновляем стили кнопок
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            if (btn.dataset.tab === tabName) {
+                btn.className = 'tab-btn px-4 py-2 font-medium text-blue-600 border-b-2 border-blue-600 hover:bg-blue-50';
+            } else {
+                btn.className = 'tab-btn px-4 py-2 font-medium text-gray-500 hover:text-blue-600 hover:bg-blue-50';
+            }
+        });
+
+        // Получаем актуальные данные
+        const allUnits = Store.data.cognitive.knowledgeUnits;
+        const grouped = { active: [], muted: [], ignored: [], mastered: [] };
+        allUnits.forEach(unit => {
+            let state = Store.data.cognitive.userKnowledgeStates.find(s => s.unitId === unit.id);
+            if (!state) state = { status: 'active', level: 0 };
+            const displayStatus = state.status === 'unknown' ? 'active' : state.status;
+            if (grouped[displayStatus]) {
+                grouped[displayStatus].push({ ...unit, state });
+            }
+        });
+
+        this.renderAvatarTabContent(tabName, grouped);
+    },
+
+    // Рендер контента внутри вкладки Аватара
+    renderAvatarTabContent(tabName, grouped) {
+        const container = document.getElementById('avatar-content-container');
+        if (!container) return;
+
+        const items = grouped[tabName];
+
+        if (items.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-12 text-gray-400 bg-gray-50 rounded-xl">
+                    <p>Нет знаний в этой категории.</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Управление: кнопка "Проверить знания" для активных
+        let controls = '';
+        if (tabName === 'active') {
+            controls = `
+                <div class="mb-4 text-right">
+                     <button onclick="UI.startQuizFromAvatar('active')" class="bg-blue-100 text-blue-700 px-4 py-1.5 rounded hover:bg-blue-200 text-sm font-medium">
+                        📝 Начать проверку
+                    </button>
+                </div>
+            `;
+        }
+
+        const cards = items.map(item => {
+            const state = item.state;
+            const progress = Math.round(state.level * 100);
+
+            // Цвет полосы
+            let progressColor = 'bg-blue-500';
+            if (tabName === 'mastered') progressColor = 'bg-green-500';
+            if (tabName === 'ignored') progressColor = 'bg-red-400';
+
+            // Бейдж статуса
+            const statusBadge = tabName === 'active'
+                ? `<span class="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">Активно</span>`
+                : `<span class="text-[10px] bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded capitalize">${tabName}</span>`;
+
+            return `
+                <div class="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition cursor-pointer relative group"
+                     onclick="UI.showKnowledgeDetails('${item.id}')">
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="font-semibold text-gray-800 leading-tight">${item.title}</div>
+                        <div class="flex flex-col items-end gap-1">
+                            ${statusBadge}
+                            <span class="text-[10px] text-gray-400 font-mono uppercase">${item.type}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Визуализация прогресса -->
+                    <div class="flex items-center gap-2">
+                        <div class="flex-1 bg-gray-200 rounded-full h-2 overflow-hidden">
+                            <div class="${progressColor} h-full rounded-full" style="width: ${progress}%"></div>
+                        </div>
+                        <span class="text-xs font-mono text-gray-500 w-8 text-right">${progress}%</span>
+                    </div>
+
+                    <!-- Быстрые действия (только при наведении для активных) -->
+                    ${tabName === 'active' ? `
+                        <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition">
+                             <button onclick="event.stopPropagation(); UI.quickChangeStatus('${item.id}', 'ignored')" 
+                                class="text-xs px-2 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 border border-red-100">
+                                Игнор
+                            </button>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }).join('');
+
+        container.innerHTML = controls + `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">${cards}</div>`;
+    },
+
+    // Быстрое изменение статуса
     quickChangeStatus(unitId, newStatus) {
         const stateIndex = Store.data.cognitive.userKnowledgeStates.findIndex(s => s.unitId === unitId);
         if (stateIndex === -1) return;
@@ -404,19 +480,22 @@ const UI = {
         Store.data.cognitive.userKnowledgeStates[stateIndex].status = newStatus;
         Store.data.cognitive.userKnowledgeStates[stateIndex].lastUpdated = Date.now();
         Store.save();
-        
-        this.renderKnowledgeAvatarView();
+
+        // Перерисовываем текущую вкладку
+        const currentTab = document.querySelector('.tab-btn.text-blue-600').dataset.tab;
+        this.switchAvatarTab(currentTab);
+
         this.showNotification(`Статус изменен на: ${newStatus}`);
     },
 
-    // Запуск квиза со страницы Аватара (берет активный файл)
-    startQuizFromAvatar() {
+    // Запуск квиза со страницы Аватара
+    startQuizFromAvatar(filter) {
         const file = Store.getActiveFile();
         if (!file) {
             this.showNotification("Нет активного файла для проверки");
             return;
         }
-        
+
         this.renderModal("quizModal", `<div id="quizContainer"><div class="text-center p-4">Инициализация квиза...</div></div>`);
         this.renderQuizModal(file.id);
     },
@@ -425,7 +504,7 @@ const UI = {
     showKnowledgeDetails(unitId) {
         const unit = Store.data.cognitive.knowledgeUnits.find(u => u.id === unitId);
         if (!unit) return;
-        
+
         const block = Store.data.cognitive.semanticBlocks.find(b => b.id === unit.sourceBlockIds[0]);
         const sourceText = block ? block.summary : "Источник не найден";
 
@@ -460,7 +539,7 @@ const UI = {
     renderQuizModal(fileId) {
         const container = document.getElementById("quizContainer");
         if (!container) return;
-        
+
         CognitiveQuiz.startSession(fileId).then(result => {
             if (!result.success) {
                 container.innerHTML = `<div class="text-red-500 p-4">${result.message}</div>`;
@@ -472,6 +551,8 @@ const UI = {
 
     showQuizQuestion(container) {
         const q = CognitiveQuiz.getCurrentQuestion();
+        
+        // Если вопросов нет (квиз завершен)
         if (!q) {
             container.innerHTML = `
                 <div class="text-center p-6">
@@ -496,11 +577,36 @@ const UI = {
                 <textarea id="quizAnswerInput" class="w-full border rounded p-3 h-24 mb-4 focus:ring-2 focus:ring-blue-400 outline-none" placeholder="Введите ваш ответ..."></textarea>
                 
                 <div class="flex justify-end gap-3">
-                    <button onclick="UI.processQuizAnswer('${q.id}')" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Проверить</button>
+                    <!-- ИЗМЕНЕНИЕ: Добавлена кнопка "Пропустить" -->
+                    <button onclick="UI.skipQuizQuestion()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition">
+                        Пропустить
+                    </button>
+                    <button onclick="UI.processQuizAnswer('${q.id}')" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition">
+                        Проверить
+                    </button>
                 </div>
                 <div id="quizFeedback" class="mt-2 h-6 text-sm font-bold"></div>
             </div>
         `;
+    },
+
+    // ИЗМЕНЕНИЕ: Новая функция для пропуска вопроса
+    skipQuizQuestion() {
+        // 1. Получаем текущий вопрос, чтобы обновить статистику (как неверный)
+        const q = CognitiveQuiz.getCurrentQuestion();
+        if (q) {
+            // Обновляем знание с пометкой "пропущено" (как неверное)
+            Store.updateKnowledgeAfterQuiz(q.id, false);
+        }
+
+        // 2. Переходим к следующему вопросу
+        CognitiveQuiz.nextQuestion();
+
+        // 3. Обновляем UI
+        const modal = document.querySelector('#quizModal');
+        if (modal) {
+            this.showQuizQuestion(modal.querySelector('#quizContainer'));
+        }
     },
 
     async processQuizAnswer(unitId) {
@@ -520,20 +626,37 @@ const UI = {
             feedback.className = "mt-2 h-6 text-sm font-bold text-green-600";
             Store.updateKnowledgeAfterQuiz(unitId, true);
         } else {
-            feedback.textContent = `❌ Неверно. Контекст: "${q.description.substring(0, 50)}..."`;
+            feedback.textContent = `❌ Неверно.`;
             feedback.className = "mt-2 h-6 text-sm font-bold text-red-600";
             Store.updateKnowledgeAfterQuiz(unitId, false);
         }
 
-        // Меняем кнопку на "Далее"
-        const btn = document.querySelector('#quizModal button');
-        if (btn) {
-            btn.textContent = "Далее";
-            btn.className = "px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600";
-            btn.onclick = () => {
-                CognitiveQuiz.nextQuestion();
-                this.showQuizQuestion(input.closest('#quizModal').querySelector('.bg-white'));
-            };
+        // ИЗМЕНЕНИЕ: Обновляем кнопки. 
+        // Теперь показываем только кнопку "Далее". Кнопка "Проверить" скрыта или удалена.
+        const modal = document.querySelector('#quizModal');
+        if (!modal) return;
+        
+        const btnContainer = modal.querySelector('.flex.justify-end.gap-3');
+        if (btnContainer) {
+            // Заменяем содержимое контейнера кнопок на одну кнопку "Далее"
+            btnContainer.innerHTML = `
+                <button onclick="UI.nextQuizStep()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition shadow">
+                    Далее →
+                </button>
+            `;
+        }
+    },
+
+    // ИЗМЕНЕНИЕ: Функция перехода к следующему шагу
+    nextQuizStep() {
+        const next = CognitiveQuiz.nextQuestion();
+        const modal = document.querySelector('#quizModal');
+        if (modal && next) {
+            this.showQuizQuestion(modal.querySelector('#quizContainer'));
+        } else {
+            // Если вопросов больше нет
+            this.closeModal('quizModal');
+            CognitiveQuiz.reset(); // Сброс на всякий случай
         }
     },
 
@@ -696,7 +819,7 @@ const UI = {
             if (btn.id === "readerQuizBtn") {
                 const file = Store.getActiveFile();
                 if (!file) return this.showNotification("Нет активного файла");
-                
+
                 // Используем новый интеллектуальный квиз
                 this.renderModal("quizModal", `<div id="quizContainer"><div class="text-center p-4">Инициализация квиза...</div></div>`);
                 this.renderQuizModal(file.id);
@@ -1168,7 +1291,16 @@ const UI = {
     renderModal(id, html) {
         const container = document.getElementById("modalContainer");
         if (!container) return;
-        container.innerHTML = `<div id="modal_${id}" class="fixed inset-0 modal-overlay flex items-center justify-center p-4 z-50 modal-hidden" onclick="if(event.target===this) UI.closeModal('${id}')"><div class="transform transition-all scale-95 opacity-0" id="modal_content_${id}">${html}</div></div>`;
+
+        // ИСПРАВЛЕНО: Создаем оверлей, который может закрывать модалку по клику
+        container.innerHTML = `
+            <div id="modal_${id}" class="fixed inset-0 modal-overlay flex items-center justify-center p-4 z-50 modal-hidden" onclick="if(event.target.id === 'modal_${id}') UI.closeModal('${id}')">
+                <div class="transform transition-all scale-95 opacity-0" id="modal_content_${id}" onclick="event.stopPropagation()">
+                    ${html}
+                </div>
+            </div>
+        `;
+
         setTimeout(() => {
             const wrap = document.getElementById(`modal_${id}`);
             const content = document.getElementById(`modal_content_${id}`);

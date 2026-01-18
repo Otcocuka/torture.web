@@ -615,7 +615,7 @@ const CognitiveQuiz = {
                         { role: "system", content: systemPrompt },
                         { role: "user", content: "Сгенерируй вопрос на русском языке." }
                     ],
-                    max_tokens: 150,
+                    max_tokens: 300, // ИЗМЕНЕНО: Было 150, стало 300
                     temperature: 0.7
                 })
             });
@@ -651,18 +651,24 @@ const CognitiveQuiz = {
                 body: JSON.stringify({
                     model: window.appConfig.MIMO_MODEL,
                     messages: [{ role: "system", content: systemPrompt }, { role: "user", content: "Оцени ответ." }],
-                    max_tokens: 10,
+                    max_tokens: 50, // ИЗМЕНЕНО: Было 10, стало 50
                     temperature: 0.1
                 })
             });
 
             const data = await response.json();
-            const resultText = data.choices[0].message.content.toLowerCase();
-            return resultText.includes('correct');
+            const resultText = data.choices[0].message.content.toLowerCase().trim();
+            
+            // Строгая проверка
+            if (resultText.startsWith('correct')) return true;
+            if (resultText.startsWith('incorrect')) return false;
+            
+            return false; // Без fallback'ов
+
         } catch (e) {
             console.warn("Ошибка проверки ответа:", e);
-            // Fallback: если больше 5 символов, считаем "правильным" для MVP
-            return userAnswer.length > 5;
+            // В случае сбоя сети/библиотеки — считаем неверным
+            return false;
         }
     },
 
