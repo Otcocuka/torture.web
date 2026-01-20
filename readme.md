@@ -250,7 +250,7 @@ FINISH KNOWLEDGE AVATAR THINGY
 -dissects text into knowledge atoms, stores them in "user avatar". Can now generate questions for checking yourself 
 -fix skip button for avatar quiz for avatar view
 -next interactions with atoms from reader
-
+-tmrw new check
 
 
 
