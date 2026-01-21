@@ -245,7 +245,7 @@ todo:
 CHECK READER AND AVATAR WITH REAL 'BOOK'
 
 FINISH KNOWLEDGE AVATAR THINGY
-
+-fix chat?(doesn't send shi)
 -finna finish before 25.01
 -dissects text into knowledge atoms, stores them in "user avatar". Can now generate questions for checking yourself 
 -fix skip button for avatar quiz for avatar view
@@ -298,6 +298,8 @@ happy new year everyone
 
 
 happy new year!
+
+ima finna get this fucking diploma, mark my words
 
 gl finishing it before jan 1st - gj, ez 
 
