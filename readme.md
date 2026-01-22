@@ -242,16 +242,20 @@ document.addEventListener('keydown', ...) на Escape закрывает люб�
 
 todo:
 
+-finish "telegram revision" for populating backlog in the TODO kanban module, filtering through it and finalizing feature list before making a final leap
+
 CHECK READER AND AVATAR WITH REAL 'BOOK'
 
 FINISH KNOWLEDGE AVATAR THINGY
 -fix chat?(doesn't send shi)
 -finna finish before 25.01
+
+
 -dissects text into knowledge atoms, stores them in "user avatar". Can now generate questions for checking yourself 
 -fix skip button for avatar quiz for avatar view
 -next interactions with atoms from reader
 -tmrw new check
-
+-
 
 
 USECASE:
