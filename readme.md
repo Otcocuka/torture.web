@@ -242,7 +242,7 @@ document.addEventListener('keydown', ...) на Escape закрывает люб�
 
 todo:
 
--finish "telegram revision" for populating backlog in the TODO kanban module, filtering through it and finalizing feature list before making a final leap
+-finish "telegram revision"  for populating backlog in the TODO kanban module, filtering through it and finalizing feature list before making a final leap
 
 CHECK READER AND AVATAR WITH REAL 'BOOK'
 
