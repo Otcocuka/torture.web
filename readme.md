@@ -241,6 +241,7 @@ document.addEventListener('keydown', ...) на Escape закрывает люб�
 
 
 todo:
+-finish extracting from #
 -recycle kanban telegram backlog+backlog, choose ONLY necessary and fast-to-implement features- no one knows how much it will take to write the report itself. when done, backlog colon is going to become the only place for tasks for a day until done
 
 -next time try to consolidate all the variants that'll let me defend my thesis- 02.03 deadline don't forget
