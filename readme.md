@@ -248,6 +248,12 @@ FINALLY finished extracting shit from tg. omg finally
 -next time try to consolidate all the variants that'll let me defend my thesis- 02.03 deadline don't forget
 
 
+-after i summarize feature list from kanban:
+1)go get a real db and move onto it from localstorage variant(sql/nosql?)
+2)telegram api bot kanban autopopulate on specific hashtag messages
+-something like this: пользователь сам отправляет сообщение боту / в чат с ботом → бот интерпретирует хештег → сервер → канбан
+-gpt dialogue https://chatgpt.com/c/697a1442-4cd4-8328-982e-08fd9f8aa440
+
 deadline  02.03
 
 -fix presets saving 
