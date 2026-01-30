@@ -242,6 +242,8 @@ document.addEventListener('keydown', ...) на Escape закрывает люб�
 
 todo:
 recheck
+
+praying for the deacon to accept my pleads
 FINALLY finished extracting shit from tg. omg finally 
 
 -recycle kanban telegram backlog+backlog, choose ONLY necessary and fast-to-implement features- no one knows how much it will take to write the report itself. when done, backlog colon is going to become the only place for tasks for a day until done
