@@ -241,6 +241,7 @@ document.addEventListener('keydown', ...) на Escape закрывает люб�
 
 
 todo:
+leap finally 02.01
 recheck
 
 praying for the deacon to accept my pleads
