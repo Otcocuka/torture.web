@@ -241,6 +241,7 @@ document.addEventListener('keydown', ...) на Escape закрывает люб�
 
 
 todo:
+god help me 
 leap finally 02.01
 recheck
 
