@@ -243,6 +243,7 @@ document.addEventListener('keydown', ...) на Escape закрывает люб�
 todo:
 god help me 
 PLEASE LORD HAVE MERCY
+oh i need it so much- new deadline 02.06
 leap finally 02.01
 recheck
 
