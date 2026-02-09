@@ -245,6 +245,8 @@ god help me
 PLEASE LORD HAVE MERCY
 seems like mercy'll be given
 tmrw we'll see
+мы проебали в гонке с гитхабом
+но мы еще поебем
 oops happened 02.04- no problem, i just fell asleep while coding, woke up on 02:00 next day, skipped commit that way
 oh i need it so much- new deadline 02.06
 leap finally 02.01
