@@ -249,6 +249,8 @@ tmrw we'll see
 но мы еще поебем, дед 15.02.2026
 сто проц поебем
 
+2 дня до сдачи, ща кааааак причешем это дело после того как среду настрою
+
 today was a moment 
 oops happened 02.04- no problem, i just fell asleep while coding, woke up on 02:00 next day, skipped commit that way
 oh i need it so much- new deadline 02.06
