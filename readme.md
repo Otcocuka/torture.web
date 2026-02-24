@@ -411,3 +411,4 @@ ima finna get this fucking diploma, mark my words
 gl finishing it before jan 1st - gj, ez 
 
 
+нашел своих. на удивление хочется распалиться еще больше, как будто я делаю все правильно 
