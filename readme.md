@@ -418,9 +418,15 @@ gl finishing it before jan 1st - gj, ez
 
 -ну ничего, и так дел много(первое что надо сделать- закончить финальную концепцию и сделать фич-лист финализированный. с ресерча начинаем заново)//
 
+
+
+I'll prove that(another one) bitch wrong
+
+
 feb27:контент-завод для Паши
 привести в порядок все что надо для сдачи
 новый пиздатый принцип в запоминалке ниже
 
+feb28:got a new bitch every day of the week
 
-I'll prove that(another one) bitch wrong
+
