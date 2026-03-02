@@ -430,3 +430,6 @@ feb27:контент-завод для Паши
 feb28:got a new bitch every day of the week
 
 
+blyad. делай сразу в следующий раз
+
+
