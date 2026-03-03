@@ -433,3 +433,9 @@ feb28:got a new bitch every day of the week
 blyad. делай сразу в следующий раз
 
 
+upd 03.03:finally, first exam over
+one left
+and 27th is my thesis' defence
+got time to finish 
+
+
