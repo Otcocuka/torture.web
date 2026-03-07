@@ -439,3 +439,5 @@ and 27th is my thesis' defence
 got time to finish 
 
 06.03 life is full swing, feels nice
+
+07.03 reorder kanban, finish that mf 
