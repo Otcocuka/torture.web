@@ -442,3 +442,4 @@ got time to finish
 
 07.03 reorder kanban, finish that mf 
 08.03 women day, tall Nastya's bd
+11.03 early morning update. gonna burn everything to the ground
