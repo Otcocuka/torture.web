@@ -446,3 +446,4 @@ got time to finish
 11.03 main focus now- permission to pass the test remotely
 12.03 call me a blacksmith cus i forge
 14.03 almost done with the forging. yesterday found my first wife
+15.03 feeling too independent for falling in love- it feels like i'm gently entering a nice cosy hallway rathen than falling somewhere
