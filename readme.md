@@ -449,3 +449,7 @@ got time to finish
 15.03 feeling too independent for falling in love- it feels like i'm gently entering a nice cosy hallway rathen than falling somewhere
 16.03 the ball is in the dean’s court now. I’ve sent everything off; all that’s left is to wait for her green light on my remote defense request
 19.03 the shit'll hit the fan when i'll find some 
+21.03 found some shit, gotta go handle my papers in the capital
+23.03 the time has come and so have i, couple of times today
+
+
