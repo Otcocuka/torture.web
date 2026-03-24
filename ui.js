@@ -575,23 +575,21 @@ const UI = {
         `;
     },
 
-    skipQuizQuestion() {
+    skipQuizQuestion(e) {
+        if (e) e.stopPropagation();
         console.log('[Quiz] Skip clicked');
         const q = CognitiveQuiz.getCurrentQuestion();
         if (q) {
-            // Отмечаем знание как неверное (пропуск = ошибка)
             Store.updateKnowledgeAfterQuiz(q.id, false);
             console.log('[Quiz] Marked as incorrect (skipped) for unit:', q.id);
         }
 
-        // Переход к следующему вопросу
         const next = CognitiveQuiz.nextQuestion();
         console.log('[Quiz] After skip, current index:', CognitiveQuiz.currentQuestionIndex, 'next exists:', !!next);
 
-        // Находим модальное окно и контейнер
         const modal = document.querySelector('#quizModal');
         if (!modal) {
-            console.error('[Quiz] Modal not found');
+            console.warn('[Quiz] Modal not found, maybe already closed');
             return;
         }
 
@@ -602,11 +600,9 @@ const UI = {
         }
 
         if (next) {
-            // Перерисовываем вопрос
             this.showQuizQuestion(container);
             console.log('[Quiz] Rendered next question');
         } else {
-            // Вопросов больше нет – закрываем модалку и сбрасываем квиз
             console.log('[Quiz] No more questions, closing modal');
             this.closeModal('quizModal');
             CognitiveQuiz.reset();
@@ -648,7 +644,8 @@ const UI = {
         }
     },
 
-    nextQuizStep() {
+    nextQuizStep(e) {
+        if (e) e.stopPropagation();
         const next = CognitiveQuiz.nextQuestion();
         const modal = document.querySelector('#quizModal');
         if (modal && next) {
