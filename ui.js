@@ -10,13 +10,10 @@ const UI = {
             btn.addEventListener("click", (e) => {
                 const target = e.target.dataset.nav;
 
-                // ВСЕ переключения вьюх теперь обрабатываются внутри switchView
-                // Это гарантирует, что view станет visible и вызовется нужный рендер
                 if (target === "view-habits" || target === "view-timer" || target === "view-wheel" || target === "view-notifications" || target === "view-reader" || target === "view-chat" || target === "view-todo" || target === "view-stats" || target === "view-settings" || target === "view-knowledge-avatar") {
                     this.switchView(target);
                 }
 
-                // Обновляем активную кнопку в навигации
                 document.querySelectorAll("[data-nav]").forEach((b) =>
                     b.classList.remove("bg-white", "shadow-sm", "text-blue-600")
                 );
@@ -24,8 +21,7 @@ const UI = {
             });
         });
 
-        // --- Глобальные обработчики (Modals) ---
-        // ИСПРАВЛЕНО: Обработчик закрытия модалок по клику на кнопку (оставлен)
+        // Global modals
         document.addEventListener("click", (e) => {
             if (e.target.matches("[data-close-modal]") || e.target.closest("[data-close-modal]")) {
                 const modalContent = e.target.closest('[id^="modal_content_"]');
@@ -38,10 +34,7 @@ const UI = {
 
         document.addEventListener("keydown", (e) => {
             if (e.key === "Escape") {
-                // Закрываем контекстные меню ридера
                 this.cleanupContextMenus();
-
-                // Закрываем модальные окна
                 const container = document.getElementById("modalContainer");
                 if (container && container.children.length > 0) {
                     const modalElement = container.firstElementChild;
@@ -53,7 +46,7 @@ const UI = {
             }
         });
 
-        // --- Bind Events for all modules ---
+        // Bind events
         this.bindHabitsEvents();
         this.bindTimerEvents();
         this.bindWheelEvents();
@@ -62,24 +55,18 @@ const UI = {
         this.bindNotificationsEvents();
         this.bindReaderEvents();
         this.initSettings();
-
-        // *** NEW: Initialize Layered Context Menu Logic ***
         this.initReaderContextLogic();
 
-        // --- Initial Renders ---
+        // Initial renders
         this.renderHabits();
         this.renderNotificationsList();
 
-        // Start with Habits view (UI state)
         this.switchView("view-habits");
     },
 
     // --- CORE NAVIGATION ---
     switchView(viewId) {
-        // При переключении вьюхи обязательно закрываем любые висящие контекстные меню
         this.cleanupContextMenus();
-
-        // Скрываем все вьюхи
         document.querySelectorAll(".app-view").forEach((el) => {
             el.classList.remove("active");
             el.style.display = "none";
@@ -90,7 +77,6 @@ const UI = {
             target.style.display = "block";
             target.classList.add("active");
 
-            // Вызов рендеринга для нужных вьюх (отдельных логик)
             if (viewId === "view-reader") {
                 target.innerHTML = "";
                 const file = Store.getActiveFile();
@@ -171,7 +157,7 @@ const UI = {
             const sortedFiles = [...files].reverse();
             sortedFiles.forEach((f) => {
                 const lastSess = f.stats.sessionsHistory.length
-                    ? new Date(f.stats.sessionsHistory[f.stats.sessionsHistory - 1].date).toLocaleDateString()
+                    ? new Date(f.stats.sessionsHistory[f.stats.sessionsHistory.length - 1].date).toLocaleDateString()
                     : "—";
                 const totalT = f.stats.totalTime;
                 const tStr = `${Math.floor(totalT / 60)}м${totalT % 60}с`;
@@ -204,7 +190,17 @@ const UI = {
         const view = document.getElementById("view-reader");
 
         if (!file || !view) {
+            console.warn('No active file or view');
             this.switchView('view-reader');
+            return;
+        }
+
+        // Отладка: убедимся, что контент есть
+        console.log('Rendering file:', file.name);
+        console.log('Content length:', file.content ? file.content.length : 0);
+        if (!file.content) {
+            console.error('File content is missing!');
+            this.showNotification('Ошибка: файл не содержит текста');
             return;
         }
 
@@ -212,7 +208,7 @@ const UI = {
 
         view.className = `app-view active p-6 max-w-6xl mx-auto w-full h-[calc(100vh-180px)] ${settings.theme === "dark" ? "bg-gray-900 text-gray-100" : "bg-white text-gray-800"}`;
 
-        const historyHtml = file.stats.sessionsHistory.slice(-3).reverse().map((h) => {
+        const historyHtml = (file.stats.sessionsHistory || []).slice(-3).reverse().map((h) => {
             const d = new Date(h.date).toLocaleDateString();
             const t = `${Math.floor(h.time / 60)}м${h.time % 60}с`;
             return `<div class="flex justify-between border-b border-gray-100 py-1"><span>${d}</span><span>${t} / ${h.words} слов</span></div>`;
@@ -244,7 +240,7 @@ const UI = {
 
             <!-- Text Area -->
             <div id="readerContent" class="flex-1 p-8 rounded-lg overflow-y-auto shadow-inner transition-colors duration-300 ${settings.theme === "dark" ? "reader-theme-dark" : "reader-theme-light"}">
-                <div class="reader-text-container whitespace-pre-wrap leading-relaxed">${file.content.replace(/</g, "&lt;")}</div>
+                <div class="reader-text-container whitespace-pre-wrap leading-relaxed"></div>
             </div>
 
             <!-- Bottom Panel -->
@@ -253,7 +249,6 @@ const UI = {
                     <div class="flex gap-2">
                         <button id="readerStartSession" class="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700">▶️ Начать</button>
                         <button id="readerStopSession" class="hidden bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700">⏹️ Стоп</button>
-                        <!-- НОВАЯ КНОПКА AI-АНАЛИЗ -->
                         <button id="readerAiAnalyzeBtn" class="bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed">🤖 AI-анализ</button>
                     </div>
                     <button id="readerQuizBtn" class="bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700">🧠 Квиз</button>
@@ -268,19 +263,30 @@ const UI = {
                 <div class="mt-2 text-xs ${settings.theme === "dark" ? "text-gray-400" : "text-gray-500"}">
                     <div class="font-semibold mb-1">История сессий (${file.stats.totalSessions}):</div>
                     <div class="max-h-16 overflow-y-auto">${historyHtml}</div>
-                    <div class="mt-1 opacity-70">💡 <i>ПКМ по тексту для объяснения через MiMo</i></div>
+                    <div class="mt-1 opacity-70">💡 <i>ПКМ по тексту для объяснения через DeepSeek</i></div>
                 </div>
             </div>
         </div>
-        `;
+    `;
 
+        // Вставляем текст безопасно через textContent
+        const textContainer = view.querySelector('.reader-text-container');
+        if (textContainer) {
+            textContainer.textContent = file.content;
+        } else {
+            console.error('Reader text container not found');
+        }
+
+        // Восстанавливаем скролл
         setTimeout(() => {
             const content = document.getElementById("readerContent");
-            if (content && file.progress) content.scrollTop = file.progress.scrollTop || 0;
+            if (content && file.progress) {
+                content.scrollTop = file.progress.scrollTop || 0;
+            }
         }, 50);
     },
 
-    // --- KNOWLEDGE AVATAR VIEW (NEW) ---
+    // --- KNOWLEDGE AVATAR VIEW (unchanged) ---
     renderKnowledgeAvatarView() {
         const view = document.getElementById("view-knowledge-avatar");
         if (!view) return;
@@ -288,14 +294,12 @@ const UI = {
         const stats = Store.getCognitiveAvatarStats();
         const allUnits = Store.data.cognitive.knowledgeUnits;
 
-        // Группировка данных
         const grouped = { active: [], muted: [], ignored: [], mastered: [] };
         allUnits.forEach(unit => {
             let state = Store.data.cognitive.userKnowledgeStates.find(s => s.unitId === unit.id);
             if (!state) {
                 state = { id: 'missing', unitId: unit.id, status: 'active', level: 0, history: [], lastUpdated: 0 };
             }
-            // 'unknown' трактуем как 'active' для UX
             const displayStatus = state.status === 'unknown' ? 'active' : state.status;
             if (grouped[displayStatus]) {
                 grouped[displayStatus].push({ ...unit, state });
@@ -304,7 +308,6 @@ const UI = {
 
         view.innerHTML = `
         <div class="p-6 max-w-4xl mx-auto">
-            <!-- Шапка -->
             <div class="flex justify-between items-end mb-6 border-b pb-4">
                 <div>
                     <h2 class="text-2xl font-bold flex items-center gap-2">
@@ -318,7 +321,6 @@ const UI = {
                 </div>
             </div>
 
-            <!-- Панель управления -->
             <div class="bg-blue-50 p-4 rounded-lg mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
                 <div class="text-center md:text-left">
                     <div class="text-sm font-bold text-blue-800 space-x-2">
@@ -335,7 +337,6 @@ const UI = {
                 ` : ''}
             </div>
 
-            <!-- Переключатель вкладок -->
             <div class="flex border-b border-gray-200 mb-4 overflow-x-auto">
                 <button onclick="UI.switchAvatarTab('active')" class="tab-btn px-4 py-2 font-medium text-blue-600 border-b-2 border-blue-600 hover:bg-blue-50" data-tab="active">
                     Активные
@@ -351,11 +352,9 @@ const UI = {
                 </button>
             </div>
 
-            <!-- Контейнер контента -->
             <div id="avatar-content-container" class="min-h-[200px]">
             </div>
 
-            <!-- Состояние пустоты -->
             ${allUnits.length === 0 ? `
                 <div class="text-center py-12 text-gray-400 border-2 border-dashed rounded-xl mt-4">
                     <p class="text-lg font-medium text-gray-500">Знания еще не извлечены</p>
@@ -365,13 +364,10 @@ const UI = {
         </div>
         `;
 
-        // Отображаем контент по умолчанию (вкладка Активные)
         this.renderAvatarTabContent('active', grouped);
     },
 
-    // Переключение вкладок Аватара
     switchAvatarTab(tabName) {
-        // Обновляем стили кнопок
         document.querySelectorAll('.tab-btn').forEach(btn => {
             if (btn.dataset.tab === tabName) {
                 btn.className = 'tab-btn px-4 py-2 font-medium text-blue-600 border-b-2 border-blue-600 hover:bg-blue-50';
@@ -380,7 +376,6 @@ const UI = {
             }
         });
 
-        // Получаем актуальные данные
         const allUnits = Store.data.cognitive.knowledgeUnits;
         const grouped = { active: [], muted: [], ignored: [], mastered: [] };
         allUnits.forEach(unit => {
@@ -395,7 +390,6 @@ const UI = {
         this.renderAvatarTabContent(tabName, grouped);
     },
 
-    // Рендер контента внутри вкладки Аватара
     renderAvatarTabContent(tabName, grouped) {
         const container = document.getElementById('avatar-content-container');
         if (!container) return;
@@ -411,7 +405,6 @@ const UI = {
             return;
         }
 
-        // Управление: кнопка "Проверить знания" для активных
         let controls = '';
         if (tabName === 'active') {
             controls = `
@@ -427,12 +420,10 @@ const UI = {
             const state = item.state;
             const progress = Math.round(state.level * 100);
 
-            // Цвет полосы
             let progressColor = 'bg-blue-500';
             if (tabName === 'mastered') progressColor = 'bg-green-500';
             if (tabName === 'ignored') progressColor = 'bg-red-400';
 
-            // Бейдж статуса
             const statusBadge = tabName === 'active'
                 ? `<span class="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">Активно</span>`
                 : `<span class="text-[10px] bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded capitalize">${tabName}</span>`;
@@ -448,7 +439,6 @@ const UI = {
                         </div>
                     </div>
                     
-                    <!-- Визуализация прогресса -->
                     <div class="flex items-center gap-2">
                         <div class="flex-1 bg-gray-200 rounded-full h-2 overflow-hidden">
                             <div class="${progressColor} h-full rounded-full" style="width: ${progress}%"></div>
@@ -456,7 +446,6 @@ const UI = {
                         <span class="text-xs font-mono text-gray-500 w-8 text-right">${progress}%</span>
                     </div>
 
-                    <!-- Быстрые действия (только при наведении для активных) -->
                     ${tabName === 'active' ? `
                         <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition">
                              <button onclick="event.stopPropagation(); UI.quickChangeStatus('${item.id}', 'ignored')" 
@@ -472,7 +461,6 @@ const UI = {
         container.innerHTML = controls + `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">${cards}</div>`;
     },
 
-    // Быстрое изменение статуса
     quickChangeStatus(unitId, newStatus) {
         const stateIndex = Store.data.cognitive.userKnowledgeStates.findIndex(s => s.unitId === unitId);
         if (stateIndex === -1) return;
@@ -481,14 +469,12 @@ const UI = {
         Store.data.cognitive.userKnowledgeStates[stateIndex].lastUpdated = Date.now();
         Store.save();
 
-        // Перерисовываем текущую вкладку
         const currentTab = document.querySelector('.tab-btn.text-blue-600').dataset.tab;
         this.switchAvatarTab(currentTab);
 
         this.showNotification(`Статус изменен на: ${newStatus}`);
     },
 
-    // Запуск квиза со страницы Аватара
     startQuizFromAvatar(filter) {
         const file = Store.getActiveFile();
         if (!file) {
@@ -496,11 +482,10 @@ const UI = {
             return;
         }
 
-        this.renderModal("quizModal", `<div id="quizContainer"><div class="text-center p-4">Инициализация квиза...</div></div>`);
+        this.renderModal("quizModal", `<div id="quizContainer"><div class="text-center p-4 text-white">Инициализация квиза...</div></div>`);
         this.renderQuizModal(file.id);
     },
 
-    // Детальный просмотр знания
     showKnowledgeDetails(unitId) {
         const unit = Store.data.cognitive.knowledgeUnits.find(u => u.id === unitId);
         if (!unit) return;
@@ -535,7 +520,6 @@ const UI = {
         `);
     },
 
-    // Логика рендера квиза
     renderQuizModal(fileId) {
         const container = document.getElementById("quizContainer");
         if (!container) return;
@@ -551,8 +535,10 @@ const UI = {
 
     showQuizQuestion(container) {
         const q = CognitiveQuiz.getCurrentQuestion();
-        
-        // Если вопросов нет (квиз завершен)
+        console.log('[Quiz] showQuizQuestion called, current question index:', CognitiveQuiz.currentQuestionIndex, 'question exists:', !!q);
+
+
+
         if (!q) {
             container.innerHTML = `
                 <div class="text-center p-6">
@@ -577,7 +563,6 @@ const UI = {
                 <textarea id="quizAnswerInput" class="w-full border rounded p-3 h-24 mb-4 focus:ring-2 focus:ring-blue-400 outline-none" placeholder="Введите ваш ответ..."></textarea>
                 
                 <div class="flex justify-end gap-3">
-                    <!-- ИЗМЕНЕНИЕ: Добавлена кнопка "Пропустить" -->
                     <button onclick="UI.skipQuizQuestion()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition">
                         Пропустить
                     </button>
@@ -590,22 +575,41 @@ const UI = {
         `;
     },
 
-    // ИЗМЕНЕНИЕ: Новая функция для пропуска вопроса
     skipQuizQuestion() {
-        // 1. Получаем текущий вопрос, чтобы обновить статистику (как неверный)
+        console.log('[Quiz] Skip clicked');
         const q = CognitiveQuiz.getCurrentQuestion();
         if (q) {
-            // Обновляем знание с пометкой "пропущено" (как неверное)
+            // Отмечаем знание как неверное (пропуск = ошибка)
             Store.updateKnowledgeAfterQuiz(q.id, false);
+            console.log('[Quiz] Marked as incorrect (skipped) for unit:', q.id);
         }
 
-        // 2. Переходим к следующему вопросу
-        CognitiveQuiz.nextQuestion();
+        // Переход к следующему вопросу
+        const next = CognitiveQuiz.nextQuestion();
+        console.log('[Quiz] After skip, current index:', CognitiveQuiz.currentQuestionIndex, 'next exists:', !!next);
 
-        // 3. Обновляем UI
+        // Находим модальное окно и контейнер
         const modal = document.querySelector('#quizModal');
-        if (modal) {
-            this.showQuizQuestion(modal.querySelector('#quizContainer'));
+        if (!modal) {
+            console.error('[Quiz] Modal not found');
+            return;
+        }
+
+        const container = modal.querySelector('#quizContainer');
+        if (!container) {
+            console.error('[Quiz] quizContainer not found');
+            return;
+        }
+
+        if (next) {
+            // Перерисовываем вопрос
+            this.showQuizQuestion(container);
+            console.log('[Quiz] Rendered next question');
+        } else {
+            // Вопросов больше нет – закрываем модалку и сбрасываем квиз
+            console.log('[Quiz] No more questions, closing modal');
+            this.closeModal('quizModal');
+            CognitiveQuiz.reset();
         }
     },
 
@@ -613,14 +617,14 @@ const UI = {
         const input = document.getElementById("quizAnswerInput");
         const feedback = document.getElementById("quizFeedback");
         const q = CognitiveQuiz.getCurrentQuestion();
-        
+
         if (!q) return;
 
         input.disabled = true;
         feedback.textContent = "Проверка ответа...";
 
         const isCorrect = await CognitiveQuiz.checkAnswer(input.value, q);
-        
+
         if (isCorrect) {
             feedback.textContent = "✅ Верно!";
             feedback.className = "mt-2 h-6 text-sm font-bold text-green-600";
@@ -631,14 +635,11 @@ const UI = {
             Store.updateKnowledgeAfterQuiz(unitId, false);
         }
 
-        // ИЗМЕНЕНИЕ: Обновляем кнопки. 
-        // Теперь показываем только кнопку "Далее". Кнопка "Проверить" скрыта или удалена.
         const modal = document.querySelector('#quizModal');
         if (!modal) return;
-        
+
         const btnContainer = modal.querySelector('.flex.justify-end.gap-3');
         if (btnContainer) {
-            // Заменяем содержимое контейнера кнопок на одну кнопку "Далее"
             btnContainer.innerHTML = `
                 <button onclick="UI.nextQuizStep()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition shadow">
                     Далее →
@@ -647,25 +648,22 @@ const UI = {
         }
     },
 
-    // ИЗМЕНЕНИЕ: Функция перехода к следующему шагу
     nextQuizStep() {
         const next = CognitiveQuiz.nextQuestion();
         const modal = document.querySelector('#quizModal');
         if (modal && next) {
             this.showQuizQuestion(modal.querySelector('#quizContainer'));
         } else {
-            // Если вопросов больше нет
             this.closeModal('quizModal');
-            CognitiveQuiz.reset(); // Сброс на всякий случай
+            CognitiveQuiz.reset();
         }
     },
 
-    // --- SETTINGS UI (UPDATED FOR PRESETS) ---
+    // --- SETTINGS UI ---
     initSettings() {
         const btn = document.getElementById('saveSettingsBtn');
         if (btn) {
             btn.onclick = () => {
-                // 1. Сохраняем настройки API
                 const settings = {
                     maxTokens: parseInt(document.getElementById('settingMaxTokens').value),
                     temperature: parseFloat(document.getElementById('settingTemperature').value),
@@ -673,7 +671,6 @@ const UI = {
                 };
                 Store.updateExplanationSettings(settings);
 
-                // 2. Собираем и сохраняем пресеты
                 const presets = [];
                 const presetContainers = document.querySelectorAll('.preset-item');
 
@@ -684,7 +681,7 @@ const UI = {
 
                     if (nameInput.value.trim() && promptInput.value.trim()) {
                         presets.push({
-                            id: id || Date.now().toString(), // Новый ID, если не задан
+                            id: id || Date.now().toString(),
                             name: nameInput.value.trim(),
                             prompt: promptInput.value.trim()
                         });
@@ -695,19 +692,16 @@ const UI = {
                     Store.updateExplanationPresets(presets);
                 }
 
-                // UI Feedback
                 const status = document.getElementById('saveStatus');
                 status.classList.remove('hidden');
                 setTimeout(() => status.classList.add('hidden'), 2000);
 
-                // Обновляем UI (на случай если добавились новые пресеты)
                 this.renderSettingsView();
             };
         }
     },
 
     renderSettingsView() {
-        // 1. Заполняем стандартные настройки
         const s = Store.data.explanationSettings || { maxTokens: 500, temperature: 0.2, autoRequest: false };
         const elMax = document.getElementById('settingMaxTokens');
         const elTemp = document.getElementById('settingTemperature');
@@ -727,7 +721,6 @@ const UI = {
         }
         if (elAuto) elAuto.checked = s.autoRequest;
 
-        // 2. Рендерим пресеты
         const container = document.getElementById('presetsContainer');
         if (container) {
             const presets = Store.data.explanationPresets || [];
@@ -756,12 +749,10 @@ const UI = {
                 container.appendChild(div);
             });
 
-            // Кнопка добавления нового пресета
             const addBtn = document.createElement('button');
             addBtn.className = 'w-full py-2 border border-dashed border-blue-300 text-blue-500 rounded hover:bg-blue-50 text-sm';
             addBtn.innerText = '+ Добавить пресет';
             addBtn.onclick = () => {
-                // Добавляем пустой элемент в UI (сохранится при нажатии основной кнопки)
                 const div = document.createElement('div');
                 div.className = 'preset-item bg-blue-50 p-3 rounded border border-blue-200';
                 div.innerHTML = `
@@ -771,11 +762,10 @@ const UI = {
                     </div>
                     <div class="flex justify-end"><button class="text-red-500 hover:text-red-700 text-xs delete-preset">Отмена</button></div>
                 `;
-                container.insertBefore(div, container.firstChild); // Вверху списка
+                container.insertBefore(div, container.firstChild);
             };
             container.appendChild(addBtn);
 
-            // Обработчик удаления (делегирование событий, так как элементы динамические)
             container.addEventListener('click', (e) => {
                 if (e.target.classList.contains('delete-preset')) {
                     e.target.closest('.preset-item').remove();
@@ -783,7 +773,6 @@ const UI = {
             });
         }
 
-        // Показываем view, если он скрыт (при переключении из меню)
         const view = document.getElementById("view-settings");
         if (view && view.style.display === "none") {
             document.querySelectorAll(".app-view").forEach((el) => {
@@ -795,7 +784,7 @@ const UI = {
         }
     },
 
-    // --- READER EVENTS (With AI Analyze) ---
+    // --- READER EVENTS (With AI Analyze & progress) ---
     bindReaderEvents() {
         document.addEventListener("click", (e) => {
             if (!e.target.closest("#view-reader")) return;
@@ -803,7 +792,6 @@ const UI = {
             const btn = e.target.closest("button");
             if (!btn) return;
 
-            // --- СУЩЕСТВУЮЩИЕ ОБРАБОТЧИКИ (оставьте их как есть) ---
             if (btn.id === "readerLoadBtn") {
                 document.getElementById("readerFileInput").click();
                 return;
@@ -819,34 +807,33 @@ const UI = {
             if (btn.id === "readerQuizBtn") {
                 const file = Store.getActiveFile();
                 if (!file) return this.showNotification("Нет активного файла");
-
-                // Используем новый интеллектуальный квиз
-                this.renderModal("quizModal", `<div id="quizContainer"><div class="text-center p-4">Инициализация квиза...</div></div>`);
+                this.renderModal("quizModal", `<div id="quizContainer"><div class="text-center p-4 text-white">Инициализация квиза...</div></div>`);
                 this.renderQuizModal(file.id);
                 return;
             }
 
-            // --- НОВЫЙ ОБРАБОТЧИК: Запуск AI-анализа ---
             if (btn.id === "readerAiAnalyzeBtn") {
                 const file = Store.getActiveFile();
                 if (!file) return UI.showNotification("Сначала загрузите файл");
 
-                // Блокируем кнопку, чтобы предотвратить двойные клики
                 btn.disabled = true;
                 btn.innerText = "⏳ Обработка...";
 
-                // Вызываем процессор
-                CognitiveProcessor.processFile(file.id)
+                CognitiveProcessor.processFile(file.id, (progress) => {
+                    btn.innerText = `⏳ ${progress}`;
+                })
                     .then((result) => {
                         if (result.success) {
-                            // Используем существующий UI.showNotification для результата
                             UI.showNotification(`✅ Готово! Извлечено знаний: ${result.unitsCount}`);
-
-                            // Обновляем текст кнопки для наглядности
                             btn.innerText = `🤖 Аналитика завершена (${result.unitsCount})`;
                         } else {
                             UI.showNotification(`❌ Ошибка: ${result.error}`);
                             btn.innerText = "🤖 Ошибка, попробуйте снова";
+                        }
+                        if (result.success && result.unitsCount > 0) {
+                            setTimeout(() => {
+                                UI.switchView('view-knowledge-avatar');
+                            }, 1000);
                         }
                     })
                     .catch((err) => {
@@ -855,14 +842,13 @@ const UI = {
                         btn.innerText = "🤖 Ошибка";
                     })
                     .finally(() => {
-                        // Возвращаем кнопку в активное состояние через 2 секунды
                         setTimeout(() => {
                             btn.disabled = false;
                             btn.innerText = "🤖 AI-анализ";
                         }, 2000);
                     });
 
-                return; // Предотвращаем дальнейшую обработку
+                return;
             }
         });
 
@@ -1292,7 +1278,6 @@ const UI = {
         const container = document.getElementById("modalContainer");
         if (!container) return;
 
-        // ИСПРАВЛЕНО: Создаем оверлей, который может закрывать модалку по клику
         container.innerHTML = `
             <div id="modal_${id}" class="fixed inset-0 modal-overlay flex items-center justify-center p-4 z-50 modal-hidden" onclick="if(event.target.id === 'modal_${id}') UI.closeModal('${id}')">
                 <div class="transform transition-all scale-95 opacity-0" id="modal_content_${id}" onclick="event.stopPropagation()">
@@ -1472,7 +1457,7 @@ const UI = {
         }).join("");
     },
 
-    // --- CHAT UI LOGIC (Updated) ---
+    // --- CHAT UI LOGIC (DeepSeek only) ---
     bindChatEvents() {
         const view = document.getElementById('view-chat');
         if (!view) return;
@@ -1498,32 +1483,52 @@ const UI = {
         const message = input.value.trim();
         if (!message) return;
 
-        const tempUserMsg = { id: Date.now(), role: 'user', content: message, timestamp: new Date().toLocaleTimeString() };
-
-        // 1. Визуально показываем
-        Store.data.chat.messages.push(tempUserMsg); // Временно в память
+        Store.addChatMessage('user', message);
         this.renderChatMessages();
         this.scrollToChatBottom();
         this.setChatTyping(true);
         input.value = '';
+        input.disabled = true;
 
-        // 2. Получаем ЧИСТУЮ историю
-        const cleanHistory = Store.data.chat.messages.filter(m => m.role === 'user' || (m.role === 'assistant' && !m.content.startsWith('❌')));
+        try {
+            const apiUrl = window.appConfig.DEEPSEEK_API_URL;
+            const headers = {
+                'Authorization': `Bearer ${window.appConfig.DEEPSEEK_API_KEY}`,
+                'Content-Type': 'application/json'
+            };
+            const body = {
+                model: window.appConfig.DEEPSEEK_MODEL,
+                messages: [
+                    { role: 'system', content: 'Ты — полезный ассистент.' },
+                    ...Store.data.chat.messages.filter(m => m.role !== 'system').map(m => ({ role: m.role, content: m.content }))
+                ],
+                max_tokens: 500,
+                temperature: 0.7
+            };
 
-        // 3. Логика
-        const result = await ChatLogic.sendMessage(cleanHistory, message);
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(body)
+            });
 
-        // 4. Результат
-        if (result.success) {
-            Store.addChatMessage('assistant', result.data);
-        } else {
-            Store.data.chat.messages = Store.data.chat.messages.filter(m => m.id !== tempUserMsg.id);
-            this.addSystemMessage(result.message);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+            const data = await response.json();
+            const reply = data.choices[0].message.content;
+
+            Store.addChatMessage('assistant', reply);
+            this.renderChatMessages();
+            this.scrollToChatBottom();
+        } catch (error) {
+            console.error('Chat error:', error);
+            Store.addChatMessage('assistant', `❌ Ошибка: ${error.message}`);
+            this.renderChatMessages();
+        } finally {
+            this.setChatTyping(false);
+            input.disabled = false;
+            input.focus();
         }
-
-        this.setChatTyping(false);
-        this.renderChatMessages();
-        this.scrollToChatBottom();
     },
 
     setChatTyping(isTyping) {
@@ -1533,23 +1538,6 @@ const UI = {
         if (btn) btn.disabled = isTyping;
         const input = document.getElementById('chatInput');
         if (input) input.disabled = isTyping;
-    },
-
-    addSystemMessage(text) {
-        const container = document.getElementById('chatMessages');
-        if (container) {
-            const div = document.createElement('div');
-            div.className = "flex w-full justify-start";
-            div.innerHTML = `
-                <div class="max-w-[85%] p-3 rounded-xl bg-gray-100 text-gray-900 border border-gray-200">
-                    <div class="text-[10px] opacity-70 mb-1">System · ${new Date().toLocaleTimeString()}</div>
-                    <div class="whitespace-pre-wrap text-sm leading-relaxed text-red-600 font-bold">${text}</div>
-                </div>
-            `;
-            container.appendChild(div);
-            const el = document.getElementById('chatMessages');
-            if (el) el.scrollTop = el.scrollHeight;
-        }
     },
 
     scrollToChatBottom() {
@@ -1562,29 +1550,27 @@ const UI = {
         if (!view) return;
 
         const messages = Store.getChatMessages();
-        const modelName = window.appConfig?.MIMO_MODEL || "mimo-v2-flash";
 
         view.innerHTML = `
         <div class="flex flex-col h-full bg-white rounded-lg shadow overflow-hidden border border-gray-200">
             <div class="bg-gray-900 text-white p-4 font-bold flex justify-between items-center">
                 <div class="flex items-center gap-2">
-                    <span>💬 MiMo Chat</span>
-                    <span class="text-xs font-normal bg-gray-700 px-2 py-0.5 rounded">${modelName}</span>
+                    <span>💬 DeepSeek Chat</span>
+                    <span class="text-xs font-normal bg-gray-700 px-2 py-0.5 rounded">${window.appConfig.DEEPSEEK_MODEL}</span>
                 </div>
                 <button id="chatClearBtn" class="text-xs bg-gray-700 px-3 py-1 rounded hover:bg-gray-600 transition">🗑️ Очистить</button>
             </div>
-
             <div id="chatMessages" class="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
                 ${messages.length === 0 ? `
                     <div class="flex h-full items-center justify-center text-gray-400 flex-col gap-2">
                         <span class="text-2xl">🤖</span>
-                        <span>Напишите что-нибудь...</span>
+                        <span>Начните диалог с DeepSeek</span>
                     </div>
                 ` : ''}
             </div>
-
-            <div id="chatTypingStatus" class="hidden px-4 py-2 text-xs text-gray-500 bg-gray-100 border-t animate-pulse">Бот печатает...</div>
-
+            <div id="chatTypingStatus" class="hidden px-4 py-2 text-xs text-gray-500 bg-gray-100 border-t animate-pulse">
+                DeepSeek печатает...
+            </div>
             <div class="p-4 border-t bg-white flex gap-2 items-end">
                 <textarea id="chatInput"
                     class="flex-1 border border-gray-300 rounded-lg p-3 resize-none focus:ring-2 focus:ring-indigo-500 focus:outline-none"
@@ -1622,7 +1608,7 @@ const UI = {
             return `
             <div class="flex w-full ${isUser ? 'justify-end' : 'justify-start'}">
                 <div class="max-w-[85%] p-3 rounded-xl ${isUser ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-900 border border-gray-200'}">
-                    <div class="text-[10px] opacity-70 mb-1">${isUser ? 'Вы' : 'MiMo'} · ${m.timestamp}</div>
+                    <div class="text-[10px] opacity-70 mb-1">${isUser ? 'Вы' : 'DeepSeek'} · ${m.timestamp}</div>
                     <div class="whitespace-pre-wrap text-sm leading-relaxed">${m.content.replace(/</g, "&lt;")}</div>
                 </div>
             </div>
@@ -1632,37 +1618,27 @@ const UI = {
         container.innerHTML = html;
     },
 
-    // --- Объявление переменных для Reader ---
+    // --- Reader Context Menu (DeepSeek) ---
     readerSessionTimer: null,
     readerSessionStartTime: 0,
     originalTitle: document.title,
 
-    // ------------------------------------------------------------------
-    // NEW: LAYERED CONTEXT MENU LOGIC FOR READER
-    // ------------------------------------------------------------------
-
     initReaderContextLogic() {
         document.addEventListener('contextmenu', (e) => {
-            // 1. Проверяем, активен ли ридер
             const readerView = document.getElementById('view-reader');
             if (!readerView || readerView.style.display === 'none') return;
 
-            // 2. Проверяем, кликнули ли мы внутри текстового блока
             const readerContent = document.getElementById('readerContent');
             if (!readerContent || !readerContent.contains(e.target)) return;
 
-            // 3. Получаем выделенный текст
             const selection = window.getSelection();
             const text = selection.toString().trim();
 
             e.preventDefault();
 
-            // 4. Вызываем Первый Уровень (всегда, даже без текста, для UX)
-            // Передаем text и флаг hasSelection
             this.showLevel1Menu(e.pageX, e.pageY, text.length > 2, text);
         });
 
-        // Закрытие меню по клику вне меню
         document.addEventListener('click', (e) => {
             this.cleanupContextMenus();
         });
@@ -1684,9 +1660,8 @@ const UI = {
             transition: opacity 0.15s, transform 0.15s;
         `;
 
-        // Пункт: Сноска (Мнемоника)
         const item1 = document.createElement('div');
-        item1.innerHTML = hasSelection ? '📝 <b>Сноска (MiMo)</b>' : '📝 <span style="color:#999">Сноска (нет текста)</span>';
+        item1.innerHTML = hasSelection ? '📝 <b>Сноска (DeepSeek)</b>' : '📝 <span style="color:#999">Сноска (нет текста)</span>';
         item1.style.cssText = `
             padding: 10px 15px; 
             cursor: ${hasSelection ? 'pointer' : 'not-allowed'}; 
@@ -1697,14 +1672,12 @@ const UI = {
         if (hasSelection) {
             item1.onmouseover = () => item1.style.backgroundColor = '#f0f9ff';
             item1.onmouseout = () => item1.style.backgroundColor = '#fff';
-            // При нажатии на "Сноска" вызываем Второй Уровень
             item1.onclick = (e) => {
                 e.stopPropagation();
                 this.showLevel2Menu(x + 5, y + 5, text);
             };
         }
 
-        // Пункт: Прочитать вслух (доступен всегда, если есть текст)
         if (text && text.length > 0) {
             const item2 = document.createElement('div');
             item2.innerHTML = '🔊 Прочитать выделенное';
@@ -1719,7 +1692,6 @@ const UI = {
             menu.appendChild(item2);
         }
 
-        // Добавляем "Сноска" первым, если есть выделение
         if (hasSelection) menu.appendChild(item1);
 
         document.body.appendChild(menu);
@@ -1747,7 +1719,6 @@ const UI = {
             overflow: hidden; opacity: 0; transition: opacity 0.2s;
         `;
 
-        // Заголовок с кнопкой "Назад"
         const header = document.createElement('div');
         header.style.cssText = 'padding: 8px 12px; background: #f8f9fa; border-bottom: 1px solid #eee; font-weight: bold; font-size: 12px; display: flex; align-items: center; gap: 8px;';
 
@@ -1756,7 +1727,6 @@ const UI = {
         backBtn.style.cssText = 'cursor: pointer; color: #555; font-weight: normal; font-size: 12px; padding: 2px 6px; border-radius: 4px; border: 1px solid #ddd; user-select: none;';
         backBtn.onclick = (e) => {
             e.stopPropagation();
-            // Возвращаемся к первому меню, чуть сдвинув координаты
             this.showLevel1Menu(x - 20, y - 20, true, text);
         };
 
@@ -1765,7 +1735,6 @@ const UI = {
 
         menu.appendChild(header);
 
-        // Генерация пресетов
         presets.forEach(preset => {
             const item = document.createElement('div');
             item.innerText = preset.name;
@@ -1783,7 +1752,6 @@ const UI = {
             menu.appendChild(item);
         });
 
-        // Кнопка отмены
         const cancel = document.createElement('div');
         cancel.innerText = 'Отмена';
         cancel.style.cssText = 'padding: 10px; text-align: center; color: #888; cursor: pointer; background: #fafafa;';
@@ -1810,36 +1778,32 @@ const UI = {
         }
     },
 
-    // Обработчик запроса (вызывается из Level 2)
     async handleExplanationRequest(text, x, y, preset) {
         this.showExplanationTooltip(`⏳ Запрос: ${preset.name}...`, x, y);
-
         const settings = Store.data.explanationSettings || {};
 
         try {
-            const response = await fetch(window.appConfig.MIMO_API_URL, {
+            const response = await fetch(window.appConfig.DEEPSEEK_API_URL, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${window.appConfig.MIMO_API_KEY}`,
+                    'Authorization': `Bearer ${window.appConfig.DEEPSEEK_API_KEY}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    model: window.appConfig.MIMO_MODEL,
+                    model: window.appConfig.DEEPSEEK_MODEL,
                     messages: [
                         { role: "system", content: preset.prompt },
                         { role: "user", content: `Объясни это: "${text}"` }
                     ],
-                    ...(settings.maxTokens && { max_completion_tokens: settings.maxTokens }),
+                    max_tokens: settings.maxTokens || 500,
                     temperature: settings.temperature || 0.2
                 })
             });
 
             if (!response.ok) throw new Error("API Error");
-
             const data = await response.json();
             const explanation = data.choices[0].message.content;
             this.showExplanationTooltip(explanation, x, y);
-
         } catch (e) {
             this.showExplanationTooltip("⚠️ Ошибка: " + e.message, x, y);
         }
@@ -1852,7 +1816,6 @@ const UI = {
         const div = document.createElement('div');
         div.id = 'explanation-tooltip';
 
-        // Позиционирование (корректировка, чтобы не вылетало за экран)
         const maxX = window.innerWidth - 360;
         const finalX = x > maxX ? maxX : x;
 
@@ -1873,10 +1836,9 @@ const UI = {
             opacity: 0; animation: fadeIn 0.2s forwards;
         `;
 
-        // Header
         const header = document.createElement('div');
         header.style.cssText = 'padding: 10px 12px; background: #f1f5f9; border-bottom: 1px solid #e2e8f0; font-weight: 600; font-size: 13px; display: flex; justify-content: space-between; align-items: center; color: #1e293b;';
-        header.innerText = 'Результат MiMo';
+        header.innerText = 'Результат DeepSeek';
 
         const controls = document.createElement('div');
         controls.style.display = 'flex';

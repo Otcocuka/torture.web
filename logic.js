@@ -75,21 +75,15 @@ class PomodoroController {
     }
 
     init() {
-        const saved = Store.loadPomodoroState();
-
-        // Если есть сохраненное состояние и время еще не вышло
+        const saved = Store.data.pomodoroState;
         if (saved && saved.timeLeft > 0) {
-            this.state = { ...saved, interval: null };
-
+            this.state = { ...saved, interval: null, justRestored: true };
             if (this.state.isRunning) {
                 const now = Date.now();
                 const diff = Math.floor((this.state.endTime - now) / 1000);
-
                 if (diff <= 0) {
-                    // Время вышло пока страницы не было, запускаем смену фазы
-                    this.resetTimer(true); // true = не показывать уведомление повторно
+                    this.resetTimer(true);
                 } else {
-                    // Таймер еще идет, восстанавливаем
                     this.state.timeLeft = diff;
                     this.state.endTime = now + diff * 1000;
                     this.state.isRunning = true;
@@ -98,12 +92,10 @@ class PomodoroController {
                     UI.Timer.toggleControls(true);
                 }
             } else {
-                // Просто показываем оставшееся время (на паузе)
                 UI.Timer.updateDisplay(this.state.timeLeft, this.state.isWorking);
                 UI.Timer.toggleControls(false);
             }
         } else {
-            // Инициализация с настройками
             this.reset(false);
         }
     }
@@ -475,7 +467,7 @@ const CognitiveProcessor = {
      * @param {number} fileId - ID файла из Reader
      * @returns {Promise<{success: boolean, unitsCount?: number, error?: string}>}
      */
-    async processFile(fileId) {
+    async processFile(fileId, onProgress) {
         // 1. Проверяем, есть ли уже Cognitive Document для этого файла
         const existingDoc = Store.data.cognitive.documents.find(d => d.sourceFileId === fileId);
         let documentId;
@@ -500,6 +492,8 @@ const CognitiveProcessor = {
             console.log(`[CognitiveProcessor Progress] ${progress}`);
         });
 
+        // const result = await Store.processDocumentToKnowledge(documentId, onProgress || (() => {console.log(`[CognitiveProcessor Progress] ${progress}`);}));
+
         if (result.success) {
             console.log(`CognitiveProcessor: Успех! Обработано блоков: ${result.blocksProcessed}, извлечено знаний: ${result.unitsCount}`);
             // Логируем итоги для отладки
@@ -507,13 +501,16 @@ const CognitiveProcessor = {
                 console.log("Новые Knowledge Units:", Store.data.cognitive.knowledgeUnits.slice(-result.unitsCount));
             }
 
+
             // Возвращаем объект с результатом для UI
             return { success: true, unitsCount: result.unitsCount };
         } else {
             console.error("CognitiveProcessor: Ошибка", result.error);
             return { success: false, error: result.error };
         }
+
     },
+
 
     /**
      * (Отладочная) Пример функции для обновления статуса знания "вручную".
@@ -555,7 +552,9 @@ const CognitiveQuiz = {
 
         // 2. Получаем знания (без игнорируемых)
         const rawData = Store.getCognitiveUnitsForQuiz(doc.id);
-        
+        console.log(`[CognitiveQuiz] Found ${rawData.length} knowledge units for file ${fileId}`);
+
+
         if (rawData.length === 0) {
             return { success: false, message: "Нет знаний для проверки (возможно, все игнорируются)." };
         }
@@ -597,30 +596,30 @@ const CognitiveQuiz = {
      */
     async generateQuestionForUnit(unit) {
         const systemPrompt = `Ты — система проверки знаний.
-        Знание: "${unit.title}" (Тип: ${unit.type}).
-        Описание: "${unit.description}".
-        Создай ОДИН конкретный вопрос, на который можно ответить кратким текстом.
-        Не используй формулировки "Опиши" или "Объясни". Задавай вопрос прямо.`;
+Знание: "${unit.title}" (Тип: ${unit.type}).
+Описание: "${unit.description}".
+Создай ОДИН конкретный вопрос, на который можно ответить кратким текстом.
+Не используй формулировки "Опиши" или "Объясни". Задавай вопрос прямо.`;
 
         try {
-            const response = await fetch(window.appConfig.MIMO_API_URL, {
+            const response = await fetch(window.appConfig.DEEPSEEK_API_URL, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${window.appConfig.MIMO_API_KEY}`,
+                    'Authorization': `Bearer ${window.appConfig.DEEPSEEK_API_KEY}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    model: window.appConfig.MIMO_MODEL,
+                    model: window.appConfig.DEEPSEEK_MODEL,
                     messages: [
                         { role: "system", content: systemPrompt },
                         { role: "user", content: "Сгенерируй вопрос на русском языке." }
                     ],
-                    max_tokens: 300, // ИЗМЕНЕНО: Было 150, стало 300
+                    max_tokens: 300,
                     temperature: 0.7
                 })
             });
 
-            if (!response.ok) throw new Error('LLM Error');
+            if (!response.ok) throw new Error('DeepSeek Error');
             const data = await response.json();
             return data.choices[0].message.content.trim();
         } catch (e) {
@@ -635,39 +634,34 @@ const CognitiveQuiz = {
     async checkAnswer(userAnswer, correctUnit) {
         try {
             const systemPrompt = `Ты — система оценки знаний.
-            Вопрос: "${correctUnit.questionText}"
-            Контекст знания (правильный ответ): "${correctUnit.description}"
-            Ответ пользователя: "${userAnswer}"
-            
-            Оцени, насколько ответ пользователя близок к правильному контексту.
-            Ответь строго одним словом: "correct" или "incorrect".`;
+Вопрос: "${correctUnit.questionText}"
+Контекст знания (правильный ответ): "${correctUnit.description}"
+Ответ пользователя: "${userAnswer}"
+Оцени, насколько ответ пользователя близок к правильному контексту.
+Ответь строго одним словом: "correct" или "incorrect".`;
 
-            const response = await fetch(window.appConfig.MIMO_API_URL, {
+            const response = await fetch(window.appConfig.DEEPSEEK_API_URL, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${window.appConfig.MIMO_API_KEY}`,
+                    'Authorization': `Bearer ${window.appConfig.DEEPSEEK_API_KEY}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    model: window.appConfig.MIMO_MODEL,
+                    model: window.appConfig.DEEPSEEK_MODEL,
                     messages: [{ role: "system", content: systemPrompt }, { role: "user", content: "Оцени ответ." }],
-                    max_tokens: 50, // ИЗМЕНЕНО: Было 10, стало 50
+                    max_tokens: 50,
                     temperature: 0.1
                 })
             });
 
             const data = await response.json();
             const resultText = data.choices[0].message.content.toLowerCase().trim();
-            
-            // Строгая проверка
             if (resultText.startsWith('correct')) return true;
             if (resultText.startsWith('incorrect')) return false;
-            
-            return false; // Без fallback'ов
+            return false;
 
         } catch (e) {
             console.warn("Ошибка проверки ответа:", e);
-            // В случае сбоя сети/библиотеки — считаем неверным
             return false;
         }
     },
@@ -679,7 +673,9 @@ const CognitiveQuiz = {
 
     nextQuestion() {
         this.currentQuestionIndex++;
-        if (this.currentQuestionIndex >= this.currentQuiz.questions.length) {
+        console.log(`[CognitiveQuiz] nextQuestion: index now ${this.currentQuestionIndex}, total ${this.currentQuiz?.questions.length || 0}`);
+        if (!this.currentQuiz || this.currentQuestionIndex >= this.currentQuiz.questions.length) {
+            console.log('[CognitiveQuiz] No more questions');
             return null;
         }
         return this.getCurrentQuestion();
@@ -688,5 +684,154 @@ const CognitiveQuiz = {
     reset() {
         this.currentQuiz = null;
         this.currentQuestionIndex = 0;
+    }
+};
+
+
+
+
+
+const ChatLogic = {
+    async sendMessage(history, newMessage) {
+        try {
+            // Проверка конфигурации
+            if (!window.appConfig?.MIMO_API_KEY) {
+                return {
+                    success: false,
+                    message: "❌ API ключ не настроен. Проверьте config.js"
+                };
+            }
+
+            const response = await fetch(window.appConfig.MIMO_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${window.appConfig.MIMO_API_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: window.appConfig.MIMO_MODEL || "mimo-v2-flash",
+                    messages: [
+                        ...history.map(msg => ({
+                            role: msg.role,
+                            content: msg.content
+                        })),
+                        { role: 'user', content: newMessage }
+                    ],
+                    max_tokens: 1000,
+                    temperature: 0.7
+                })
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Chat API Error:', response.status, errorText);
+                throw new Error(`HTTP ${response.status}: ${errorText.substring(0, 100)}`);
+            }
+
+            const data = await response.json();
+            console.log('Chat response:', data);
+
+            return {
+                success: true,
+                data: data.choices[0].message.content
+            };
+
+        } catch (error) {
+            console.error('Chat error:', error);
+            return {
+                success: false,
+                message: `❌ Ошибка подключения: ${error.message}`
+            };
+        }
+    }
+};
+
+
+
+/**
+ * ------------------------------------------------------------------
+ * SIMPLE AI API CLIENT (Минимальная версия)
+ * ------------------------------------------------------------------
+ */
+const AIClient = {
+    // Просто переключаем URL в зависимости от провайдера
+    async request(messages, options = {}) {
+        const provider = options.provider || 'deepseek';
+
+        let url, key, model;
+
+        if (provider === 'deepseek') {
+            url = 'http://localhost:3000/api/deepseek/chat/completions';
+            key = window.appConfig?.DEEPSEEK_API_KEY;
+            model = 'deepseek-chat';
+        } else {
+            url = 'http://localhost:3000/api/chat/completions';
+            key = window.appConfig?.MIMO_API_KEY;
+            model = 'mimo-v2-flash';
+        }
+
+        if (!key) {
+            throw new Error(`API key for ${provider} is not configured`);
+        }
+
+        const payload = {
+            model: model,
+            messages: messages,
+            max_tokens: options.max_tokens || 1000,
+            temperature: options.temperature || 0.1
+        };
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${key}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`API Error ${response.status}: ${errorText.substring(0, 200)}`);
+            }
+
+            const data = await response.json();
+            return {
+                success: true,
+                content: data.choices[0].message.content,
+                provider: provider
+            };
+
+        } catch (error) {
+            console.error(`[${provider.toUpperCase()} API Error]:`, error);
+            throw error;
+        }
+    },
+
+    // Специальный метод для извлечения знаний с DeepSeek
+    async extractKnowledgeFromText(text, blockType) {
+        const systemPrompt = `Ты — AI-аналитик знаний. Проанализируй текст и извлеки атомарные знания.
+Тип блока: ${blockType}.
+Определи 1-3 атома знаний (concept, fact, procedure).
+Верни строго в формате JSON:
+{
+  "atoms": [
+    {
+      "title": "Название концепта",
+      "type": "concept|fact|procedure",
+      "description": "Подробное описание на русском языке"
+    }
+  ]
+}`;
+
+        return this.request([
+            { role: "system", content: systemPrompt },
+            { role: "user", content: `Текст: "${text.substring(0, 1500)}"` }
+        ], {
+            provider: 'deepseek',
+            max_tokens: 1500,
+            temperature: 0.1
+        });
     }
 };

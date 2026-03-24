@@ -26,7 +26,8 @@ const Store = {
         },
         chat: {
             messages: [],
-            isTyping: false
+            isTyping: false,
+            provider: 'deepseek'   // 'mimo' или 'deepseek'
         },
         // Важно: структура должна быть идентичной той, что сохраняется
         explanationSettings: {
@@ -125,6 +126,7 @@ const Store = {
                 if (parsed.chat) {
                     this.data.chat.messages = parsed.chat.messages || [];
                     this.data.chat.isTyping = false;
+                    this.data.chat.provider = parsed.chat.provider || 'deepseek';
                 }
 
                 // *** ИСПРАВЛЕНО: Загрузка настроек сносок ***
@@ -457,6 +459,7 @@ const Store = {
      * @returns {string} ID знания
      */
     upsertKnowledgeUnit(unitData) {
+        console.log('[Store] upsertKnowledgeUnit called with', unitData.title, unitData.type);
         const { title, type, description, sourceBlockId, confidence } = unitData;
         const normTitle = title.trim().toLowerCase();
 
@@ -736,37 +739,44 @@ const Store = {
         return blocks;
     },
 
-    // ВСПОМОГАТЕЛЬНЫЙ МЕТОД: Запрос к LLM для извлечения знаний
-    // ВСПОМОГАТЕЛЬНЫЙ МЕТОД: Запрос к LLM для извлечения знаний
+
     async _extractKnowledgeFromBlock(text, type) {
-        if (!window.appConfig || !window.appConfig.MIMO_API_URL) {
-            console.warn("Конфиг API не найден");
+        console.log(`[Store] Extracting knowledge from ${type} block (${text.length} chars)`);
+        return this._extractViaDeepSeek(text, type);
+    },
+
+    async _extractViaDeepSeek(text, type) {
+        console.log(`[Store] _extractViaDeepSeek called for type ${type}, text length: ${text.length}`);
+
+        if (!window.appConfig || !window.appConfig.DEEPSEEK_API_URL) {
+            console.warn("DeepSeek API URL не задан");
             return [];
         }
 
-        // Строгий промпт с маркерами JSON
         const systemPrompt = `Ты — AI-аналитик. Проанализируй текст и верни только JSON.
-        Тип блока: ${type}.
-        Определи 1-3 атома знаний (concept, fact, procedure).
-        Формат: <BEGIN_KNOWLEDGE_JSON>
-        { "atoms": [{ "title": "...", "type": "concept|fact|procedure", "description": "..." }] }
-        <END_KNOWLEDGE_JSON>`;
+Тип блока: ${type}.
+Определи 1-3 атома знаний (concept, fact, procedure).
+Формат: <BEGIN_KNOWLEDGE_JSON>
+{ "atoms": [{ "title": "...", "type": "concept|fact|procedure", "description": "..." }] }
+<END_KNOWLEDGE_JSON>`;
 
         const payload = {
-            model: window.appConfig.MIMO_MODEL || "mimo-v2-flash",
+            model: window.appConfig.DEEPSEEK_MODEL,
             messages: [
                 { role: "system", content: systemPrompt },
-                { role: "user", content: `Текст: "${text.substring(0, 1000)}"` } // Безопасное ограничение длины
+                { role: "user", content: `Текст: "${text.substring(0, 1000)}"` }
             ],
             max_tokens: 1000,
             temperature: 0.1
         };
 
+        console.log('[Store] Sending request to DeepSeek:', JSON.stringify(payload, null, 2).substring(0, 300));
+
         try {
-            const response = await fetch(window.appConfig.MIMO_API_URL, {
+            const response = await fetch(window.appConfig.DEEPSEEK_API_URL, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${window.appConfig.MIMO_API_KEY}`,
+                    'Authorization': `Bearer ${window.appConfig.DEEPSEEK_API_KEY}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(payload)
@@ -776,26 +786,25 @@ const Store = {
 
             const data = await response.json();
             const content = data.choices[0].message.content;
+            console.log('[Store] DeepSeek raw response:', content.substring(0, 500));
 
-            // Лог для отладки (сырой ответ)
-            console.log(`[LLM Raw Response for ${type}]:`, content);
-
-            // Извлекаем JSON между маркерами
             const jsonRegex = /<BEGIN_KNOWLEDGE_JSON>([\s\S]*?)<END_KNOWLEDGE_JSON>/;
             const match = content.match(jsonRegex);
 
             if (!match || !match[1]) {
-                console.warn("LLM ответ не содержит валидных маркеров JSON");
+                console.warn('[Store] No JSON markers found in response');
                 return [];
             }
 
             const jsonStr = match[1].trim();
             const parsed = JSON.parse(jsonStr);
-
+            console.log('[Store] Extracted atoms:', parsed.atoms);
             return parsed.atoms || [];
 
+
+
         } catch (e) {
-            console.warn("Ошибка запроса LLM или парсинга:", e);
+            console.warn("[Store] Ошибка запроса DeepSeek или парсинга:", e);
             return [];
         }
     },
@@ -858,7 +867,7 @@ const Store = {
 
         state.history.push({ action, timestamp: Date.now() });
         state.lastUpdated = Date.now();
-        
+
         this.save();
     },
 
@@ -868,13 +877,13 @@ const Store = {
     getCognitiveAvatarStats() {
         const units = this.data.cognitive.knowledgeUnits;
         const states = this.data.cognitive.userKnowledgeStates;
-        
+
         const total = units.length;
         const active = states.filter(s => s.status === 'active').length;
         const mastered = states.filter(s => s.status === 'mastered').length;
-        
-        const avgLevel = states.length > 0 
-            ? (states.reduce((sum, s) => sum + s.level, 0) / states.length) * 100 
+
+        const avgLevel = states.length > 0
+            ? (states.reduce((sum, s) => sum + s.level, 0) / states.length) * 100
             : 0;
 
         return { total, active, mastered, avgLevel: avgLevel.toFixed(1) };
