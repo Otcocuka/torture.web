@@ -1050,7 +1050,7 @@ const UI = {
     showHabitSettingsModal() {
         const s = Store.data.habitSettings;
         this.renderModal("settingsModal", `
-            <div class="bg-white rounded-lg p-6 w-80 shadow-xl">
+            <div class="bg-white rounded-lg p-6 min-w-80 shadow-xl">
                 <h3 class="font-bold text-lg mb-4">Настройки привычек</h3>
                 <div class="space-y-3">
                     <div><label class="text-sm block mb-1">Цель (дней)</label><input id="hGoal" type="number" value="${s.goal}" class="w-full border p-2 rounded"></div>
@@ -1185,7 +1185,7 @@ const UI = {
     // --- TODO/KANBAN UI ---
     bindTodoEvents() {
         document.getElementById("addKanbanColBtn")?.addEventListener("click", () => {
-            this.renderModal("kanbanCol", `<div class="bg-white rounded-lg p-6 w-80 shadow-xl"><h3 class="font-bold text-lg mb-4">Новая колонка</h3><input id="kanbanColTitle" type="text" placeholder="Название..." class="w-full border p-2 rounded mb-4"><div class="flex justify-end gap-2"><button data-close-modal class="px-3 py-1 rounded hover:bg-gray-100">Отмена</button><button id="saveKanbanCol" class="px-3 py-1 bg-blue-500 text-white rounded">Создать</button></div></div>`);
+            this.renderModal("kanbanCol", `<div class="bg-white rounded-lg p-6 min-w-80 shadow-xl"><h3 class="font-bold text-lg mb-4">Новая колонка</h3><input id="kanbanColTitle" type="text" placeholder="Название..." class="w-full border p-2 rounded mb-4"><div class="flex justify-end gap-2"><button data-close-modal class="px-3 py-1 rounded hover:bg-gray-100">Отмена</button><button id="saveKanbanCol" class="px-3 py-1 bg-blue-500 text-white rounded">Создать</button></div></div>`);
             document.getElementById("saveKanbanCol").onclick = () => {
                 const title = document.getElementById("kanbanColTitle").value.trim();
                 if (title) { Store.addKanbanColumn(title); this.closeModal("kanbanCol"); this.renderKanban(); }
@@ -1250,7 +1250,7 @@ const UI = {
                 if (!btn) return;
                 if (btn.dataset.action === "add-card") {
                     const colId = btn.dataset.columnId;
-                    this.renderModal("kanbanCard", `<div class="bg-white rounded-lg p-6 w-80 shadow-xl"><h3 class="font-bold text-lg mb-4">Новая задача</h3><input id="kanbanCardTitle" type="text" placeholder="Заголовок" class="w-full border p-2 rounded mb-2"><textarea id="kanbanCardDesc" placeholder="Описание" class="w-full border p-2 rounded mb-4 h-24"></textarea><div class="flex justify-end gap-2"><button data-close-modal class="px-3 py-1 rounded hover:bg-gray-100">Отмена</button><button id="saveKanbanCard" class="px-3 py-1 bg-green-500 text-white rounded">Добавить</button></div></div>`);
+                    this.renderModal("kanbanCard", `<div class="bg-white rounded-lg p-6 min-w-80 shadow-xl"><h3 class="font-bold text-lg mb-4">Новая задача</h3><input id="kanbanCardTitle" type="text" placeholder="Заголовок" class="w-full border p-2 rounded mb-2"><textarea id="kanbanCardDesc" placeholder="Описание" class="w-full border p-2 rounded mb-4 h-24"></textarea><div class="flex justify-end gap-2"><button data-close-modal class="px-3 py-1 rounded hover:bg-gray-100">Отмена</button><button id="saveKanbanCard" class="px-3 py-1 bg-green-500 text-white rounded">Добавить</button></div></div>`);
                     document.getElementById("saveKanbanCard").onclick = () => {
                         const title = document.getElementById("kanbanCardTitle").value.trim();
                         const desc = document.getElementById("kanbanCardDesc").value.trim();
@@ -1261,7 +1261,7 @@ const UI = {
                     const cardId = btn.dataset.cardId;
                     const card = Store.data.kanban.cards.find((c) => c.id == cardId);
                     if (card) {
-                        this.renderModal("editCard", `<div class="bg-white rounded-lg p-6 w-80 shadow-xl"><h3 class="font-bold text-lg mb-4">Редактировать задачу</h3><input id="editCardTitle" type="text" value="${card.title}" class="w-full border p-2 rounded mb-2"><textarea id="editCardDesc" placeholder="Описание" class="w-full border p-2 rounded mb-4 h-24">${card.description || ""}</textarea><div class="flex justify-end gap-2"><button data-close-modal class="px-3 py-1 rounded hover:bg-gray-100">Отмена</button><button id="saveEditedCard" class="px-3 py-1 bg-blue-500 text-white rounded">Сохранить</button></div></div>`);
+                        this.renderModal("editCard", `<div class="bg-white rounded-lg p-6 min-w-80 shadow-xl"><h3 class="font-bold text-lg mb-4">Редактировать задачу</h3><input id="editCardTitle" type="text" value="${card.title}" class="w-full border p-2 rounded mb-2"><textarea id="editCardDesc" placeholder="Описание" class="w-full border p-2 rounded mb-4 h-24">${card.description || ""}</textarea><div class="flex justify-end gap-2"><button data-close-modal class="px-3 py-1 rounded hover:bg-gray-100">Отмена</button><button id="saveEditedCard" class="px-3 py-1 bg-blue-500 text-white rounded">Сохранить</button></div></div>`);
                         document.getElementById("saveEditedCard").onclick = () => {
                             const newTitle = document.getElementById("editCardTitle").value.trim();
                             const newDesc = document.getElementById("editCardDesc").value.trim();
