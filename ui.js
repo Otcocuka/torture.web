@@ -126,7 +126,7 @@ const UI = {
         const files = Store.getReaderFiles();
         const settings = Store.data.reader.settings;
 
-        view.className = `app-view active p-0 w-full h-1/2 ${settings.theme === "dark" ? "bg-gray-900 text-gray-100" : "bg-gray-50 text-gray-800"}`;
+        view.className = `app-view active p-0 w-full h-screen ${settings.theme === "dark" ? "bg-gray-900 text-gray-100" : "bg-gray-50 text-gray-800"}`;
         let html = `
         <div class="max-w-4xl mx-auto space-y-6">
             <div class="flex justify-between items-center">
@@ -690,6 +690,7 @@ const UI = {
     showQuizQuestion(container) {
         const q = CognitiveQuiz.getCurrentQuestion();
         console.log('[Quiz] showQuizQuestion called, current question index:', CognitiveQuiz.currentQuestionIndex, 'question exists:', !!q);
+        console.log('[Quiz] showQuizQuestion called with container', container);
 
 
 
@@ -736,9 +737,19 @@ const UI = {
             Store.updateKnowledgeAfterQuiz(q.id, false);
         }
         const next = CognitiveQuiz.nextQuestion();
-        const modal = document.querySelector('#quizModal');
-        if (modal && next) {
-            this.showQuizQuestion(modal.querySelector('#quizContainer'));
+        // Исправлено: ищем модалку по полному ID
+        const modal = document.getElementById('modal_quizModal');
+        if (!modal) {
+            console.warn('[Quiz] modal_quizModal not found');
+            return;
+        }
+        const container = modal.querySelector('#quizContainer');
+        if (!container) {
+            console.warn('[Quiz] container not found');
+            return;
+        }
+        if (next) {
+            this.showQuizQuestion(container);
         } else {
             this.closeModal('quizModal');
             CognitiveQuiz.reset();
@@ -767,23 +778,25 @@ const UI = {
             Store.updateKnowledgeAfterQuiz(unitId, false);
         }
 
-        const modal = document.querySelector('#quizModal');
+        // Исправлено: ищем модалку по ID
+        const modal = document.getElementById('modal_quizModal');
         if (!modal) return;
 
         const btnContainer = modal.querySelector('.flex.justify-end.gap-3');
         if (btnContainer) {
             btnContainer.innerHTML = `
-                <button onclick="UI.nextQuizStep()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition shadow">
-                    Далее →
-                </button>
-            `;
+            <button onclick="UI.nextQuizStep()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition shadow">
+                Далее →
+            </button>
+        `;
         }
     },
 
     nextQuizStep(e) {
         if (e) e.stopPropagation();
         const next = CognitiveQuiz.nextQuestion();
-        const modal = document.querySelector('#quizModal');
+        // Исправлено: ищем модалку по ID
+        const modal = document.getElementById('modal_quizModal');
         if (modal && next) {
             this.showQuizQuestion(modal.querySelector('#quizContainer'));
         } else {

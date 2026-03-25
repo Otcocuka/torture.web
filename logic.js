@@ -668,6 +668,7 @@ const CognitiveQuiz = {
 
     getCurrentQuestion() {
         if (!this.currentQuiz || this.currentQuestionIndex >= this.currentQuiz.questions.length) return null;
+        console.log('[CognitiveQuiz] getCurrentQuestion returns:', this.currentQuiz.questions[this.currentQuestionIndex]);
         return this.currentQuiz.questions[this.currentQuestionIndex];
     },
 
