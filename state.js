@@ -809,6 +809,30 @@ const Store = {
         }
     },
 
+
+    _splitIntoChunks(text, maxLength = 1500) {
+        const chunks = [];
+        // Разбиваем по предложениям (.!?)
+        const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+        let current = '';
+        for (let s of sentences) {
+            if ((current + s).length > maxLength) {
+                if (current) chunks.push(current.trim());
+                current = s;
+            } else {
+                current += s;
+            }
+        }
+        if (current) chunks.push(current.trim());
+        // Если нет предложений, просто разбиваем по maxLength
+        if (chunks.length === 0) {
+            for (let i = 0; i < text.length; i += maxLength) {
+                chunks.push(text.slice(i, i + maxLength));
+            }
+        }
+        return chunks;
+    },
+
     // ------------------------------------------------------------------
     // NEW: COGNITIVE QUIZ & CONTROL METHODS
     // ------------------------------------------------------------------
@@ -887,5 +911,49 @@ const Store = {
             : 0;
 
         return { total, active, mastered, avgLevel: avgLevel.toFixed(1) };
-    }
+    },
+
+    // В Store (state.js) добавим метод:
+    async addKnowledgeFromFragment(fragmentText, sourceName = 'Выделенный фрагмент', sourceFileId = null) {
+        // 1. Разбиваем длинный текст на чанки по предложениям
+        const chunks = this._splitIntoChunks(fragmentText);
+        let allAtoms = [];
+        for (const chunk of chunks) {
+            try {
+                const atoms = await this._extractKnowledgeFromBlock(chunk, 'fragment');
+                if (atoms && atoms.length) allAtoms.push(...atoms);
+            } catch (e) {
+                console.warn('Error processing chunk', e);
+            }
+        }
+        if (allAtoms.length === 0) return { success: false, unitsCount: 0 };
+
+        // 2. Создаём документ, если ещё нет (привязываем к файлу, если передан sourceFileId)
+        let docId = this.data.cognitive.documents.find(d => d.name === sourceName && d.sourceFileId === sourceFileId)?.id;
+        if (!docId) {
+            docId = this.createCognitiveDocument(sourceName, sourceFileId);
+        }
+
+        // 3. Создаём один семантический блок для всего фрагмента
+        const blockId = this.addSemanticBlock({
+            documentId: docId,
+            type: 'fragment',
+            sourceRange: null,
+            summary: fragmentText.substring(0, 100) + (fragmentText.length > 100 ? '...' : '')
+        });
+
+        // 4. Сохраняем каждое знание
+        let savedCount = 0;
+        for (const atom of allAtoms) {
+            this.upsertKnowledgeUnit({
+                title: atom.title,
+                type: atom.type,
+                description: atom.description,
+                sourceBlockId: blockId,
+                confidence: 0.85
+            });
+            savedCount++;
+        }
+        return { success: true, unitsCount: savedCount, documentId: docId };
+    },
 };

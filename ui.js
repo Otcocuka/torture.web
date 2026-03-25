@@ -395,7 +395,7 @@ const UI = {
         if (!container) return;
 
         const items = grouped[tabName];
-
+        items.sort((a, b) => (b.state.lastUpdated || 0) - (a.state.lastUpdated || 0));
         if (items.length === 0) {
             container.innerHTML = `
                 <div class="text-center py-12 text-gray-400 bg-gray-50 rounded-xl">
@@ -459,6 +459,47 @@ const UI = {
         }).join('');
 
         container.innerHTML = controls + `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">${cards}</div>`;
+    },
+
+
+    async handleAddToAvatar(text) {
+        const activeFile = Store.getActiveFile();
+        const sourceFileId = activeFile ? activeFile.id : null;
+        this.showExplanationTooltip('⏳ Анализирую выделенный текст...', 0, 0, true);
+        try {
+            const result = await Store.addKnowledgeFromFragment(text, 'Выделенный фрагмент', sourceFileId);
+            if (result.success && result.unitsCount > 0) {
+                this.showNotification(`✅ Добавлено знаний: ${result.unitsCount}. Обновите Аватар.`);
+                if (confirm('Перейти в Аватар знаний сейчас?')) {
+                    this.switchView('view-knowledge-avatar');
+                }
+            } else {
+                this.showNotification('❌ Не удалось извлечь знания. Попробуйте другой фрагмент.');
+            }
+        } catch (error) {
+            console.error('Add to avatar error:', error);
+            this.showNotification('❌ Ошибка при добавлении знаний');
+        } finally {
+            const tooltip = document.getElementById('explanation-tooltip');
+            if (tooltip) tooltip.remove();
+        }
+    },
+
+    async handleMultipleAddToAvatar(fragments) {
+        let totalAdded = 0;
+        this.showExplanationTooltip(`⏳ Добавляю ${fragments.length} фрагментов...`, 0, 0, true);
+        for (const frag of fragments) {
+            const activeFile = Store.getActiveFile();
+            const sourceFileId = activeFile ? activeFile.id : null;
+            const result = await Store.addKnowledgeFromFragment(frag, 'Выделенный фрагмент', sourceFileId);
+            if (result.success) totalAdded += result.unitsCount;
+        }
+        const tooltip = document.getElementById('explanation-tooltip');
+        if (tooltip) tooltip.remove();
+        this.showNotification(`✅ Добавлено знаний: ${totalAdded}`);
+        if (confirm('Перейти в Аватар знаний сейчас?')) {
+            this.switchView('view-knowledge-avatar');
+        }
     },
 
     quickChangeStatus(unitId, newStatus) {
@@ -1644,37 +1685,58 @@ const UI = {
     showLevel1Menu(x, y, hasSelection, text) {
         this.cleanupContextMenus();
 
+        const selection = window.getSelection();
+        const rangeCount = selection.rangeCount;
+        const hasMultiple = rangeCount > 1;
+
         const menu = document.createElement('div');
         menu.className = 'context-menu-layer';
         menu.id = 'context-menu-level-1';
 
         menu.style.cssText = `
-            position: absolute; left: ${x}px; top: ${y}px;
-            width: 220px; background: #fff; border: 1px solid #ccc;
-            border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-            z-index: 10001; font-family: sans-serif; font-size: 14px;
-            overflow: hidden; opacity: 0; transform: scale(0.95);
-            transition: opacity 0.15s, transform 0.15s;
-        `;
+        position: absolute; left: ${x}px; top: ${y}px;
+        width: 220px; background: #fff; border: 1px solid #ccc;
+        border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        z-index: 10001; font-family: sans-serif; font-size: 14px;
+        overflow: hidden; opacity: 0; transform: scale(0.95);
+        transition: opacity 0.15s, transform 0.15s;
+    `;
 
-        const item1 = document.createElement('div');
-        item1.innerHTML = hasSelection ? '📝 <b>Сноска (DeepSeek)</b>' : '📝 <span style="color:#999">Сноска (нет текста)</span>';
-        item1.style.cssText = `
-            padding: 10px 15px; 
-            cursor: ${hasSelection ? 'pointer' : 'not-allowed'}; 
-            background: ${hasSelection ? '#fff' : '#f3f4f6'}; 
-            border-bottom: 1px solid #f0f0f0;
-        `;
-
-        if (hasSelection) {
+        // Пункт для одиночного выделения (Сноска)
+        if (hasSelection && !hasMultiple) {
+            const item1 = document.createElement('div');
+            item1.innerHTML = '📝 <b>Сноска (DeepSeek)</b>';
+            item1.style.cssText = `padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #f0f0f0;`;
             item1.onmouseover = () => item1.style.backgroundColor = '#f0f9ff';
             item1.onmouseout = () => item1.style.backgroundColor = '#fff';
             item1.onclick = (e) => {
                 e.stopPropagation();
                 this.showLevel2Menu(x + 5, y + 5, text);
             };
+            menu.appendChild(item1);
         }
 
+        // Пункт для множественного выделения
+        if (hasMultiple) {
+            const itemMulti = document.createElement('div');
+            itemMulti.innerHTML = '📌 Добавить все выделенные фрагменты в Аватар';
+            itemMulti.style.cssText = `padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #f0f0f0;`;
+            itemMulti.onmouseover = () => itemMulti.style.backgroundColor = '#f0f9ff';
+            itemMulti.onmouseout = () => itemMulti.style.backgroundColor = '#fff';
+            itemMulti.onclick = async (e) => {
+                e.stopPropagation();
+                this.cleanupContextMenus();
+                const fragments = [];
+                for (let i = 0; i < selection.rangeCount; i++) {
+                    const frag = selection.getRangeAt(i).toString().trim();
+                    if (frag) fragments.push(frag);
+                }
+                if (fragments.length) await this.handleMultipleAddToAvatar(fragments);
+            };
+            menu.appendChild(itemMulti);
+        }
+
+        // Пункт "Прочитать выделенное" (если есть текст)
         if (text && text.length > 0) {
             const item2 = document.createElement('div');
             item2.innerHTML = '🔊 Прочитать выделенное';
@@ -1689,7 +1751,28 @@ const UI = {
             menu.appendChild(item2);
         }
 
-        if (hasSelection) menu.appendChild(item1);
+        // Пункт для одиночного выделения: Добавить в Аватар (если не множественное)
+        if (hasSelection && !hasMultiple) {
+            const item3 = document.createElement('div');
+            item3.innerHTML = '🧠 Добавить в Аватар знаний';
+            item3.style.cssText = 'padding: 10px 15px; cursor: pointer; border-top: 1px solid #f0f0f0;';
+            item3.onmouseover = () => item3.style.backgroundColor = '#e8f4ff';
+            item3.onmouseout = () => item3.style.backgroundColor = '#fff';
+            item3.onclick = async (e) => {
+                e.stopPropagation();
+                this.cleanupContextMenus();
+                await this.handleAddToAvatar(text);
+            };
+            menu.appendChild(item3);
+        }
+
+        // Если не было ни одного пункта, добавить заглушку
+        if (menu.children.length === 0) {
+            const empty = document.createElement('div');
+            empty.innerText = 'Нет действий';
+            empty.style.cssText = 'padding: 10px 15px; color: #888;';
+            menu.appendChild(empty);
+        }
 
         document.body.appendChild(menu);
         requestAnimationFrame(() => {
@@ -1776,7 +1859,8 @@ const UI = {
     },
 
     async handleExplanationRequest(text, x, y, preset) {
-        this.showExplanationTooltip(`⏳ Запрос: ${preset.name}...`, x, y);
+        // Показываем тултип с ожиданием, передаём originalText = text
+        this.showExplanationTooltip(`⏳ Запрос: ${preset.name}...`, x, y, text);
         const settings = Store.data.explanationSettings || {};
 
         try {
@@ -1800,13 +1884,14 @@ const UI = {
             if (!response.ok) throw new Error("API Error");
             const data = await response.json();
             const explanation = data.choices[0].message.content;
-            this.showExplanationTooltip(explanation, x, y);
+            // После получения ответа показываем результат, передаём originalText = text
+            this.showExplanationTooltip(explanation, x, y, text);
         } catch (e) {
-            this.showExplanationTooltip("⚠️ Ошибка: " + e.message, x, y);
+            this.showExplanationTooltip("⚠️ Ошибка: " + e.message, x, y, text);
         }
     },
 
-    showExplanationTooltip(text, x, y) {
+    showExplanationTooltip(text, x, y, originalText = '') {
         const old = document.getElementById('explanation-tooltip');
         if (old) old.remove();
 
@@ -1817,21 +1902,21 @@ const UI = {
         const finalX = x > maxX ? maxX : x;
 
         div.style.cssText = `
-            position: fixed; 
-            left: ${finalX}px; 
-            top: ${y}px;
-            width: 340px; 
-            background: #ffffff; 
-            border: 1px solid #d1d5db;
-            border-radius: 8px; 
-            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
-            z-index: 10003; 
-            display: flex; flex-direction: column;
-            max-height: 60vh; 
-            overflow: hidden; 
-            font-family: ui-sans-serif, system-ui, sans-serif;
-            opacity: 0; animation: fadeIn 0.2s forwards;
-        `;
+        position: fixed; 
+        left: ${finalX}px; 
+        top: ${y}px;
+        width: 340px; 
+        background: #ffffff; 
+        border: 1px solid #d1d5db;
+        border-radius: 8px; 
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        z-index: 10003; 
+        display: flex; flex-direction: column;
+        max-height: 60vh; 
+        overflow: hidden; 
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        opacity: 0; animation: fadeIn 0.2s forwards;
+    `;
 
         const header = document.createElement('div');
         header.style.cssText = 'padding: 10px 12px; background: #f1f5f9; border-bottom: 1px solid #e2e8f0; font-weight: 600; font-size: 13px; display: flex; justify-content: space-between; align-items: center; color: #1e293b;';
@@ -1865,8 +1950,21 @@ const UI = {
         content.style.cssText = 'padding: 12px; overflow-y: auto; font-size: 14px; line-height: 1.6; color: #334155; white-space: pre-wrap; flex: 1;';
         content.innerText = text;
 
+        // Если есть originalText, добавляем кнопку добавления в аватар
+        if (originalText) {
+            const addBtn = document.createElement('button');
+            addBtn.innerText = '🧠 Добавить в Аватар';
+            addBtn.style.cssText = 'margin-top: 10px; background: #e8f4ff; border: none; border-radius: 4px; padding: 6px 12px; cursor: pointer; font-size: 12px; width: 100%;';
+            addBtn.onclick = async (e) => {
+                e.stopPropagation();
+                await this.handleAddToAvatar(originalText);
+                div.remove();
+            };
+            content.appendChild(addBtn);
+        }
+
         div.appendChild(header);
         div.appendChild(content);
         document.body.appendChild(div);
-    }
+    },
 };
