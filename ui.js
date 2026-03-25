@@ -454,6 +454,19 @@ const UI = {
                             </button>
                         </div>
                     ` : ''}
+
+
+                    ${tabName === 'ignored' || tabName === 'muted' || tabName === 'mastered' || tabName === 'active' ? `
+                        <div class="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition">
+                            <button onclick="event.stopPropagation(); UI.deleteKnowledgeUnit('${item.id}')" 
+                                class="text-xs px-2 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 border border-red-100">
+                                🗑️
+                            </button>
+                        </div>
+                    ` : ''}
+
+
+
                 </div>
             `;
         }).join('');
@@ -514,6 +527,17 @@ const UI = {
         this.switchAvatarTab(currentTab);
 
         this.showNotification(`Статус изменен на: ${newStatus}`);
+    },
+
+
+    deleteKnowledgeUnit(unitId) {
+        if (confirm('Удалить это знание навсегда?')) {
+            Store.deleteKnowledgeUnit(unitId);
+            // Перерисовать текущую вкладку
+            const currentTab = document.querySelector('.tab-btn.text-blue-600').dataset.tab;
+            this.switchAvatarTab(currentTab);
+            this.showNotification('Знание удалено');
+        }
     },
 
     startQuizFromAvatar(filter) {
@@ -1675,6 +1699,46 @@ const UI = {
             e.preventDefault();
 
             this.showLevel1Menu(e.pageX, e.pageY, text.length > 2, text);
+        });
+
+        // ---------- НОВОЕ: множественное выделение с Alt ----------
+        const readerContent = document.getElementById('readerContent');
+        if (!readerContent) return;
+
+        let altPressed = false;
+        let savedRanges = [];
+
+        document.addEventListener('keydown', (e) => {
+            if (e.altKey) altPressed = true;
+        });
+        document.addEventListener('keyup', (e) => {
+            if (!e.altKey) altPressed = false;
+        });
+
+        readerContent.addEventListener('mousedown', (e) => {
+            if (altPressed) {
+                // Сохраняем текущие выделения
+                const sel = window.getSelection();
+                savedRanges = [];
+                for (let i = 0; i < sel.rangeCount; i++) {
+                    savedRanges.push(sel.getRangeAt(i).cloneRange());
+                }
+            } else {
+                savedRanges = [];
+            }
+        });
+
+        readerContent.addEventListener('mouseup', (e) => {
+            if (altPressed) {
+                const sel = window.getSelection();
+                if (sel.rangeCount > 0) {
+                    const newRange = sel.getRangeAt(0).cloneRange();
+                    sel.removeAllRanges();
+                    savedRanges.forEach(r => sel.addRange(r));
+                    sel.addRange(newRange);
+                    savedRanges = [];
+                }
+            }
         });
 
         document.addEventListener('click', (e) => {

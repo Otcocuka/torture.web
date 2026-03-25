@@ -913,6 +913,31 @@ const Store = {
         return { total, active, mastered, avgLevel: avgLevel.toFixed(1) };
     },
 
+
+    deleteKnowledgeUnit(unitId) {
+        // Удаляем знание
+        const unitIndex = this.data.cognitive.knowledgeUnits.findIndex(u => u.id === unitId);
+        if (unitIndex === -1) return false;
+        this.data.cognitive.knowledgeUnits.splice(unitIndex, 1);
+
+        // Удаляем связанное состояние
+        const state = this.data.cognitive.userKnowledgeStates.find(s => s.unitId === unitId);
+        if (state) {
+            const stateIndex = this.data.cognitive.userKnowledgeStates.findIndex(s => s.id === state.id);
+            if (stateIndex !== -1) this.data.cognitive.userKnowledgeStates.splice(stateIndex, 1);
+            // Удаляем из knowledgeGraph
+            const graphIndex = this.data.cognitive.cognitiveAvatar.knowledgeGraph.indexOf(state.id);
+            if (graphIndex !== -1) this.data.cognitive.cognitiveAvatar.knowledgeGraph.splice(graphIndex, 1);
+        }
+
+        // Обновляем статистику
+        this.data.cognitive.cognitiveAvatar.stats.totalUnits = this.data.cognitive.knowledgeUnits.length;
+        this.data.cognitive.cognitiveAvatar.stats.masteredUnits = this.data.cognitive.userKnowledgeStates.filter(s => s.status === 'mastered').length;
+
+        this.save();
+        return true;
+    },
+
     // В Store (state.js) добавим метод:
     async addKnowledgeFromFragment(fragmentText, sourceName = 'Выделенный фрагмент', sourceFileId = null) {
         // 1. Разбиваем длинный текст на чанки по предложениям
