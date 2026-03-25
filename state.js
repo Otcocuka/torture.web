@@ -6,6 +6,7 @@
 const Store = {
     key: "torture2_data_v1",
     data: {
+        actionLog: [],
         habits: [],
         achievements: [],
         habitSettings: { goal: 5, color: "blue" },
@@ -1031,6 +1032,27 @@ const Store = {
             state.lastUpdated = Date.now();
         }
         this.save();
+    },
+
+    logAction(type, data) {
+        if (!this.data.actionLog) this.data.actionLog = [];
+        this.data.actionLog.unshift({
+            timestamp: Date.now(),
+            type,
+            data: data ? JSON.stringify(data).substring(0, 200) : ''
+        });
+        if (this.data.actionLog.length > 100) this.data.actionLog.pop();
+        this.save();
+    },
+
+    getFeedbackData(description) {
+        return {
+            description,
+            userAgent: navigator.userAgent,
+            timestamp: Date.now(),
+            storeSnapshot: JSON.parse(JSON.stringify(this.data)),
+            actionLog: this.data.actionLog || []
+        };
     },
 
 };

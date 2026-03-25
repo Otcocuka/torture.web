@@ -684,7 +684,51 @@ const CognitiveQuiz = {
     reset() {
         this.currentQuiz = null;
         this.currentQuestionIndex = 0;
-    }
+    },
+
+    // Новый метод: запуск квиза по списку unitId
+    async startSessionFromUnits(unitIds, sourceName = 'Выбранные знания') {
+        const unitsData = [];
+        for (const unitId of unitIds) {
+            const unit = Store.data.cognitive.knowledgeUnits.find(u => u.id === unitId);
+            if (!unit) continue;
+            const state = Store.data.cognitive.userKnowledgeStates.find(s => s.unitId === unitId);
+            const userLevel = state ? state.level : 0;
+            const userStatus = state ? state.status : 'active';
+            if (userStatus === 'ignored') continue;
+            unitsData.push({
+                ...unit,
+                userLevel,
+                userStatus,
+                userStateId: state ? state.id : null
+            });
+        }
+        if (unitsData.length === 0) return { success: false, message: 'Нет знаний для проверки' };
+
+        // Сортируем по низкому уровню, берём до 5
+        const questionsData = unitsData.sort((a, b) => a.userLevel - b.userLevel).slice(0, 5);
+        const questions = [];
+        for (const item of questionsData) {
+            const question = await this.generateQuestionForUnit(item);
+            if (question) {
+                questions.push({
+                    ...item,
+                    questionText: question,
+                    userAnswer: null,
+                    isCorrect: null
+                });
+            }
+        }
+        if (questions.length === 0) return { success: false, message: 'Ошибка генерации вопросов' };
+
+        this.currentQuiz = {
+            questions,
+            sourceName,
+            startTime: Date.now()
+        };
+        this.currentQuestionIndex = 0;
+        return { success: true, totalQuestions: questions.length };
+    },
 };
 
 

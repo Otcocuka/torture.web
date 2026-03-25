@@ -55,6 +55,9 @@ const UI = {
         this.bindNotificationsEvents();
         this.bindReaderEvents();
         this.initSettings();
+        document.getElementById('feedbackBtn')?.addEventListener('click', () => {
+            this.showFeedbackModal();
+        });
         this.initReaderContextLogic();
 
         // Initial renders
@@ -123,8 +126,7 @@ const UI = {
         const files = Store.getReaderFiles();
         const settings = Store.data.reader.settings;
 
-        view.className = `app-view active p-6 max-w-6xl mx-auto w-full ${settings.theme === "dark" ? "bg-gray-900 text-gray-100" : "bg-gray-50 text-gray-800"}`;
-
+        view.className = `app-view active p-0 w-full h-1/2 ${settings.theme === "dark" ? "bg-gray-900 text-gray-100" : "bg-gray-50 text-gray-800"}`;
         let html = `
         <div class="max-w-4xl mx-auto space-y-6">
             <div class="flex justify-between items-center">
@@ -206,8 +208,7 @@ const UI = {
 
         const settings = Store.data.reader.settings;
 
-        view.className = `app-view active p-6 max-w-6xl mx-auto w-full h-[calc(100vh-180px)] ${settings.theme === "dark" ? "bg-gray-900 text-gray-100" : "bg-white text-gray-800"}`;
-
+        view.className = `app-view active p-0 w-full h-screen ${settings.theme === "dark" ? "bg-gray-900 text-gray-100" : "bg-white text-gray-800"}`;
         const historyHtml = (file.stats.sessionsHistory || []).slice(-3).reverse().map((h) => {
             const d = new Date(h.date).toLocaleDateString();
             const t = `${Math.floor(h.time / 60)}м${h.time % 60}с`;
@@ -294,12 +295,10 @@ const UI = {
         const stats = Store.getCognitiveAvatarStats();
         const allUnits = Store.data.cognitive.knowledgeUnits;
 
-        const grouped = { active: [], muted: [], ignored: [], mastered: [] };
+        const grouped = { active: [], muted: [], ignored: [], mastered: [], deleted: [] };
         allUnits.forEach(unit => {
             let state = Store.data.cognitive.userKnowledgeStates.find(s => s.unitId === unit.id);
-            if (!state) {
-                state = { id: 'missing', unitId: unit.id, status: 'active', level: 0, history: [], lastUpdated: 0 };
-            }
+            if (!state) state = { id: 'missing', unitId: unit.id, status: 'active', level: 0, history: [], lastUpdated: 0 };
             const displayStatus = state.status === 'unknown' ? 'active' : state.status;
             if (grouped[displayStatus]) {
                 grouped[displayStatus].push({ ...unit, state });
@@ -404,7 +403,7 @@ const UI = {
         });
 
         const allUnits = Store.data.cognitive.knowledgeUnits;
-        const grouped = { active: [], muted: [], ignored: [], mastered: [] };
+        const grouped = { active: [], muted: [], ignored: [], mastered: [], deleted: [] };
         allUnits.forEach(unit => {
             let state = Store.data.cognitive.userKnowledgeStates.find(s => s.unitId === unit.id);
             if (!state) state = { status: 'active', level: 0 };
@@ -483,6 +482,20 @@ const UI = {
                     ` : ''}
 
 
+                    ${tabName === 'deleted' ? `
+                        <div class="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition">
+                            <button onclick="event.stopPropagation(); UI.restoreKnowledgeUnit('${item.id}')" 
+                                class="text-xs px-2 py-1 bg-green-50 text-green-600 rounded hover:bg-green-100 border border-green-100">
+                                ↻ Восстановить
+                            </button>
+                            <button onclick="event.stopPropagation(); UI.deleteKnowledgeUnitPermanently('${item.id}')" 
+                                class="text-xs px-2 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 border border-red-100 ml-1">
+                                🗑️ Навсегда
+                            </button>
+                        </div>
+                    ` : ''}
+
+
                     ${tabName === 'ignored' || tabName === 'muted' || tabName === 'mastered' || tabName === 'active' ? `
                         <div class="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition">
                             <button onclick="event.stopPropagation(); UI.deleteKnowledgeUnit('${item.id}')" 
@@ -501,6 +514,26 @@ const UI = {
         container.innerHTML = controls + `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">${cards}</div>`;
     },
 
+
+    restoreKnowledgeUnit(unitId) {
+        const state = Store.data.cognitive.userKnowledgeStates.find(s => s.unitId === unitId);
+        if (state && state.status === 'deleted') {
+            state.status = 'active';
+            state.lastUpdated = Date.now();
+            Store.save();
+            const currentTab = document.querySelector('.tab-btn.text-blue-600').dataset.tab;
+            this.switchAvatarTab(currentTab);
+            this.showNotification('Знание восстановлено');
+        }
+    },
+    deleteKnowledgeUnitPermanently(unitId) {
+        if (confirm('Удалить знание навсегда? Отменить будет нельзя.')) {
+            Store.deleteKnowledgeUnit(unitId);
+            const currentTab = document.querySelector('.tab-btn.text-blue-600').dataset.tab;
+            this.switchAvatarTab(currentTab);
+            this.showNotification('Знание удалено навсегда');
+        }
+    },
 
     async handleAddToAvatar(text) {
         const activeFile = Store.getActiveFile();
@@ -525,6 +558,8 @@ const UI = {
         } finally {
             const tooltip = document.getElementById('explanation-tooltip');
             if (tooltip) tooltip.remove();
+            Store.logAction('add_knowledge', { units: result.unitsCount, textLength: text.length });
+
         }
     },
 
@@ -574,15 +609,35 @@ const UI = {
         }
     },
 
-    startQuizFromAvatar(filter) {
-        const file = Store.getActiveFile();
-        if (!file) {
-            this.showNotification("Нет активного файла для проверки");
+    async startQuizFromAvatar(filter) {
+        // filter может быть 'active', 'mastered', 'ignored', 'deleted'
+        const allUnits = Store.data.cognitive.knowledgeUnits;
+        const unitIds = [];
+        for (const unit of allUnits) {
+            const state = Store.data.cognitive.userKnowledgeStates.find(s => s.unitId === unit.id);
+            if (!state) continue;
+            if (filter === 'active' && (state.status === 'active' || state.status === 'unknown')) {
+                unitIds.push(unit.id);
+            } else if (filter === 'mastered' && state.status === 'mastered') {
+                unitIds.push(unit.id);
+            } else if (filter === 'ignored' && state.status === 'ignored') {
+                unitIds.push(unit.id);
+            } else if (filter === 'deleted' && state.status === 'deleted') {
+                unitIds.push(unit.id);
+            }
+        }
+        if (unitIds.length === 0) {
+            this.showNotification('Нет знаний для проверки');
             return;
         }
-
+        Store.logAction('quiz_start', { filter });
         this.renderModal("quizModal", `<div id="quizContainer"><div class="text-center p-4 text-white">Инициализация квиза...</div></div>`);
-        this.renderQuizModal(file.id);
+        const result = await CognitiveQuiz.startSessionFromUnits(unitIds, `Категория: ${filter}`);
+        if (!result.success) {
+            document.getElementById('quizContainer').innerHTML = `<div class="text-red-500 p-4">${result.message}</div>`;
+            return;
+        }
+        this.showQuizQuestion(document.getElementById('quizContainer'));
     },
 
     showKnowledgeDetails(unitId) {
@@ -676,33 +731,15 @@ const UI = {
 
     skipQuizQuestion(e) {
         if (e) e.stopPropagation();
-        console.log('[Quiz] Skip clicked');
         const q = CognitiveQuiz.getCurrentQuestion();
         if (q) {
             Store.updateKnowledgeAfterQuiz(q.id, false);
-            console.log('[Quiz] Marked as incorrect (skipped) for unit:', q.id);
         }
-
         const next = CognitiveQuiz.nextQuestion();
-        console.log('[Quiz] After skip, current index:', CognitiveQuiz.currentQuestionIndex, 'next exists:', !!next);
-
         const modal = document.querySelector('#quizModal');
-        if (!modal) {
-            console.warn('[Quiz] Modal not found, maybe already closed');
-            return;
-        }
-
-        const container = modal.querySelector('#quizContainer');
-        if (!container) {
-            console.error('[Quiz] quizContainer not found');
-            return;
-        }
-
-        if (next) {
-            this.showQuizQuestion(container);
-            console.log('[Quiz] Rendered next question');
+        if (modal && next) {
+            this.showQuizQuestion(modal.querySelector('#quizContainer'));
         } else {
-            console.log('[Quiz] No more questions, closing modal');
             this.closeModal('quizModal');
             CognitiveQuiz.reset();
         }
@@ -1180,6 +1217,42 @@ const UI = {
         this.renderModal("confirm", `<div class="bg-white rounded-lg p-6 w-72 text-center shadow-xl"><p class="mb-4">Удалить привычку?</p><div class="flex justify-center gap-2"><button data-close-modal class="px-3 py-1 bg-gray-100 rounded">Нет</button><button id="doDelete" class="px-3 py-1 bg-red-500 text-white rounded">Да</button></div></div>`);
         const btn = document.getElementById("doDelete");
         if (btn) btn.onclick = () => { Store.deleteHabit(id); this.closeModal("confirm"); this.renderHabits(); };
+    },
+
+    showFeedbackModal() {
+        this.renderModal('feedback', `
+        <div class="bg-white rounded-lg p-6 w-[500px] shadow-xl">
+            <h3 class="text-lg font-bold mb-2">Сообщить об ошибке или предложить идею</h3>
+            <textarea id="feedbackText" rows="5" class="w-full border rounded p-2 mb-4" placeholder="Опишите проблему или предложение..."></textarea>
+            <div class="flex justify-end gap-2">
+                <button data-close-modal class="px-3 py-1 bg-gray-200 rounded">Отмена</button>
+                <button id="sendFeedbackBtn" class="px-3 py-1 bg-blue-600 text-white rounded">Отправить</button>
+            </div>
+        </div>
+    `);
+        document.getElementById('sendFeedbackBtn').onclick = async () => {
+            const desc = document.getElementById('feedbackText').value.trim();
+            if (!desc) {
+                alert('Введите описание');
+                return;
+            }
+            const data = Store.getFeedbackData(desc);
+            try {
+                const response = await fetch('/api/feedback', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                if (response.ok) {
+                    this.showNotification('Спасибо! Ваше сообщение отправлено.');
+                    this.closeModal('feedback');
+                } else {
+                    throw new Error();
+                }
+            } catch (e) {
+                this.showNotification('Ошибка отправки, попробуйте позже.');
+            }
+        };
     },
 
     // --- TIMER UI ---
