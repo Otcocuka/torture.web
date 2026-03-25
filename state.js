@@ -907,12 +907,13 @@ const Store = {
         const total = units.length;
         const active = states.filter(s => s.status === 'active').length;
         const mastered = states.filter(s => s.status === 'mastered').length;
+        const deleted = states.filter(s => s.status === 'deleted').length;
 
-        const avgLevel = states.length > 0
-            ? (states.reduce((sum, s) => sum + s.level, 0) / states.length) * 100
+        const avgLevel = states.filter(s => s.status !== 'deleted').length > 0
+            ? (states.filter(s => s.status !== 'deleted').reduce((sum, s) => sum + s.level, 0) / states.filter(s => s.status !== 'deleted').length) * 100
             : 0;
 
-        return { total, active, mastered, avgLevel: avgLevel.toFixed(1) };
+        return { total, active, mastered, deleted, avgLevel: avgLevel.toFixed(1) };
     },
 
 
@@ -1005,4 +1006,31 @@ const Store = {
         this.data.notificationHistory = [];
         this.save();
     },
+    moveToTrash(unitId) {
+        const state = this.data.cognitive.userKnowledgeStates.find(s => s.unitId === unitId);
+        if (!state) return false;
+        if (state.status === 'deleted') return false;
+        state.status = 'deleted';
+        state.lastUpdated = Date.now();
+        this.save();
+        return true;
+    },
+    restoreFromTrash(unitId) {
+        const state = this.data.cognitive.userKnowledgeStates.find(s => s.unitId === unitId);
+        if (!state || state.status !== 'deleted') return false;
+        state.status = 'active'; // или learning, в зависимости от уровня
+        state.lastUpdated = Date.now();
+        this.save();
+        return true;
+    },
+    deleteAllInCategory(categoryStatus) {
+        // categoryStatus: 'active', 'muted', 'mastered', 'ignored', 'deleted'
+        const states = this.data.cognitive.userKnowledgeStates.filter(s => s.status === categoryStatus);
+        for (const state of states) {
+            state.status = 'deleted';
+            state.lastUpdated = Date.now();
+        }
+        this.save();
+    },
+
 };

@@ -335,6 +335,13 @@ const UI = {
                         📝 Проверить активные
                     </button>
                 ` : ''}
+
+                
+                <div class="flex justify-end gap-2 mb-4">
+                    <button id="massDeleteActiveBtn" class="text-xs bg-red-100 text-red-600 px-2 py-1 rounded hover:bg-red-200">Удалить все активные</button>
+                    <button id="massDeleteIgnoredBtn" class="text-xs bg-red-100 text-red-600 px-2 py-1 rounded hover:bg-red-200">Удалить все игнорируемые</button>
+                    <button id="massDeleteMasteredBtn" class="text-xs bg-red-100 text-red-600 px-2 py-1 rounded hover:bg-red-200">Удалить все мастер</button>
+                </div>
             </div>
 
             <div class="flex border-b border-gray-200 mb-4 overflow-x-auto">
@@ -350,6 +357,9 @@ const UI = {
                 <button onclick="UI.switchAvatarTab('ignored')" class="tab-btn px-4 py-2 font-medium text-gray-500 hover:text-blue-600 hover:bg-blue-50" data-tab="ignored">
                     Игнорируемые
                 </button>
+                <button onclick="UI.switchAvatarTab('deleted')" class="tab-btn px-4 py-2 font-medium text-gray-500 hover:text-blue-600 hover:bg-blue-50" data-tab="deleted">
+                    🗑️ Удалённые
+                </button>
             </div>
 
             <div id="avatar-content-container" class="min-h-[200px]">
@@ -363,7 +373,24 @@ const UI = {
             ` : ''}
         </div>
         `;
-
+        document.getElementById('massDeleteActiveBtn')?.addEventListener('click', () => {
+            if (confirm('Удалить все активные знания? Их можно будет восстановить из корзины.')) {
+                Store.deleteAllInCategory('active');
+                this.renderKnowledgeAvatarView();
+            }
+        });
+        document.getElementById('massDeleteIgnoredBtn')?.addEventListener('click', () => {
+            if (confirm('Удалить все игнорируемые знания? Их можно будет восстановить из корзины.')) {
+                Store.deleteAllInCategory('ignored');
+                this.renderKnowledgeAvatarView();
+            }
+        });
+        document.getElementById('massDeleteMasteredBtn')?.addEventListener('click', () => {
+            if (confirm('Удалить все замастеренные знания? Их можно будет восстановить из корзины.')) {
+                Store.deleteAllInCategory('mastered');
+                this.renderKnowledgeAvatarView();
+            }
+        });
         this.renderAvatarTabContent('active', grouped);
     },
 
@@ -480,7 +507,7 @@ const UI = {
         const sourceFileId = activeFile ? activeFile.id : null;
         this.showExplanationTooltip('⏳ Анализирую выделенный текст...', 0, 0, true);
         try {
-            const result = await Store.addKnowledgeFromFragment(frag, 'Выделенный фрагмент', sourceFileId, (percent) => {
+            const result = await Store.addKnowledgeFromFragment(text, 'Выделенный фрагмент', sourceFileId, (percent) => {
                 UI.showProgress(percent);
             });
 
@@ -1727,35 +1754,20 @@ const UI = {
             if (!e.altKey) altPressed = false;
         });
 
-        readerContent.addEventListener('mousedown', (e) => {
+        readerContent.addEventListener('mouseup', (e) => {
             if (altPressed) {
-                // Сохраняем текущие выделения
                 const sel = window.getSelection();
-                savedRanges = [];
-                for (let i = 0; i < sel.rangeCount; i++) {
-                    savedRanges.push(sel.getRangeAt(i).cloneRange());
+                if (sel.rangeCount > 0) {
+                    const newRange = sel.getRangeAt(0).cloneRange();
+                    savedRanges.push(newRange);
+                    sel.removeAllRanges();
+                    savedRanges.forEach(r => sel.addRange(r));
                 }
             } else {
                 savedRanges = [];
             }
         });
 
-        readerContent.addEventListener('mouseup', (e) => {
-            if (altPressed) {
-                const sel = window.getSelection();
-                if (sel.rangeCount > 0) {
-                    const newRange = sel.getRangeAt(0).cloneRange();
-                    sel.removeAllRanges();
-                    savedRanges.forEach(r => sel.addRange(r));
-                    sel.addRange(newRange);
-                    savedRanges = [];
-                }
-            }
-        });
-
-        document.addEventListener('click', (e) => {
-            this.cleanupContextMenus();
-        });
     },
 
     showLevel1Menu(x, y, hasSelection, text) {
@@ -1871,7 +1883,7 @@ const UI = {
             position: absolute; left: ${x}px; top: ${y}px;
             width: 280px; background: #fff; border: 1px solid #ccc;
             border-radius: 6px; box-shadow: 0 8px 24px rgba(0,0,0,0.25);
-            z-index: 10002; font-family: sans-serif; font-size: 14px;
+            z-index: 10010!important; font-family: sans-serif; font-size: 14px;
             overflow: hidden; opacity: 0; transition: opacity 0.2s;
         `;
 
@@ -1935,12 +1947,14 @@ const UI = {
     },
 
     async handleExplanationRequest(text, x, y, preset) {
+        UI.showProgress(0);
         // Показываем тултип с ожиданием, передаём originalText = text
         this.showExplanationTooltip(`⏳ Запрос: ${preset.name}...`, x, y, text);
         const settings = Store.data.explanationSettings || {};
 
         try {
             const response = await fetch(window.appConfig.DEEPSEEK_API_URL, {
+
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${window.appConfig.DEEPSEEK_API_KEY}`,
@@ -1956,6 +1970,7 @@ const UI = {
                     temperature: settings.temperature || 0.2
                 })
             });
+            UI.showProgress(100);
 
             if (!response.ok) throw new Error("API Error");
             const data = await response.json();
@@ -1963,8 +1978,12 @@ const UI = {
             // После получения ответа показываем результат, передаём originalText = text
             this.showExplanationTooltip(explanation, x, y, text);
         } catch (e) {
+            UI.hideProgress();
             this.showExplanationTooltip("⚠️ Ошибка: " + e.message, x, y, text);
+        } finally {
+            setTimeout(() => UI.hideProgress(), 500);
         }
+
     },
 
     showExplanationTooltip(text, x, y, originalText = '') {
@@ -1974,28 +1993,30 @@ const UI = {
         const div = document.createElement('div');
         div.id = 'explanation-tooltip';
 
+        // Позиционирование
         const maxX = window.innerWidth - 360;
         const finalX = x > maxX ? maxX : x;
+        div.style.position = 'fixed';
+        div.style.left = finalX + 'px';
+        div.style.top = y + 'px';
+        div.style.width = '340px';
+        div.style.minWidth = '200px';
+        div.style.backgroundColor = '#ffffff';
+        div.style.border = '1px solid #d1d5db';
+        div.style.borderRadius = '8px';
+        div.style.boxShadow = '0 10px 25px rgba(0,0,0,0.15)';
+        div.style.zIndex = '10003';
+        div.style.display = 'flex';
+        div.style.flexDirection = 'column';
+        div.style.maxHeight = '60vh';
+        div.style.overflow = 'hidden';
+        div.style.fontFamily = 'ui-sans-serif, system-ui, sans-serif';
+        div.style.opacity = '0';
+        div.style.animation = 'fadeIn 0.2s forwards';
 
-        div.style.cssText = `
-        position: fixed; 
-        left: ${finalX}px; 
-        top: ${y}px;
-        width: 340px; 
-        background: #ffffff; 
-        border: 1px solid #d1d5db;
-        border-radius: 8px; 
-        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
-        z-index: 10003; 
-        display: flex; flex-direction: column;
-        max-height: 60vh; 
-        overflow: hidden; 
-        font-family: ui-sans-serif, system-ui, sans-serif;
-        opacity: 0; animation: fadeIn 0.2s forwards;
-    `;
-
+        // Заголовок (перетаскиваемый)
         const header = document.createElement('div');
-        header.style.cssText = 'padding: 10px 12px; background: #f1f5f9; border-bottom: 1px solid #e2e8f0; font-weight: 600; font-size: 13px; display: flex; justify-content: space-between; align-items: center; color: #1e293b;';
+        header.style.cssText = 'padding: 10px 12px; background: #f1f5f9; border-bottom: 1px solid #e2e8f0; font-weight: 600; font-size: 13px; display: flex; justify-content: space-between; align-items: center; color: #1e293b; cursor: move; user-select: none;';
         header.innerText = 'Результат DeepSeek';
 
         const controls = document.createElement('div');
@@ -2022,11 +2043,12 @@ const UI = {
         controls.appendChild(closeBtn);
         header.appendChild(controls);
 
+        // Содержимое
         const content = document.createElement('div');
         content.style.cssText = 'padding: 12px; overflow-y: auto; font-size: 14px; line-height: 1.6; color: #334155; white-space: pre-wrap; flex: 1;';
         content.innerText = text;
 
-        // Если есть originalText, добавляем кнопку добавления в аватар
+        // Кнопка добавления в аватар
         if (originalText) {
             const addBtn = document.createElement('button');
             addBtn.innerText = '🧠 Добавить в Аватар';
@@ -2039,9 +2061,75 @@ const UI = {
             content.appendChild(addBtn);
         }
 
+        // Ресайз уголок
+        const resizeHandle = document.createElement('div');
+        resizeHandle.style.cssText = 'position: absolute; bottom: 2px; right: 2px; width: 10px; height: 10px; cursor: nw-resize; background: rgba(0,0,0,0.1); border-radius: 2px;';
+        let resizeActive = false;
+        resizeHandle.onmousedown = (e) => {
+            e.stopPropagation();
+            resizeActive = true;
+            const startX = e.clientX;
+            const startY = e.clientY;
+            const startWidth = div.offsetWidth;
+            const startHeight = div.offsetHeight;
+            const onMouseMove = (moveEvent) => {
+                if (!resizeActive) return;
+                const newWidth = startWidth + (moveEvent.clientX - startX);
+                const newHeight = startHeight + (moveEvent.clientY - startY);
+                if (newWidth > 200) div.style.width = newWidth + 'px';
+                if (newHeight > 150) div.style.height = newHeight + 'px';
+            };
+            const onMouseUp = () => {
+                resizeActive = false;
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+            };
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        };
+
+        // Перетаскивание
+        let dragActive = false;
+        let offsetX, offsetY;
+        header.onmousedown = (e) => {
+            if (e.target === copyBtn || e.target === closeBtn) return;
+            dragActive = true;
+            offsetX = e.clientX - div.offsetLeft;
+            offsetY = e.clientY - div.offsetTop;
+            const onMouseMove = (moveEvent) => {
+                if (!dragActive) return;
+                div.style.left = (moveEvent.clientX - offsetX) + 'px';
+                div.style.top = (moveEvent.clientY - offsetY) + 'px';
+            };
+            const onMouseUp = () => {
+                dragActive = false;
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+            };
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        };
+
         div.appendChild(header);
         div.appendChild(content);
+        div.appendChild(resizeHandle);
         document.body.appendChild(div);
+
+        // Контекстное меню внутри div (для выделения текста)
+        div.addEventListener('contextmenu', (e) => {
+            e.stopPropagation();
+            const selection = window.getSelection();
+            const selectedText = selection.toString().trim();
+            if (selectedText) {
+                // Показываем меню для выделенного внутри сноски
+                this.showLevel1Menu(e.pageX, e.pageY, true, selectedText);
+            }
+        });
+
+        // Запрещаем закрытие при клике внутри (кроме кнопок)
+        div.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
     },
 
     // progress bar
