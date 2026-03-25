@@ -19,6 +19,7 @@ const Store = {
         appStats: { totalUptime: 0, lastSeen: Date.now() },
         kanban: { columns: [], cards: [] },
         notifications: [],
+        notificationHistory: [],
         reader: {
             activeFileId: null,
             files: [],
@@ -86,6 +87,7 @@ const Store = {
             const raw = localStorage.getItem(this.key);
             if (raw) {
                 const parsed = JSON.parse(raw);
+                this.data.notificationHistory = parsed.notificationHistory || [];
 
                 // --- Логика слияния (Merge) ---
 
@@ -939,27 +941,27 @@ const Store = {
     },
 
     // В Store (state.js) добавим метод:
-    async addKnowledgeFromFragment(fragmentText, sourceName = 'Выделенный фрагмент', sourceFileId = null) {
-        // 1. Разбиваем длинный текст на чанки по предложениям
+    async addKnowledgeFromFragment(fragmentText, sourceName = 'Выделенный фрагмент', sourceFileId = null, onProgress = null) {
         const chunks = this._splitIntoChunks(fragmentText);
         let allAtoms = [];
+        let processed = 0;
         for (const chunk of chunks) {
             try {
                 const atoms = await this._extractKnowledgeFromBlock(chunk, 'fragment');
                 if (atoms && atoms.length) allAtoms.push(...atoms);
             } catch (e) {
-                console.warn('Error processing chunk', e);
+                console.warn(e);
             }
+            processed++;
+            if (onProgress) onProgress((processed / chunks.length) * 100);
         }
         if (allAtoms.length === 0) return { success: false, unitsCount: 0 };
 
-        // 2. Создаём документ, если ещё нет (привязываем к файлу, если передан sourceFileId)
         let docId = this.data.cognitive.documents.find(d => d.name === sourceName && d.sourceFileId === sourceFileId)?.id;
         if (!docId) {
             docId = this.createCognitiveDocument(sourceName, sourceFileId);
         }
 
-        // 3. Создаём один семантический блок для всего фрагмента
         const blockId = this.addSemanticBlock({
             documentId: docId,
             type: 'fragment',
@@ -967,7 +969,6 @@ const Store = {
             summary: fragmentText.substring(0, 100) + (fragmentText.length > 100 ? '...' : '')
         });
 
-        // 4. Сохраняем каждое знание
         let savedCount = 0;
         for (const atom of allAtoms) {
             this.upsertKnowledgeUnit({
@@ -980,5 +981,28 @@ const Store = {
             savedCount++;
         }
         return { success: true, unitsCount: savedCount, documentId: docId };
+    },
+    addNotificationHistory(message, type = 'info') {
+        if (!this.data.notificationHistory) this.data.notificationHistory = [];
+        this.data.notificationHistory.unshift({
+            id: Date.now(),
+            message,
+            type,
+            timestamp: Date.now(),
+            read: false
+        });
+        if (this.data.notificationHistory.length > 50) this.data.notificationHistory.pop();
+        this.save();
+    },
+
+    markNotificationAsRead(id) {
+        const notif = this.data.notificationHistory?.find(n => n.id === id);
+        if (notif) notif.read = true;
+        this.save();
+    },
+
+    clearNotificationHistory() {
+        this.data.notificationHistory = [];
+        this.save();
     },
 };

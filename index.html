@@ -42,9 +42,21 @@
                 <button data-nav="view-settings"
                     class="nav-btn px-4 py-2 rounded-md text-sm font-medium transition-standard hover:bg-white hover:shadow-sm text-gray-600">⚙️
                     Настройки</button>
+                <button id="openNotificationsHistoryBtn" data-nav="view-notifications"
+                    class="nav-btn px-4 py-2 rounded-md text-sm font-medium transition-standard hover:bg-white hover:shadow-sm text-gray-600">
+                    📋 История уведомлений
+                </button>
             </div>
         </div>
     </nav>
+
+
+
+    <div id="globalProgress" class="hidden fixed top-0 left-0 w-full h-1 bg-gray-200 z-50">
+        <div id="globalProgressBar" class="h-full bg-blue-500 w-0 transition-all duration-300"></div>
+    </div>
+
+
 
     <!-- Main Container -->
     <main class="flex-grow p-4 max-w-5xl mx-auto w-full">

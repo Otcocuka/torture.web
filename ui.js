@@ -480,7 +480,10 @@ const UI = {
         const sourceFileId = activeFile ? activeFile.id : null;
         this.showExplanationTooltip('⏳ Анализирую выделенный текст...', 0, 0, true);
         try {
-            const result = await Store.addKnowledgeFromFragment(text, 'Выделенный фрагмент', sourceFileId);
+            const result = await Store.addKnowledgeFromFragment(frag, 'Выделенный фрагмент', sourceFileId, (percent) => {
+                UI.showProgress(percent);
+            });
+
             if (result.success && result.unitsCount > 0) {
                 this.showNotification(`✅ Добавлено знаний: ${result.unitsCount}. Обновите Аватар.`);
                 if (confirm('Перейти в Аватар знаний сейчас?')) {
@@ -500,15 +503,19 @@ const UI = {
 
     async handleMultipleAddToAvatar(fragments) {
         let totalAdded = 0;
-        this.showExplanationTooltip(`⏳ Добавляю ${fragments.length} фрагментов...`, 0, 0, true);
-        for (const frag of fragments) {
+        this.showProgress(0);
+        for (let i = 0; i < fragments.length; i++) {
+            const frag = fragments[i];
             const activeFile = Store.getActiveFile();
             const sourceFileId = activeFile ? activeFile.id : null;
-            const result = await Store.addKnowledgeFromFragment(frag, 'Выделенный фрагмент', sourceFileId);
+            const result = await Store.addKnowledgeFromFragment(frag, 'Выделенный фрагмент', sourceFileId, (percent) => {
+                // прогресс по одному фрагменту, общий прогресс = (i + percent/100) / fragments.length
+                const overall = (i + percent / 100) / fragments.length;
+                UI.showProgress(overall * 100);
+            });
             if (result.success) totalAdded += result.unitsCount;
         }
-        const tooltip = document.getElementById('explanation-tooltip');
-        if (tooltip) tooltip.remove();
+        this.hideProgress();
         this.showNotification(`✅ Добавлено знаний: ${totalAdded}`);
         if (confirm('Перейти в Аватар знаний сейчас?')) {
             this.switchView('view-knowledge-avatar');
@@ -1365,6 +1372,7 @@ const UI = {
     },
 
     showNotification(msg) {
+        Store.addNotificationHistory(msg, 'info'); // или 'success'/'error'
         const n = document.createElement("div");
         n.className = "fixed top-4 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg animate-fade-in z-[60]";
         n.textContent = msg;
@@ -1440,6 +1448,10 @@ const UI = {
     },
 
     bindGlobalEvents() {
+        document.getElementById('openNotificationsHistoryBtn')?.addEventListener('click', () => {
+            this.showNotificationsHistory();
+        });
+
         document.getElementById("btnExport")?.addEventListener("click", (e) => {
             const dataStr = JSON.stringify(Store.data, null, 2);
             const blob = new Blob([dataStr], { type: "application/json" });
@@ -2031,4 +2043,54 @@ const UI = {
         div.appendChild(content);
         document.body.appendChild(div);
     },
+
+    // progress bar
+
+
+    showProgress(percent) {
+        const container = document.getElementById('globalProgress');
+        const bar = document.getElementById('globalProgressBar');
+        if (!container || !bar) return;
+        container.classList.remove('hidden');
+        bar.style.width = `${percent}%`;
+    },
+
+    hideProgress() {
+        const container = document.getElementById('globalProgress');
+        if (container) container.classList.add('hidden');
+    },
+
+
+    showNotificationsHistory() {
+        const history = Store.data.notificationHistory || [];
+        const html = `
+        <div class="bg-white rounded-lg p-4 w-[500px] max-h-[70vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="font-bold">История уведомлений</h3>
+                <button id="clearNotifHistoryBtn" class="text-xs text-red-500">Очистить все</button>
+            </div>
+            ${history.length === 0 ? '<div class="text-gray-400 text-center py-4">Нет уведомлений</div>' : ''}
+            <div class="space-y-2">
+                ${history.map(n => `
+                    <div class="p-2 border rounded ${n.read ? 'bg-gray-50' : 'bg-blue-50'}">
+                        <div class="flex justify-between">
+                            <span class="text-sm">${n.message}</span>
+                            <span class="text-xs text-gray-400">${new Date(n.timestamp).toLocaleTimeString()}</span>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+            <div class="mt-3 flex justify-end">
+                <button data-close-modal class="px-3 py-1 bg-gray-200 rounded">Закрыть</button>
+            </div>
+        </div>
+    `;
+        this.renderModal('notificationsHistory', html);
+        document.getElementById('clearNotifHistoryBtn')?.addEventListener('click', () => {
+            Store.clearNotificationHistory();
+            this.closeModal('notificationsHistory');
+            this.showNotificationsHistory();
+        });
+    },
+
 };
