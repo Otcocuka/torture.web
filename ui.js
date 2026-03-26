@@ -536,30 +536,20 @@ const UI = {
     },
 
     async handleAddToAvatar(text) {
-        const activeFile = Store.getActiveFile();
-        const sourceFileId = activeFile ? activeFile.id : null;
-        this.showExplanationTooltip('⏳ Анализирую выделенный текст...', 0, 0, true);
+        this.showLoadingModal("Анализирую выделенный текст...");
         try {
-            const result = await Store.addKnowledgeFromFragment(text, 'Выделенный фрагмент', sourceFileId, (percent) => {
-                UI.showProgress(percent);
-            });
-
+            const result = await Store.addKnowledgeFromFragment(text, 'Выделенный фрагмент', sourceFileId, null);
             if (result.success && result.unitsCount > 0) {
-                this.showNotification(`✅ Добавлено знаний: ${result.unitsCount}. Обновите Аватар.`);
-                if (confirm('Перейти в Аватар знаний сейчас?')) {
-                    this.switchView('view-knowledge-avatar');
-                }
+                this.showNotification(`✅ Добавлено знаний: ${result.unitsCount}`);
+                if (confirm('Перейти в Аватар?')) this.switchView('view-knowledge-avatar');
             } else {
-                this.showNotification('❌ Не удалось извлечь знания. Попробуйте другой фрагмент.');
+                this.showNotification('❌ Не удалось извлечь знания');
             }
         } catch (error) {
-            console.error('Add to avatar error:', error);
-            this.showNotification('❌ Ошибка при добавлении знаний');
+            console.error(error);
+            this.showNotification('❌ Ошибка');
         } finally {
-            const tooltip = document.getElementById('explanation-tooltip');
-            if (tooltip) tooltip.remove();
-            Store.logAction('add_knowledge', { units: result.unitsCount, textLength: text.length });
-
+            this.hideLoadingModal();
         }
     },
 
@@ -760,28 +750,26 @@ const UI = {
         const input = document.getElementById("quizAnswerInput");
         const feedback = document.getElementById("quizFeedback");
         const q = CognitiveQuiz.getCurrentQuestion();
-
         if (!q) return;
-
         input.disabled = true;
-        feedback.textContent = "Проверка ответа...";
+        feedback.textContent = "Оценка...";
 
-        const isCorrect = await CognitiveQuiz.checkAnswer(input.value, q);
+        const score = await CognitiveQuiz.checkAnswer(input.value, q);
+        const percent = Math.round(score);
 
-        if (isCorrect) {
-            feedback.textContent = "✅ Верно!";
-            feedback.className = "mt-2 h-6 text-sm font-bold text-green-600";
-            Store.updateKnowledgeAfterQuiz(unitId, true);
-        } else {
-            feedback.textContent = `❌ Неверно.`;
-            feedback.className = "mt-2 h-6 text-sm font-bold text-red-600";
-            Store.updateKnowledgeAfterQuiz(unitId, false);
-        }
+        let feedbackText = `Оценка: ${percent}%`;
+        if (percent >= 70) feedbackText = "✅ " + feedbackText;
+        else if (percent >= 40) feedbackText = "⚠️ " + feedbackText;
+        else feedbackText = "❌ " + feedbackText;
+        feedback.textContent = feedbackText;
+        feedback.className = "mt-2 h-6 text-sm font-bold";
 
-        // Исправлено: ищем модалку по ID
+        // Обновляем уровень знания пропорционально (от -0.1 до +0.2 в зависимости от оценки)
+        const levelDelta = (percent - 50) / 250; // диапазон [-0.2, +0.2]
+        Store.updateKnowledgeAfterQuiz(unitId, levelDelta);
+
         const modal = document.getElementById('modal_quizModal');
         if (!modal) return;
-
         const btnContainer = modal.querySelector('.flex.justify-end.gap-3');
         if (btnContainer) {
             btnContainer.innerHTML = `
@@ -2265,6 +2253,29 @@ const UI = {
             this.closeModal('notificationsHistory');
             this.showNotificationsHistory();
         });
+    },
+
+
+
+    showLoadingModal(text = "Обработка...", onCancel = null) {
+        this.renderModal("loading", `
+        <div class="bg-white rounded-lg p-6 w-80 text-center shadow-xl">
+            <div class="flex flex-col items-center gap-4">
+                <div class="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                <p class="text-gray-700">${text}</p>
+                ${onCancel ? '<button id="cancelLoadingBtn" class="mt-2 px-4 py-1 bg-gray-200 rounded text-sm">Отмена</button>' : ''}
+            </div>
+        </div>
+    `);
+        if (onCancel) {
+            document.getElementById('cancelLoadingBtn')?.addEventListener('click', () => {
+                this.closeModal('loading');
+                if (onCancel) onCancel();
+            });
+        }
+    },
+    hideLoadingModal() {
+        this.closeModal('loading');
     },
 
 };

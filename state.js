@@ -876,16 +876,11 @@ const Store = {
      * @param {string} unitId
      * @param {boolean} isCorrect
      */
-    updateKnowledgeAfterQuiz(unitId, isCorrect) {
-        const stateIndex = this.data.cognitive.userKnowledgeStates.findIndex(s => s.unitId === unitId);
-        if (stateIndex === -1) return; // Не нашли состояние
-
-        const state = this.data.cognitive.userKnowledgeStates[stateIndex];
-        const action = isCorrect ? 'tested_success' : 'tested_fail';
-
-        // Логика изменения уровня
-        const levelChange = isCorrect ? 0.15 : -0.05;
-        state.level = Math.max(0, Math.min(1, state.level + levelChange));
+    updateKnowledgeAfterQuiz(unitId, delta) {
+        const state = this.data.cognitive.userKnowledgeStates.find(s => s.unitId === unitId);
+        if (!state) return;
+        let newLevel = Math.max(0, Math.min(1, state.level + delta));
+        state.level = newLevel;
 
         // Логика смены статуса
         if (state.level >= 0.7 && state.status === 'learning') state.status = 'learned';

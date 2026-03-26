@@ -632,14 +632,13 @@ const CognitiveQuiz = {
      * Проверка ответа пользователя через LLM.
      */
     async checkAnswer(userAnswer, correctUnit) {
-        try {
-            const systemPrompt = `Ты — система оценки знаний.
+        const systemPrompt = `Ты — система оценки знаний.
 Вопрос: "${correctUnit.questionText}"
-Контекст знания (правильный ответ): "${correctUnit.description}"
+Правильный ответ (контекст знания): "${correctUnit.description}"
 Ответ пользователя: "${userAnswer}"
-Оцени, насколько ответ пользователя близок к правильному контексту.
-Ответь строго одним словом: "correct" или "incorrect".`;
-
+Оцени ответ по шкале от 0 до 100, где 0 — совершенно неверно, 100 — идеально.
+Верни ТОЛЬКО число (целое).`;
+        try {
             const response = await fetch(window.appConfig.DEEPSEEK_API_URL, {
                 method: 'POST',
                 headers: {
@@ -648,21 +647,17 @@ const CognitiveQuiz = {
                 },
                 body: JSON.stringify({
                     model: window.appConfig.DEEPSEEK_MODEL,
-                    messages: [{ role: "system", content: systemPrompt }, { role: "user", content: "Оцени ответ." }],
-                    max_tokens: 50,
+                    messages: [{ role: "system", content: systemPrompt }, { role: "user", content: "Оцени ответ" }],
+                    max_tokens: 10,
                     temperature: 0.1
                 })
             });
-
             const data = await response.json();
-            const resultText = data.choices[0].message.content.toLowerCase().trim();
-            if (resultText.startsWith('correct')) return true;
-            if (resultText.startsWith('incorrect')) return false;
-            return false;
-
+            const score = parseInt(data.choices[0].message.content.trim());
+            return isNaN(score) ? 50 : Math.min(100, Math.max(0, score));
         } catch (e) {
-            console.warn("Ошибка проверки ответа:", e);
-            return false;
+            console.warn("Ошибка оценки:", e);
+            return 50;
         }
     },
 
