@@ -194,7 +194,8 @@ class PomodoroController {
             if (!isRecovery) this.sendNotification("Work Time!", "Get back to it.");
         }
 
-        this.state.isRunning = false; // Остановить, пока пользователь не нажмет Start
+        this.state.isRunning = false;
+        Store.logResearchEvent('pomodoro', { phase: wasWorking ? 'work' : 'break', duration: this.state.timeLeft });
         this.state.endTime = Date.now() + this.state.timeLeft * 1000;
 
         if (!isRecovery) {
@@ -415,6 +416,11 @@ class NotificationScheduler {
                 Store.updateNotificationTrigger(notif.id);
             });
             if (UI.renderNotificationsList) UI.renderNotificationsList();
+        }
+        
+        const dueKnowledge = Store.data.cognitive.userKnowledgeStates.filter(s => s.nextReview && s.nextReview <= Date.now());
+        if (dueKnowledge.length > 0 && Notification.permission === 'granted') {
+            new Notification('Пора повторить знания!', { body: `У вас ${dueKnowledge.length} знаний ждут повторения` });
         }
     }
 

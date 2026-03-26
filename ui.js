@@ -360,6 +360,12 @@ const UI = {
                 <button onclick="UI.switchAvatarTab('deleted')" class="tab-btn px-4 py-2 font-medium text-gray-500 hover:text-blue-600 hover:bg-blue-50" data-tab="deleted">
                     🗑️ Удалённые
                 </button>
+                <button onclick="UI.switchAvatarTab('review')" class="tab-btn px-4 py-2 font-medium text-gray-500 hover:text-blue-600 hover:bg-blue-50" data-tab="review">
+                    ⏰ Повторить
+                </button>
+                <button onclick="UI.switchAvatarTab('topics')" class="tab-btn px-4 py-2 font-medium text-gray-500 hover:text-blue-600 hover:bg-blue-50" data-tab="topics">
+                    📂 По темам
+                </button>
             </div>
 
             <div id="avatar-content-container" class="min-h-[200px]">
@@ -420,6 +426,58 @@ const UI = {
             }
         });
 
+        if (tabName === 'review') {
+            const now = Date.now();
+            const reviewItems = [];
+            for (const unit of allUnits) {
+                const state = Store.data.cognitive.userKnowledgeStates.find(s => s.unitId === unit.id);
+                if (state && state.nextReview && state.nextReview <= now && state.status !== 'ignored' && state.status !== 'deleted') {
+                    reviewItems.push({ ...unit, state });
+                }
+            }
+            this.renderAvatarTabContent('review', { review: reviewItems });
+            return;
+        }
+
+
+        if (tabName === 'topics') {
+            const topics = {};
+            for (const unit of allUnits) {
+                const state = Store.data.cognitive.userKnowledgeStates.find(s => s.unitId === unit.id);
+                if (state && state.status !== 'ignored' && state.status !== 'deleted') {
+                    const topic = unit.topic || 'Без темы';
+                    if (!topics[topic]) topics[topic] = [];
+                    topics[topic].push({ ...unit, state });
+                }
+            }
+            // Визуализация
+            let html = '<div class="space-y-4">';
+            for (const [topic, units] of Object.entries(topics)) {
+                html += `<div><h3 class="text-lg font-semibold text-gray-700 mt-4 mb-2">${topic}</h3><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">`;
+                units.forEach(unit => {
+                    const progress = Math.round(unit.state.level * 100);
+                    let progressColor = 'bg-blue-500';
+                    if (unit.state.status === 'mastered') progressColor = 'bg-green-500';
+                    html += `
+                <div class="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition cursor-pointer" onclick="UI.showKnowledgeDetails('${unit.id}')">
+                    <div class="font-semibold text-gray-800">${unit.title}</div>
+                    <div class="flex items-center gap-2 mt-2">
+                        <div class="flex-1 bg-gray-200 rounded-full h-2 overflow-hidden">
+                            <div class="${progressColor} h-full rounded-full" style="width: ${progress}%"></div>
+                        </div>
+                        <span class="text-xs font-mono text-gray-500">${progress}%</span>
+                    </div>
+                    <div class="text-[10px] text-gray-400 mt-1 uppercase">${unit.type}</div>
+                </div>
+            `;
+                });
+                html += `</div></div>`;
+            }
+            html += '</div>';
+            document.getElementById('avatar-content-container').innerHTML = html;
+            return;
+        }
+
         this.renderAvatarTabContent(tabName, grouped);
     },
 
@@ -447,6 +505,16 @@ const UI = {
                     </button>
                 </div>
             `;
+        }
+
+        if (tabName === 'review') {
+            controls = `
+                    <div class="mb-4 text-right">
+                        <button onclick="UI.startQuizFromAvatar('review')" class="bg-blue-100 text-blue-700 px-4 py-1.5 rounded hover:bg-blue-200 text-sm font-medium">
+                            🔁 Повторить все
+                        </button>
+                    </div>
+                `;
         }
 
         const cards = items.map(item => {
@@ -637,6 +705,11 @@ const UI = {
                 unitIds.push(unit.id);
             } else if (filter === 'deleted' && state.status === 'deleted') {
                 unitIds.push(unit.id);
+            } else if (filter === 'review') {
+                const now = Date.now();
+                if (state && state.nextReview && state.nextReview <= now && state.status !== 'ignored' && state.status !== 'deleted') {
+                    unitIds.push(unit.id);
+                }
             }
         }
         if (unitIds.length === 0) {
@@ -779,7 +852,9 @@ const UI = {
 
         const score = await CognitiveQuiz.checkAnswer(input.value, q);
         const percent = Math.round(score);
+        Store.logResearchEvent('quiz', { knowledgeId: unitId, score: percent, timeSpent: 0 });
         const isCorrect = percent >= 50; // порог 50%
+
 
         let feedbackText = `Оценка: ${percent}%`;
         if (isCorrect) feedbackText = "✅ " + feedbackText;
@@ -791,7 +866,7 @@ const UI = {
         // Обновляем уровень знания
         const levelDelta = (percent - 50) / 250; // [-0.2, +0.2]
         Store.updateKnowledgeAfterQuiz(unitId, levelDelta, 'quiz');
-
+        Store.scheduleNextReview(unitId, isCorrect, q.userLevel);
         const modal = document.getElementById('modal_quizModal');
         if (!modal) return;
         const btnContainer = modal.querySelector('.flex.justify-end.gap-3');
@@ -1099,7 +1174,7 @@ const UI = {
         const duration = Math.floor((Date.now() - this.readerSessionStartTime) / 1000);
         const file = Store.getActiveFile();
         const words = FileReaderUtil.countWords(file.content);
-
+        Store.logResearchEvent('read_session', { duration, wordsCount: words, fileId: file.id });
         Store.addReaderSessionToFile(file.id, duration, words);
 
         const startBtn = document.getElementById("readerStartSession");
@@ -1582,7 +1657,18 @@ const UI = {
         document.getElementById('openNotificationsHistoryBtn')?.addEventListener('click', () => {
             this.showNotificationsHistory();
         });
-
+        document.getElementById('exportResearchBtn')?.addEventListener('click', () => {
+            const dataStr = Store.exportResearchData();
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `torture2_research_${new Date().toISOString().slice(0, 19)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
         document.getElementById("btnExport")?.addEventListener("click", (e) => {
             const dataStr = JSON.stringify(Store.data, null, 2);
             const blob = new Blob([dataStr], { type: "application/json" });

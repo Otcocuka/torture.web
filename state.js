@@ -7,6 +7,7 @@ const Store = {
     key: "torture2_data_v1",
     data: {
         actionLog: [],
+        researchData: [],
         habits: [],
         achievements: [],
         habitSettings: { goal: 5, color: "blue" },
@@ -94,6 +95,7 @@ const Store = {
 
                 // Basics
                 this.data.habits = parsed.habits || [];
+                this.data.researchData = parsed.researchData || [];
                 this.data.achievements = parsed.achievements || [];
                 this.data.habitSettings = { ...this.data.habitSettings, ...parsed.habitSettings };
                 this.data.tempSubtasks = parsed.tempSubtasks || [];
@@ -215,6 +217,7 @@ const Store = {
         if (habit.count >= habit.goal && !this.data.achievements.some(a => a.name === habit.name)) {
             this.data.achievements.push({ name: habit.name, goal: habit.goal, date: today });
         }
+        this.logResearchEvent('habit', { habitId: id });
         this.save();
     },
     toggleSubtask(habitId, subtaskId, status) {
@@ -498,7 +501,8 @@ const Store = {
                 type,
                 description: description.trim(),
                 sourceBlockIds: [sourceBlockId],
-                confidence: confidence || 0.5
+                confidence: confidence || 0.5,
+                topic: null
             });
 
             // Создаем состояние
@@ -518,22 +522,19 @@ const Store = {
         const newState = {
             id: stateId,
             unitId,
-            status: 'unknown', // unknown, learning, learned, mastered
-            level: 0, // 0 - 1
+            status: 'unknown',
+            level: 0,
             history: [{ action: 'read', timestamp: Date.now() }],
-            lastUpdated: Date.now()
+            lastUpdated: Date.now(),
+            nextReview: null,
+            easeFactor: 2.5,
+            lastReviewInterval: 1
         };
-
         this.data.cognitive.userKnowledgeStates.push(newState);
-
-        // Ссылка в аватаре (проверяем дубликаты)
         if (!this.data.cognitive.cognitiveAvatar.knowledgeGraph.includes(stateId)) {
             this.data.cognitive.cognitiveAvatar.knowledgeGraph.push(stateId);
         }
-
-        // Обновляем статистику
         this.data.cognitive.cognitiveAvatar.stats.totalUnits += 1;
-
         this.save();
     },
 
@@ -871,6 +872,8 @@ const Store = {
         return quizData.filter(item => item.userStatus !== 'ignored');
     },
 
+
+    
     /**
      * Обновляет состояние знания после ответа на вопрос.
      * @param {string} unitId
@@ -973,16 +976,22 @@ const Store = {
         });
 
         let savedCount = 0;
+        let topic = null;
+        if (allAtoms.length > 0) {
+            topic = await this._extractTopicFromText(fragmentText);
+        }
         for (const atom of allAtoms) {
             this.upsertKnowledgeUnit({
                 title: atom.title,
                 type: atom.type,
                 description: atom.description,
                 sourceBlockId: blockId,
-                confidence: 0.85
+                confidence: 0.85,
+                topic: topic
             });
             savedCount++;
         }
+        this.logResearchEvent('knowledge_added', { source: sourceName, unitsCount: savedCount });
         return { success: true, unitsCount: savedCount, documentId: docId };
     },
     addNotificationHistory(message, type = 'info') {
@@ -1063,5 +1072,75 @@ const Store = {
             actionLog: this.data.actionLog || []
         };
     },
+
+    logResearchEvent(type, data) {
+        if (!this.data.researchData) this.data.researchData = [];
+        this.data.researchData.unshift({
+            timestamp: Date.now(),
+            type,
+            data: data ? JSON.stringify(data) : ''
+        });
+        if (this.data.researchData.length > 2000) this.data.researchData.pop();
+        this.save();
+    },
+
+    exportResearchData() {
+        const exportObj = {
+            version: '1.0',
+            exportDate: new Date().toISOString(),
+            events: this.data.researchData,
+            snapshot: {
+                knowledgeUnits: this.data.cognitive.knowledgeUnits,
+                userKnowledgeStates: this.data.cognitive.userKnowledgeStates
+            }
+        };
+        return JSON.stringify(exportObj, null, 2);
+    },
+
+    scheduleNextReview(unitId, performance, currentLevel) {
+        const state = this.data.cognitive.userKnowledgeStates.find(s => s.unitId === unitId);
+        if (!state) return;
+        const prevInterval = state.lastReviewInterval || 1;
+        const { newInterval, easeFactor } = SpacedRepetition.calculateNextInterval(
+            { easeFactor: state.easeFactor || 2.5 },
+            currentLevel,
+            prevInterval,
+            performance
+        );
+        state.easeFactor = easeFactor;
+        state.lastReviewInterval = newInterval;
+        state.nextReview = Date.now() + newInterval * 24 * 60 * 60 * 1000;
+        state.lastUpdated = Date.now();
+        this.save();
+    },
+
+
+    async _extractTopicFromText(text) {
+        const systemPrompt = `Ты — аналитик. Определи основную тему текста одним словом или короткой фразой (на русском). Не добавляй лишнего, только тему.`;
+        const payload = {
+            model: window.appConfig.DEEPSEEK_MODEL,
+            messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: `Текст: "${text.substring(0, 500)}"` }
+            ],
+            max_tokens: 20,
+            temperature: 0.1
+        };
+        try {
+            const response = await fetch(window.appConfig.DEEPSEEK_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${window.appConfig.DEEPSEEK_API_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            return data.choices[0].message.content.trim();
+        } catch (e) {
+            console.warn("Ошибка определения темы:", e);
+            return "Общее";
+        }
+    }
 
 };
