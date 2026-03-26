@@ -876,7 +876,7 @@ const Store = {
      * @param {string} unitId
      * @param {boolean} isCorrect
      */
-    updateKnowledgeAfterQuiz(unitId, delta) {
+    updateKnowledgeAfterQuiz(unitId, delta, action = 'quiz') {
         const state = this.data.cognitive.userKnowledgeStates.find(s => s.unitId === unitId);
         if (!state) return;
         let newLevel = Math.max(0, Math.min(1, state.level + delta));
@@ -885,7 +885,7 @@ const Store = {
         // Логика смены статуса
         if (state.level >= 0.7 && state.status === 'learning') state.status = 'learned';
         if (state.level >= 0.9 && state.status === 'learned') state.status = 'mastered';
-        if (state.level <= 0.1 && state.status === 'learned') state.status = 'learning'; // Откат
+        if (state.level <= 0.1 && state.status === 'learned') state.status = 'learning';
 
         state.history.push({ action, timestamp: Date.now() });
         state.lastUpdated = Date.now();

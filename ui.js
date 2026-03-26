@@ -724,10 +724,10 @@ const UI = {
         if (e) e.stopPropagation();
         const q = CognitiveQuiz.getCurrentQuestion();
         if (q) {
-            Store.updateKnowledgeAfterQuiz(q.id, false);
+            // Пропуск: снижаем уровень знания
+            Store.updateKnowledgeAfterQuiz(q.id, -0.1, 'skip');
         }
         const next = CognitiveQuiz.nextQuestion();
-        // Исправлено: ищем модалку по полному ID
         const modal = document.getElementById('modal_quizModal');
         if (!modal) {
             console.warn('[Quiz] modal_quizModal not found');
@@ -756,27 +756,34 @@ const UI = {
 
         const score = await CognitiveQuiz.checkAnswer(input.value, q);
         const percent = Math.round(score);
+        const isCorrect = percent >= 50; // порог 50%
 
         let feedbackText = `Оценка: ${percent}%`;
-        if (percent >= 70) feedbackText = "✅ " + feedbackText;
+        if (isCorrect) feedbackText = "✅ " + feedbackText;
         else if (percent >= 40) feedbackText = "⚠️ " + feedbackText;
         else feedbackText = "❌ " + feedbackText;
         feedback.textContent = feedbackText;
         feedback.className = "mt-2 h-6 text-sm font-bold";
 
-        // Обновляем уровень знания пропорционально (от -0.1 до +0.2 в зависимости от оценки)
-        const levelDelta = (percent - 50) / 250; // диапазон [-0.2, +0.2]
-        Store.updateKnowledgeAfterQuiz(unitId, levelDelta);
+        // Обновляем уровень знания
+        const levelDelta = (percent - 50) / 250; // [-0.2, +0.2]
+        Store.updateKnowledgeAfterQuiz(unitId, levelDelta, 'quiz');
 
         const modal = document.getElementById('modal_quizModal');
         if (!modal) return;
         const btnContainer = modal.querySelector('.flex.justify-end.gap-3');
         if (btnContainer) {
-            btnContainer.innerHTML = `
-            <button onclick="UI.nextQuizStep()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition shadow">
-                Далее →
-            </button>
-        `;
+            if (isCorrect) {
+                // Заменяем на кнопку "Далее →"
+                btnContainer.innerHTML = `
+                <button onclick="UI.nextQuizStep()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition shadow">
+                    Далее →
+                </button>
+            `;
+            } else {
+                // Неверно – разблокируем поле и оставляем кнопки
+                input.disabled = false;
+            }
         }
     },
 
