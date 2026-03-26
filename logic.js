@@ -366,6 +366,7 @@ class WheelController {
 class NotificationScheduler {
     constructor() {
         this.checkInterval = null;
+        this._lastKnowledgeNotifTime = 0;
     }
 
     init() {
@@ -409,7 +410,6 @@ class NotificationScheduler {
 
         const now = Date.now();
         const toTrigger = Store.data.notifications.filter(n => n.nextTrigger <= now);
-
         if (toTrigger.length > 0) {
             toTrigger.forEach(notif => {
                 this.fire(notif);
@@ -417,12 +417,27 @@ class NotificationScheduler {
             });
             if (UI.renderNotificationsList) UI.renderNotificationsList();
         }
-        
-        const dueKnowledge = Store.data.cognitive.userKnowledgeStates.filter(s => s.nextReview && s.nextReview <= Date.now());
+
+        // --- FIX: cooldown 60 минут между уведомлениями о повторении ---
+        const KNOWLEDGE_NOTIF_COOLDOWN_MS = 60 * 60 * 1000; // 1 час
+        if (now - this._lastKnowledgeNotifTime < KNOWLEDGE_NOTIF_COOLDOWN_MS) return;
+
+        const dueKnowledge = Store.data.cognitive.userKnowledgeStates.filter(s =>
+            s.nextReview &&
+            s.nextReview <= now &&
+            s.status !== 'ignored' &&
+            s.status !== 'deleted'
+        );
+
         if (dueKnowledge.length > 0 && Notification.permission === 'granted') {
-            new Notification('Пора повторить знания!', { body: `У вас ${dueKnowledge.length} знаний ждут повторения` });
+            new Notification('📚 Пора повторить знания!', {
+                body: `${dueKnowledge.length} знаний ждут повторения в Аватаре`,
+                tag: 'spaced-repetition-reminder' // браузер не дублирует уведомления с одним tag
+            });
+            this._lastKnowledgeNotifTime = now; // обновляем таймер
         }
     }
+
 
     fire(notif) {
         if ("Notification" in window && Notification.permission === "granted") {

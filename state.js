@@ -873,7 +873,7 @@ const Store = {
     },
 
 
-    
+
     /**
      * Обновляет состояние знания после ответа на вопрос.
      * @param {string} unitId
@@ -1100,19 +1100,30 @@ const Store = {
     scheduleNextReview(unitId, performance, currentLevel) {
         const state = this.data.cognitive.userKnowledgeStates.find(s => s.unitId === unitId);
         if (!state) return;
+
         const prevInterval = state.lastReviewInterval || 1;
-        const { newInterval, easeFactor } = SpacedRepetition.calculateNextInterval(
-            { easeFactor: state.easeFactor || 2.5 },
-            currentLevel,
-            prevInterval,
-            performance
-        );
+        let easeFactor = state.easeFactor || 2.5;
+        let multiplier;
+
+        if (performance) {
+            easeFactor = Math.max(1.3, easeFactor * 1.1);
+            multiplier = currentLevel > 0.7
+                ? 1 + Math.log2(1 + currentLevel)
+                : 1 + currentLevel;
+        } else {
+            easeFactor = Math.max(1.3, easeFactor * 0.8);
+            multiplier = 0.5;
+        }
+
+        const newInterval = Math.max(1, Math.min(365, prevInterval * easeFactor * multiplier));
+
         state.easeFactor = easeFactor;
         state.lastReviewInterval = newInterval;
         state.nextReview = Date.now() + newInterval * 24 * 60 * 60 * 1000;
         state.lastUpdated = Date.now();
         this.save();
     },
+
 
 
     async _extractTopicFromText(text) {
@@ -1140,6 +1151,14 @@ const Store = {
         } catch (e) {
             console.warn("Ошибка определения темы:", e);
             return "Общее";
+        }
+    },
+
+    updateKnowledgeTopic(unitId, newTopic) {
+        const unit = this.data.cognitive.knowledgeUnits.find(u => u.id === unitId);
+        if (unit) {
+            unit.topic = newTopic ? newTopic.trim() : null;
+            this.save();
         }
     }
 

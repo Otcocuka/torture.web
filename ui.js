@@ -453,7 +453,10 @@ const UI = {
             // Визуализация
             let html = '<div class="space-y-4">';
             for (const [topic, units] of Object.entries(topics)) {
-                html += `<div><h3 class="text-lg font-semibold text-gray-700 mt-4 mb-2">${topic}</h3><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">`;
+                html += `<div><h3 class="text-lg font-semibold text-gray-700 mt-4 mb-2">${topic}
+    <button onclick="UI.startQuizByTopic('${topic.replace(/'/g, "\\'")}')" 
+        class="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200">Квиз по теме</button>
+</h3><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">`;
                 units.forEach(unit => {
                     const progress = Math.round(unit.state.level * 100);
                     let progressColor = 'bg-blue-500';
@@ -546,6 +549,11 @@ const UI = {
                         </div>
                         <span class="text-xs font-mono text-gray-500 w-8 text-right">${progress}%</span>
                     </div>
+                    <div class="flex items-center gap-1 mt-1">
+                        <span class="text-xs text-gray-400">🏷️ ${item.topic || 'Без темы'}</span>
+                        <button onclick="event.stopPropagation(); UI.editKnowledgeTopic('${item.id}', '${item.topic || ''}')" 
+                            class="text-xs text-blue-400 hover:text-blue-600">✏️</button>
+                    </div>
 
                     ${tabName === 'active' ? `
                         <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition">
@@ -625,7 +633,17 @@ const UI = {
             this.showNotification('Знание удалено навсегда');
         }
     },
-
+    editKnowledgeTopic(unitId, currentTopic) {
+        // Собираем все уникальные темы
+        const allTopics = [...new Set(Store.data.cognitive.knowledgeUnits.map(u => u.topic).filter(t => t))];
+        const topicList = allTopics.length ? allTopics.join(', ') : 'нет существующих';
+        const newTopic = prompt(`Введите тему (существующие: ${topicList}) или оставьте пустым:`, currentTopic);
+        if (newTopic !== null) {
+            Store.updateKnowledgeTopic(unitId, newTopic.trim() === '' ? null : newTopic.trim());
+            const currentTab = document.querySelector('.tab-btn.text-blue-600').dataset.tab;
+            this.switchAvatarTab(currentTab);
+        }
+    },
     async handleAddToAvatar(text) {
         this.showLoadingModal("Анализирую выделенный текст...");
         try {
@@ -726,6 +744,31 @@ const UI = {
         this.showQuizQuestion(document.getElementById('quizContainer'));
     },
 
+
+    async startQuizByTopic(topic) {
+        const unitIds = [];
+        const allUnits = Store.data.cognitive.knowledgeUnits;
+        for (const unit of allUnits) {
+            if (unit.topic === topic) {
+                const state = Store.data.cognitive.userKnowledgeStates.find(s => s.unitId === unit.id);
+                if (state && state.status !== 'ignored' && state.status !== 'deleted') {
+                    unitIds.push(unit.id);
+                }
+            }
+        }
+        if (unitIds.length === 0) {
+            this.showNotification(`Нет знаний по теме "${topic}"`);
+            return;
+        }
+        this.renderModal("quizModal", `<div id="quizContainer"><div class="text-center p-4 text-white">Инициализация квиза...</div></div>`);
+        const result = await CognitiveQuiz.startSessionFromUnits(unitIds, `Тема: ${topic}`);
+        if (!result.success) {
+            document.getElementById('quizContainer').innerHTML = `<div class="text-red-500 p-4">${result.message}</div>`;
+            return;
+        }
+        this.showQuizQuestion(document.getElementById('quizContainer'));
+    },
+
     showKnowledgeDetails(unitId) {
         const unit = Store.data.cognitive.knowledgeUnits.find(u => u.id === unitId);
         if (!unit) return;
@@ -774,67 +817,111 @@ const UI = {
     },
 
     showQuizQuestion(container) {
+        if (!container) {
+            console.warn('[Quiz] showQuizQuestion: container is null');
+            return;
+        }
+
         const q = CognitiveQuiz.getCurrentQuestion();
-        console.log('[Quiz] showQuizQuestion called, current question index:', CognitiveQuiz.currentQuestionIndex, 'question exists:', !!q);
-        console.log('[Quiz] showQuizQuestion called with container', container);
-
-
 
         if (!q) {
             container.innerHTML = `
-                <div class="text-center p-6">
-                    <h3 class="text-xl font-bold text-green-600 mb-2">✅ Квиз завершен!</h3>
-                    <p class="text-gray-600">Вы повторили знания. Уровень владения обновлен.</p>
-                    <button onclick="UI.closeModal('quizModal')" class="mt-4 px-4 py-2 bg-blue-500 text-white rounded">Закрыть</button>
-                </div>
-            `;
-            CognitiveQuiz.reset();
+            <div class="text-center p-6">
+                <h3 class="text-xl font-bold text-green-600 mb-2">✅ Квиз завершён!</h3>
+                <p class="text-gray-600 mb-4">Уровень владения знаниями обновлён.</p>
+                <button id="quizCloseBtn"
+                    class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                    Закрыть
+                </button>
+            </div>`;
+            document.getElementById('quizCloseBtn')
+                ?.addEventListener('click', () => {
+                    UI.closeModal('quizModal');
+                    CognitiveQuiz.reset();
+                });
             return;
         }
 
+        // Рендерим ВСЕ кнопки сразу — часть скрыта через класс hidden
         container.innerHTML = `
-            <div class="bg-white rounded-lg p-6 w-[600px] shadow-xl">
-                <div class="flex justify-between items-center mb-4">
-                    <span class="text-sm text-gray-500">Вопрос ${CognitiveQuiz.currentQuestionIndex + 1} из ${CognitiveQuiz.currentQuiz.questions.length}</span>
-                    <span class="text-xs px-2 py-1 bg-gray-100 rounded">${q.type.toUpperCase()}</span>
-                </div>
-                
-                <h3 class="text-xl font-bold text-gray-800 mb-6">${q.questionText}</h3>
-                
-                <textarea id="quizAnswerInput" class="w-full border rounded p-3 h-24 mb-4 focus:ring-2 focus:ring-blue-400 outline-none" placeholder="Введите ваш ответ..."></textarea>
-                
-                <div class="flex justify-end gap-3">
-                    <button onclick="UI.skipQuizQuestion()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition">
-                        Пропустить
-                    </button>
-                    <button onclick="UI.processQuizAnswer('${q.id}')" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition">
-                        Проверить
-                    </button>
-                </div>
-                <div id="quizFeedback" class="mt-2 h-6 text-sm font-bold"></div>
+        <div class="bg-white rounded-lg p-6 w-[600px] shadow-xl">
+            <div class="flex justify-between items-center mb-4">
+                <span class="text-sm text-gray-500">
+                    Вопрос ${CognitiveQuiz.currentQuestionIndex + 1}
+                    из ${CognitiveQuiz.currentQuiz.questions.length}
+                </span>
+                <span class="text-xs px-2 py-1 bg-gray-100 rounded uppercase">${q.type}</span>
             </div>
-        `;
+
+            <h3 class="text-lg font-bold text-gray-800 mb-4">${q.questionText}</h3>
+
+            <textarea id="quizAnswerInput"
+                class="w-full border rounded-lg p-3 h-24 mb-3
+                       focus:ring-2 focus:ring-blue-400 outline-none resize-none"
+                placeholder="Введите ваш ответ..."></textarea>
+
+            <div id="quizFeedback" class="mb-3 text-sm font-semibold min-h-[20px]"></div>
+
+            <div class="flex justify-end gap-3">
+                <!-- Видны по умолчанию -->
+                <button id="quizSkipBtn"
+                    class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition">
+                    Пропустить
+                </button>
+                <button id="quizCheckBtn"
+                    class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition font-medium">
+                    Проверить ✓
+                </button>
+
+                <!-- Скрыты до проверки -->
+                <button id="quizRetryBtn"
+                    class="hidden px-4 py-2 bg-amber-100 text-amber-800
+                           border border-amber-300 rounded hover:bg-amber-200 transition">
+                    ✏️ Изменить ответ
+                </button>
+                <button id="quizNextBtn"
+                    class="hidden px-4 py-2 bg-blue-600 text-white
+                           rounded hover:bg-blue-700 transition font-medium">
+                    Далее →
+                </button>
+            </div>
+        </div>`;
+
+        // Привязываем обработчики через addEventListener — без onclick в HTML
+        document.getElementById('quizSkipBtn')
+            ?.addEventListener('click', () => UI.skipQuizQuestion());
+
+        document.getElementById('quizCheckBtn')
+            ?.addEventListener('click', () => UI.processQuizAnswer(q.id));
+
+        document.getElementById('quizRetryBtn')
+            ?.addEventListener('click', () => {
+                const input = document.getElementById('quizAnswerInput');
+                if (input) { input.disabled = false; input.value = ''; input.focus(); }
+
+                document.getElementById('quizFeedback').textContent = '';
+                document.getElementById('quizSkipBtn')?.classList.remove('hidden');
+                document.getElementById('quizCheckBtn')?.classList.remove('hidden');
+                document.getElementById('quizRetryBtn')?.classList.add('hidden');
+                document.getElementById('quizNextBtn')?.classList.add('hidden');
+            });
+
+        document.getElementById('quizNextBtn')
+            ?.addEventListener('click', () => UI.nextQuizStep());
     },
 
-    skipQuizQuestion(e) {
-        if (e) e.stopPropagation();
+    skipQuizQuestion() {
         const q = CognitiveQuiz.getCurrentQuestion();
         if (q) {
-            // Пропуск: снижаем уровень знания
-            Store.updateKnowledgeAfterQuiz(q.id, -0.1, 'skip');
+            Store.updateKnowledgeAfterQuiz(q.id, -0.05, 'skip');
+            Store.logResearchEvent('quiz', { knowledgeId: q.id, score: 0, skipped: true });
         }
+
         const next = CognitiveQuiz.nextQuestion();
         const modal = document.getElementById('modal_quizModal');
-        if (!modal) {
-            console.warn('[Quiz] modal_quizModal not found');
-            return;
-        }
-        const container = modal.querySelector('#quizContainer');
-        if (!container) {
-            console.warn('[Quiz] container not found');
-            return;
-        }
-        if (next) {
+        const container = modal?.querySelector('#quizContainer');
+
+        if (next && container) {
             this.showQuizQuestion(container);
         } else {
             this.closeModal('quizModal');
@@ -843,60 +930,101 @@ const UI = {
     },
 
     async processQuizAnswer(unitId) {
-        const input = document.getElementById("quizAnswerInput");
-        const feedback = document.getElementById("quizFeedback");
+        const answerInput = document.getElementById('quizAnswerInput');
+        const feedback = document.getElementById('quizFeedback');
+        const skipBtn = document.getElementById('quizSkipBtn');
+        const checkBtn = document.getElementById('quizCheckBtn');
+        const retryBtn = document.getElementById('quizRetryBtn');
+        const nextBtn = document.getElementById('quizNextBtn');
+
         const q = CognitiveQuiz.getCurrentQuestion();
-        if (!q) return;
-        input.disabled = true;
-        feedback.textContent = "Оценка...";
 
-        const score = await CognitiveQuiz.checkAnswer(input.value, q);
+        if (!q || !answerInput || !feedback) {
+            console.warn('[Quiz] processQuizAnswer: элементы не найдены', { q, answerInput, feedback });
+            return;
+        }
+
+        const userAnswer = answerInput.value.trim();
+        if (!userAnswer) {
+            feedback.textContent = '⚠️ Введите ответ перед проверкой';
+            feedback.className = 'mb-3 text-sm font-semibold min-h-[20px] text-amber-600';
+            return;
+        }
+
+        // Блокируем UI
+        answerInput.disabled = true;
+        if (checkBtn) checkBtn.disabled = true;
+        if (skipBtn) skipBtn.disabled = true;
+        feedback.textContent = '⏳ Оценка ответа...';
+        feedback.className = 'mb-3 text-sm font-semibold min-h-[20px] text-gray-400';
+
+        // Запрос к LLM
+        const score = await CognitiveQuiz.checkAnswer(userAnswer, q);
         const percent = Math.round(score);
+        const isCorrect = percent >= 50;
+
+        // Исследовательский лог
         Store.logResearchEvent('quiz', { knowledgeId: unitId, score: percent, timeSpent: 0 });
-        const isCorrect = percent >= 50; // порог 50%
 
+        // Обратная связь
+        const emoji = percent >= 70 ? '✅' : percent >= 40 ? '⚠️' : '❌';
+        feedback.textContent = `${emoji} Оценка: ${percent}%`;
+        feedback.className = `mb-3 text-sm font-semibold min-h-[20px] ${percent >= 70 ? 'text-green-700' : percent >= 40 ? 'text-amber-600' : 'text-red-700'
+            }`;
 
-        let feedbackText = `Оценка: ${percent}%`;
-        if (isCorrect) feedbackText = "✅ " + feedbackText;
-        else if (percent >= 40) feedbackText = "⚠️ " + feedbackText;
-        else feedbackText = "❌ " + feedbackText;
-        feedback.textContent = feedbackText;
-        feedback.className = "mt-2 h-6 text-sm font-bold";
-
-        // Обновляем уровень знания
-        const levelDelta = (percent - 50) / 250; // [-0.2, +0.2]
+        // Обновляем уровень знания и планируем следующее повторение
+        const levelDelta = (percent - 50) / 250;
         Store.updateKnowledgeAfterQuiz(unitId, levelDelta, 'quiz');
-        Store.scheduleNextReview(unitId, isCorrect, q.userLevel);
-        const modal = document.getElementById('modal_quizModal');
-        if (!modal) return;
-        const btnContainer = modal.querySelector('.flex.justify-end.gap-3');
-        if (btnContainer) {
-            if (isCorrect) {
-                // Заменяем на кнопку "Далее →"
-                btnContainer.innerHTML = `
-                <button onclick="UI.nextQuizStep()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition shadow">
-                    Далее →
-                </button>
-            `;
-            } else {
-                // Неверно – разблокируем поле и оставляем кнопки
-                input.disabled = false;
+        try {
+            Store.scheduleNextReview(unitId, isCorrect, q.userLevel || 0);
+        } catch (e) {
+            console.warn('[Quiz] scheduleNextReview failed (не критично):', e.message);
+        }
+
+        // Скрываем «Пропустить» и «Проверить»
+        skipBtn?.classList.add('hidden');
+        checkBtn?.classList.add('hidden');
+
+        // Показываем нужные кнопки
+        if (isCorrect) {
+            // Правильный ответ → только «Далее →»
+            if (nextBtn) {
+                nextBtn.disabled = false;
+                nextBtn.className = 'px-5 py-2 bg-blue-600 text-white rounded-lg ' +
+                    'hover:bg-blue-700 transition font-semibold shadow';
+                nextBtn.classList.remove('hidden');
+            }
+        } else {
+            // Неправильный ответ → «Изменить ответ» + «Далее →» (серая)
+            if (retryBtn) {
+                retryBtn.disabled = false;
+                retryBtn.classList.remove('hidden');
+            }
+            if (nextBtn) {
+                nextBtn.disabled = false;
+                nextBtn.className = 'px-4 py-2 bg-gray-400 text-white rounded ' +
+                    'hover:bg-gray-500 transition';
+                nextBtn.classList.remove('hidden');
             }
         }
     },
 
-    nextQuizStep(e) {
-        if (e) e.stopPropagation();
+
+
+    nextQuizStep() {
         const next = CognitiveQuiz.nextQuestion();
-        // Исправлено: ищем модалку по ID
         const modal = document.getElementById('modal_quizModal');
-        if (modal && next) {
-            this.showQuizQuestion(modal.querySelector('#quizContainer'));
+        const container = modal?.querySelector('#quizContainer');
+
+        if (next && container) {
+            this.showQuizQuestion(container);
         } else {
             this.closeModal('quizModal');
             CognitiveQuiz.reset();
         }
     },
+
+
 
     // --- SETTINGS UI ---
     initSettings() {
