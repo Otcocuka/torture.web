@@ -441,43 +441,7 @@ const UI = {
 
 
         if (tabName === 'topics') {
-            const topics = {};
-            for (const unit of allUnits) {
-                const state = Store.data.cognitive.userKnowledgeStates.find(s => s.unitId === unit.id);
-                if (state && state.status !== 'ignored' && state.status !== 'deleted') {
-                    const topic = unit.topic || 'Без темы';
-                    if (!topics[topic]) topics[topic] = [];
-                    topics[topic].push({ ...unit, state });
-                }
-            }
-            // Визуализация
-            let html = '<div class="space-y-4">';
-            for (const [topic, units] of Object.entries(topics)) {
-                html += `<div><h3 class="text-lg font-semibold text-gray-700 mt-4 mb-2">${topic}
-    <button onclick="UI.startQuizByTopic('${topic.replace(/'/g, "\\'")}')" 
-        class="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200">Квиз по теме</button>
-</h3><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">`;
-                units.forEach(unit => {
-                    const progress = Math.round(unit.state.level * 100);
-                    let progressColor = 'bg-blue-500';
-                    if (unit.state.status === 'mastered') progressColor = 'bg-green-500';
-                    html += `
-                <div class="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition cursor-pointer" onclick="UI.showKnowledgeDetails('${unit.id}')">
-                    <div class="font-semibold text-gray-800">${unit.title}</div>
-                    <div class="flex items-center gap-2 mt-2">
-                        <div class="flex-1 bg-gray-200 rounded-full h-2 overflow-hidden">
-                            <div class="${progressColor} h-full rounded-full" style="width: ${progress}%"></div>
-                        </div>
-                        <span class="text-xs font-mono text-gray-500">${progress}%</span>
-                    </div>
-                    <div class="text-[10px] text-gray-400 mt-1 uppercase">${unit.type}</div>
-                </div>
-            `;
-                });
-                html += `</div></div>`;
-            }
-            html += '</div>';
-            document.getElementById('avatar-content-container').innerHTML = html;
+            this.renderTopicsHierarchy();
             return;
         }
 
@@ -647,16 +611,22 @@ const UI = {
     async handleAddToAvatar(text) {
         this.showLoadingModal("Анализирую выделенный текст...");
         try {
-            const result = await Store.addKnowledgeFromFragment(text, 'Выделенный фрагмент', sourceFileId, null);
+            // ← FIX: определяем sourceFileId из активного файла
+            const activeFile = Store.getActiveFile();
+            const sourceFileId = activeFile ? activeFile.id : null;
+
+            const result = await Store.addKnowledgeFromFragment(
+                text, 'Выделенный фрагмент', sourceFileId, null
+            );
             if (result.success && result.unitsCount > 0) {
                 this.showNotification(`✅ Добавлено знаний: ${result.unitsCount}`);
                 if (confirm('Перейти в Аватар?')) this.switchView('view-knowledge-avatar');
             } else {
-                this.showNotification('❌ Не удалось извлечь знания');
+                this.showNotification('❌ Не удалось извлечь знания из фрагмента');
             }
         } catch (error) {
             console.error(error);
-            this.showNotification('❌ Ошибка');
+            this.showNotification('❌ Ошибка при добавлении');
         } finally {
             this.hideLoadingModal();
         }
@@ -768,6 +738,268 @@ const UI = {
         }
         this.showQuizQuestion(document.getElementById('quizContainer'));
     },
+
+    renderTopicsHierarchy() {
+        const container = document.getElementById('avatar-content-container');
+        if (!container) return;
+
+        const allUnits = Store.data.cognitive.knowledgeUnits;
+
+        // Строим иерархию { category: { topic: [units] } }
+        const hierarchy = {};
+        for (const unit of allUnits) {
+            const state = Store.data.cognitive.userKnowledgeStates.find(s => s.unitId === unit.id);
+            if (!state || state.status === 'ignored' || state.status === 'deleted') continue;
+            const cat = unit.category || '📦 Без категории';
+            const topic = unit.topic || '📄 Без подтемы';
+            if (!hierarchy[cat]) hierarchy[cat] = {};
+            if (!hierarchy[cat][topic]) hierarchy[cat][topic] = [];
+            hierarchy[cat][topic].push({ ...unit, state });
+        }
+
+        if (Object.keys(hierarchy).length === 0) {
+            container.innerHTML = `
+            <div class="text-center py-12 text-gray-400 bg-gray-50 rounded-xl">
+                <p class="font-medium">Нет тематически организованных знаний</p>
+                <p class="text-sm mt-2">При AI-анализе укажите категорию и подтему —<br>
+                   все извлечённые атомы автоматически разложатся по папкам.</p>
+            </div>`;
+            return;
+        }
+
+        // Сохраняем для доступа из обработчиков
+        this._topicHierarchy = hierarchy;
+
+        let catIdx = 0;
+        let html = `
+    <div class="mb-4 flex items-center justify-between gap-3 flex-wrap">
+        <button id="quizSelectedTopicsBtn"
+            class="hidden px-5 py-2 bg-indigo-600 text-white rounded-lg
+                   hover:bg-indigo-700 font-medium shadow text-sm">
+            🎯 Квиз по выбранным
+        </button>
+        <div class="flex gap-3 ml-auto text-xs">
+            <button onclick="UI.selectAllTopics(true)"
+                class="text-blue-500 hover:underline">Выбрать все</button>
+            <button onclick="UI.selectAllTopics(false)"
+                class="text-gray-400 hover:underline">Снять все</button>
+        </div>
+    </div>
+    <div class="space-y-3">`;
+
+        for (const [cat, topics] of Object.entries(hierarchy)) {
+            const ci = catIdx++;
+            const totalInCat = Object.values(topics).reduce((s, u) => s + u.length, 0);
+            let topicIdx = 0;
+
+            html += `
+        <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+            <div class="bg-gradient-to-r from-gray-50 to-gray-100 px-4 py-3
+                        flex items-center gap-3 border-b border-gray-200">
+                <input type="checkbox" class="cat-checkbox w-4 h-4 cursor-pointer"
+                    id="cat_cb_${ci}"
+                    onchange="UI.toggleCategoryCheckbox(${ci}, this.checked)">
+                <label for="cat_cb_${ci}"
+                    class="flex-1 font-bold text-gray-800 cursor-pointer flex items-center gap-2">
+                    📁 ${cat}
+                    <span class="text-xs font-normal text-gray-400 bg-white
+                                 px-2 py-0.5 rounded-full border">
+                        ${totalInCat} знаний
+                    </span>
+                </label>
+                <button onclick="UI.startQuizByCategory(${ci})"
+                    class="text-xs bg-indigo-100 text-indigo-700 px-3 py-1
+                           rounded-full hover:bg-indigo-200 font-medium">
+                    📚 Вся категория
+                </button>
+            </div>
+
+            <div class="divide-y divide-gray-100">`;
+
+            for (const [topic, units] of Object.entries(topics)) {
+                const ti = topicIdx++;
+                const avgLevel = units.reduce((s, u) => s + u.state.level, 0) / units.length;
+                const masteredCount = units.filter(u => u.state.status === 'mastered').length;
+
+                html += `
+            <div class="px-4 py-3">
+                <div class="flex items-center gap-3 mb-3">
+                    <input type="checkbox"
+                        class="topic-checkbox w-4 h-4 cursor-pointer"
+                        id="topic_cb_${ci}_${ti}"
+                        data-cat-index="${ci}"
+                        data-topic-index="${ti}"
+                        onchange="UI.updateQuizSelectedBtn()">
+                    <label for="topic_cb_${ci}_${ti}"
+                        class="flex-1 font-medium text-gray-700 cursor-pointer flex items-center gap-2">
+                        📂 ${topic}
+                        <span class="text-xs text-gray-400">
+                            ${units.length} зн. · avg ${Math.round(avgLevel * 100)}%
+                            ${masteredCount > 0 ? `· 🏆 ${masteredCount} мастер` : ''}
+                        </span>
+                    </label>
+                    <button onclick="UI.startQuizByTopicIndex(${ci}, ${ti})"
+                        class="text-xs bg-gray-100 text-gray-600 px-3 py-1
+                               rounded-full hover:bg-gray-200">
+                        Квиз
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-2 ml-7">
+                    ${units.slice(0, 8).map(unit => {
+                    const p = Math.round(unit.state.level * 100);
+                    const color = unit.state.status === 'mastered' ? 'bg-green-400' : 'bg-blue-400';
+                    return `
+                        <div class="bg-white border rounded-lg p-2 text-xs
+                                    hover:shadow-md transition cursor-pointer"
+                             onclick="UI.showKnowledgeDetails('${unit.id}')">
+                            <div class="font-medium text-gray-700 truncate mb-1"
+                                 title="${unit.title}">${unit.title}</div>
+                            <div class="flex items-center gap-1">
+                                <div class="flex-1 bg-gray-100 rounded-full h-1">
+                                    <div class="${color} h-full rounded-full"
+                                         style="width:${p}%"></div>
+                                </div>
+                                <span class="text-gray-400 tabular-nums">${p}%</span>
+                            </div>
+                        </div>`;
+                }).join('')}
+                    ${units.length > 8 ? `
+                    <div class="border border-dashed rounded-lg p-2 text-xs
+                                text-gray-400 flex items-center justify-center">
+                        +${units.length - 8} ещё
+                    </div>` : ''}
+                </div>
+            </div>`;
+            }
+
+            html += `</div></div>`;
+        }
+
+        html += `</div>`;
+        container.innerHTML = html;
+
+        // Вешаем обработчик на кнопку после рендера
+        document.getElementById('quizSelectedTopicsBtn')
+            ?.addEventListener('click', () => this.quizSelectedTopics());
+    },
+
+    toggleCategoryCheckbox(catIndex, checked) {
+        document.querySelectorAll(`.topic-checkbox[data-cat-index="${catIndex}"]`)
+            .forEach(cb => cb.checked = checked);
+        this.updateQuizSelectedBtn();
+    },
+
+    updateQuizSelectedBtn() {
+        const checkedCount = document.querySelectorAll('.topic-checkbox:checked').length;
+        const btn = document.getElementById('quizSelectedTopicsBtn');
+        if (!btn) return;
+        if (checkedCount > 0) {
+            btn.classList.remove('hidden');
+            btn.textContent = `🎯 Квиз по выбранным (${checkedCount} тем)`;
+        } else {
+            btn.classList.add('hidden');
+        }
+    },
+
+    selectAllTopics(selected) {
+        document.querySelectorAll('.topic-checkbox').forEach(cb => cb.checked = selected);
+        document.querySelectorAll('.cat-checkbox').forEach(cb => cb.checked = selected);
+        this.updateQuizSelectedBtn();
+    },
+
+    async quizSelectedTopics() {
+        const hierarchy = this._topicHierarchy;
+        if (!hierarchy) return;
+
+        const checked = document.querySelectorAll('.topic-checkbox:checked');
+        if (checked.length === 0) return;
+
+        const cats = Object.keys(hierarchy);
+        const unitIds = [];
+        const labels = [];
+
+        checked.forEach(cb => {
+            const ci = parseInt(cb.dataset.catIndex);
+            const ti = parseInt(cb.dataset.topicIndex);
+            const cat = cats[ci];
+            const topics = Object.keys(hierarchy[cat]);
+            const topic = topics[ti];
+            if (!cat || !topic) return;
+
+            labels.push(`${cat}/${topic}`);
+            for (const unit of hierarchy[cat][topic]) {
+                unitIds.push(unit.id);
+            }
+        });
+
+        if (unitIds.length === 0) {
+            this.showNotification('Нет знаний в выбранных темах');
+            return;
+        }
+
+        this.renderModal('quizModal',
+            `<div id="quizContainer"><div class="text-center p-4 text-white">
+            Инициализация квиза... (${unitIds.length} знаний)
+        </div></div>`);
+        const result = await CognitiveQuiz.startSessionFromUnits(
+            unitIds, labels.join(', ')
+        );
+        if (!result.success) {
+            document.getElementById('quizContainer').innerHTML =
+                `<div class="text-red-500 p-4">${result.message}</div>`;
+            return;
+        }
+        this.showQuizQuestion(document.getElementById('quizContainer'));
+    },
+
+    async startQuizByTopicIndex(catIndex, topicIndex) {
+        const hierarchy = this._topicHierarchy;
+        if (!hierarchy) return;
+        const cats = Object.keys(hierarchy);
+        const cat = cats[catIndex];
+        if (!cat) return;
+        const topics = Object.keys(hierarchy[cat]);
+        const topic = topics[topicIndex];
+        if (!topic) return;
+
+        const unitIds = hierarchy[cat][topic].map(u => u.id);
+        if (unitIds.length === 0) { this.showNotification('Нет знаний'); return; }
+
+        this.renderModal('quizModal',
+            `<div id="quizContainer"><div class="text-center p-4 text-white">Инициализация...</div></div>`);
+        const result = await CognitiveQuiz.startSessionFromUnits(
+            unitIds, `${cat} / ${topic}`
+        );
+        if (!result.success) {
+            document.getElementById('quizContainer').innerHTML =
+                `<div class="text-red-500 p-4">${result.message}</div>`;
+            return;
+        }
+        this.showQuizQuestion(document.getElementById('quizContainer'));
+    },
+
+    async startQuizByCategory(catIndex) {
+        const hierarchy = this._topicHierarchy;
+        if (!hierarchy) return;
+        const cats = Object.keys(hierarchy);
+        const cat = cats[catIndex];
+        if (!cat) return;
+
+        const unitIds = Object.values(hierarchy[cat]).flat().map(u => u.id);
+        if (unitIds.length === 0) { this.showNotification('Нет знаний'); return; }
+
+        this.renderModal('quizModal',
+            `<div id="quizContainer"><div class="text-center p-4 text-white">Инициализация...</div></div>`);
+        const result = await CognitiveQuiz.startSessionFromUnits(unitIds, `📁 ${cat}`);
+        if (!result.success) {
+            document.getElementById('quizContainer').innerHTML =
+                `<div class="text-red-500 p-4">${result.message}</div>`;
+            return;
+        }
+        this.showQuizQuestion(document.getElementById('quizContainer'));
+    },
+
 
     showKnowledgeDetails(unitId) {
         const unit = Store.data.cognitive.knowledgeUnits.find(u => u.id === unitId);
@@ -1182,39 +1414,7 @@ const UI = {
             if (btn.id === "readerAiAnalyzeBtn") {
                 const file = Store.getActiveFile();
                 if (!file) return UI.showNotification("Сначала загрузите файл");
-
-                btn.disabled = true;
-                btn.innerText = "⏳ Обработка...";
-
-                CognitiveProcessor.processFile(file.id, (progress) => {
-                    btn.innerText = `⏳ ${progress}`;
-                })
-                    .then((result) => {
-                        if (result.success) {
-                            UI.showNotification(`✅ Готово! Извлечено знаний: ${result.unitsCount}`);
-                            btn.innerText = `🤖 Аналитика завершена (${result.unitsCount})`;
-                        } else {
-                            UI.showNotification(`❌ Ошибка: ${result.error}`);
-                            btn.innerText = "🤖 Ошибка, попробуйте снова";
-                        }
-                        if (result.success && result.unitsCount > 0) {
-                            setTimeout(() => {
-                                UI.switchView('view-knowledge-avatar');
-                            }, 1000);
-                        }
-                    })
-                    .catch((err) => {
-                        console.error("AI-Analyze Error:", err);
-                        UI.showNotification("❌ Критическая ошибка анализа");
-                        btn.innerText = "🤖 Ошибка";
-                    })
-                    .finally(() => {
-                        setTimeout(() => {
-                            btn.disabled = false;
-                            btn.innerText = "🤖 AI-анализ";
-                        }, 2000);
-                    });
-
+                this.showAiAnalysisModal(file, btn); // ← открывает модалку с выбором категории
                 return;
             }
         });
@@ -2521,5 +2721,125 @@ const UI = {
     hideLoadingModal() {
         this.closeModal('loading');
     },
+    runAiAnalysis(file, btn, opts = {}) {
+        if (btn) { btn.disabled = true; btn.innerText = '⏳ Обработка...'; }
 
+        CognitiveProcessor.processFile(file.id, (progress) => {
+            if (btn) btn.innerText = `⏳ ${progress}`;
+        }, opts)
+            .then((result) => {
+                if (result.success) {
+                    const label = opts.category && opts.topicName
+                        ? `${opts.category} / ${opts.topicName}`
+                        : opts.topicName || '—';
+                    UI.showNotification(`✅ Готово! +${result.unitsCount} знаний → ${label}`);
+                    if (btn) btn.innerText = `🤖 Готово (${result.unitsCount})`;
+                    if (result.unitsCount > 0) {
+                        setTimeout(() => UI.switchView('view-knowledge-avatar'), 1200);
+                    }
+                } else {
+                    UI.showNotification(`❌ Ошибка: ${result.error}`);
+                    if (btn) btn.innerText = '🤖 Ошибка, попробуйте снова';
+                }
+            })
+            .catch((err) => {
+                console.error('AI-Analyze Error:', err);
+                UI.showNotification('❌ Критическая ошибка анализа');
+                if (btn) btn.innerText = '🤖 Ошибка';
+            })
+            .finally(() => {
+                setTimeout(() => {
+                    if (btn) { btn.disabled = false; btn.innerText = '🤖 AI-анализ'; }
+                }, 2000);
+            });
+    },
+    // ui.js | НОВЫЙ метод — добавить рядом с runAiAnalysis
+    showAiAnalysisModal(file, btn) {
+        const categories = Store.getAllCategories();
+        const suggestedTopic = file.name.replace(/\.[^/.]+$/, ''); // имя файла без расширения
+
+        const catOptions = categories.map(c =>
+            `<option value="${c}">${c}</option>`
+        ).join('');
+
+        this.renderModal('aiAnalysisSetup', `
+        <div class="bg-white rounded-lg p-6 w-[480px] shadow-xl">
+            <h3 class="text-lg font-bold mb-1">🤖 Настройка AI-анализа</h3>
+            <p class="text-sm text-gray-400 mb-5">${file.name}</p>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">
+                        📁 Категория (верхний уровень)
+                    </label>
+                    <div class="flex gap-2">
+                        <select id="aiCatSelect" class="flex-1 border rounded-lg p-2 text-sm">
+                            <option value="">— Без категории —</option>
+                            ${catOptions}
+                            <option value="__new__">✚ Создать новую...</option>
+                        </select>
+                        <input type="text" id="aiCatNew"
+                            class="hidden flex-1 border rounded-lg p-2 text-sm"
+                            placeholder="Напр.: Биология, IT...">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">
+                        📂 Подтема (папка внутри категории)
+                    </label>
+                    <input type="text" id="aiTopicInput"
+                        class="w-full border rounded-lg p-2 text-sm"
+                        value="${suggestedTopic}"
+                        placeholder="Напр.: Царство животных...">
+                    <p class="text-xs text-gray-400 mt-1">
+                        Все извлечённые знания получат эту подтему
+                    </p>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 mt-6">
+                <button data-close-modal
+                    class="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 text-sm">
+                    Отмена
+                </button>
+                <button id="aiAnalysisStartBtn"
+                    class="px-5 py-2 bg-purple-600 text-white rounded-lg
+                           hover:bg-purple-700 text-sm font-medium shadow">
+                    🚀 Начать анализ
+                </button>
+            </div>
+        </div>
+    `);
+
+        document.getElementById('aiCatSelect')?.addEventListener('change', (e) => {
+            const newInput = document.getElementById('aiCatNew');
+            if (e.target.value === '__new__') {
+                newInput.classList.remove('hidden');
+                newInput.focus();
+            } else {
+                newInput.classList.add('hidden');
+            }
+        });
+
+        document.getElementById('aiAnalysisStartBtn')?.addEventListener('click', () => {
+            const selectEl = document.getElementById('aiCatSelect');
+            const newCatEl = document.getElementById('aiCatNew');
+            const topicEl = document.getElementById('aiTopicInput');
+
+            let category = selectEl.value === '__new__'
+                ? (newCatEl.value.trim() || null)
+                : (selectEl.value.trim() || null);
+            const topicName = topicEl.value.trim();
+
+            if (!topicName) {
+                topicEl.classList.add('border-red-400');
+                this.showNotification('⚠️ Введите название подтемы');
+                return;
+            }
+
+            this.closeModal('aiAnalysisSetup');
+            this.runAiAnalysis(file, btn, { category, topicName });
+        });
+    },
 };

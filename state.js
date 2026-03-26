@@ -142,6 +142,10 @@ const Store = {
                     };
                 }
 
+                if (parsed.explanationPresets && Array.isArray(parsed.explanationPresets)) {
+                    this.data.explanationPresets = parsed.explanationPresets;
+                }
+
                 // App Stats
                 if (parsed.appStats) {
                     this.data.appStats = { totalUptime: 0, ...parsed.appStats };
@@ -481,6 +485,10 @@ const Store = {
             }
             existing.confidence = Math.max(existing.confidence || 0, confidence);
 
+            if (unitData.category && !existing.category) existing.category = unitData.category;
+            if (unitData.topic && !existing.topic) existing.topic = unitData.topic;
+
+
             // 2. КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Проверяем и создаем состояние
             const state = this.data.cognitive.userKnowledgeStates.find(s => s.unitId === existing.id);
             if (!state) {
@@ -502,8 +510,10 @@ const Store = {
                 description: description.trim(),
                 sourceBlockIds: [sourceBlockId],
                 confidence: confidence || 0.5,
-                topic: null
+                topic: unitData.topic || null,
+                category: unitData.category || null
             });
+
 
             // Создаем состояние
             this.createUserKnowledgeState(unitId);
@@ -617,7 +627,7 @@ const Store = {
      * @param {string} documentId - ID документа в cognitive.documents
      * @param {function} onProgress - callback для UI (опционально)
      */
-    async processDocumentToKnowledge(documentId, onProgress = null) {
+    async processDocumentToKnowledge(documentId, onProgress = null, opts = {}) {
         const docData = this.getCognitiveDocumentData(documentId);
         if (!docData) return { error: "Документ не найден" };
 
@@ -656,7 +666,9 @@ const Store = {
                             type: atom.type,
                             description: atom.description,
                             sourceBlockId: blockId,
-                            confidence: 0.8 // AI дает уверенность 0.8 для MVP
+                            confidence: 0.8, // AI дает уверенность 0.8 для MVP
+                            category: opts.category || null,   // ← ДОБАВИТЬ
+                            topic: opts.topicName || null,    // ← ДОБАВИТЬ (перекрывает LLM-тему)
                         });
                     });
                 }
@@ -1160,6 +1172,23 @@ const Store = {
             unit.topic = newTopic ? newTopic.trim() : null;
             this.save();
         }
-    }
+    },
+    getAllCategories() {
+        return [...new Set(
+            this.data.cognitive.knowledgeUnits
+                .map(u => u.category)
+                .filter(Boolean)
+        )].sort();
+    },
+
+    getTopicsInCategory(category) {
+        return [...new Set(
+            this.data.cognitive.knowledgeUnits
+                .filter(u => u.category === category && u.topic)
+                .map(u => u.topic)
+        )].sort();
+    },
+
+
 
 };

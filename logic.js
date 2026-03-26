@@ -488,7 +488,7 @@ const CognitiveProcessor = {
      * @param {number} fileId - ID файла из Reader
      * @returns {Promise<{success: boolean, unitsCount?: number, error?: string}>}
      */
-    async processFile(fileId, onProgress) {
+    async processFile(fileId, onProgress, opts = {}) {
         // 1. Проверяем, есть ли уже Cognitive Document для этого файла
         const existingDoc = Store.data.cognitive.documents.find(d => d.sourceFileId === fileId);
         let documentId;
@@ -511,7 +511,7 @@ const CognitiveProcessor = {
         // Передаем callback для логирования (можно заменить на UI-обновление)
         const result = await Store.processDocumentToKnowledge(documentId, (progress) => {
             console.log(`[CognitiveProcessor Progress] ${progress}`);
-        });
+        }, opts);
 
         // const result = await Store.processDocumentToKnowledge(documentId, onProgress || (() => {console.log(`[CognitiveProcessor Progress] ${progress}`);}));
 
