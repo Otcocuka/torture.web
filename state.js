@@ -883,9 +883,15 @@ const Store = {
         state.level = newLevel;
 
         // Логика смены статуса
-        if (state.level >= 0.7 && state.status === 'learning') state.status = 'learned';
-        if (state.level >= 0.9 && state.status === 'learned') state.status = 'mastered';
-        if (state.level <= 0.1 && state.status === 'learned') state.status = 'learning';
+        if (newLevel >= 0.999) {
+            state.status = 'mastered';
+        } else if (newLevel >= 0.7 && state.status === 'learning') {
+            state.status = 'learned';
+        } else if (newLevel >= 0.9 && state.status === 'learned') {
+            state.status = 'mastered';
+        } else if (newLevel <= 0.1 && state.status === 'learned') {
+            state.status = 'learning';
+        }
 
         state.history.push({ action, timestamp: Date.now() });
         state.lastUpdated = Date.now();
@@ -1025,6 +1031,14 @@ const Store = {
         for (const state of states) {
             state.status = 'deleted';
             state.lastUpdated = Date.now();
+        }
+        this.save();
+    },
+
+    deleteAllDeleted() {
+        const deletedStates = this.data.cognitive.userKnowledgeStates.filter(s => s.status === 'deleted');
+        for (const state of deletedStates) {
+            this.deleteKnowledgeUnit(state.unitId);
         }
         this.save();
     },

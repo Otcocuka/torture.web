@@ -340,6 +340,7 @@ const UI = {
                     <button id="massDeleteActiveBtn" class="text-xs bg-red-100 text-red-600 px-2 py-1 rounded hover:bg-red-200">Удалить все активные</button>
                     <button id="massDeleteIgnoredBtn" class="text-xs bg-red-100 text-red-600 px-2 py-1 rounded hover:bg-red-200">Удалить все игнорируемые</button>
                     <button id="massDeleteMasteredBtn" class="text-xs bg-red-100 text-red-600 px-2 py-1 rounded hover:bg-red-200">Удалить все мастер</button>
+                    <button id="massDeleteDeletedBtn" class="text-xs bg-red-100 text-red-600 px-2 py-1 rounded hover:bg-red-200">Удалить все удалённые</button>
                 </div>
             </div>
 
@@ -387,6 +388,12 @@ const UI = {
         document.getElementById('massDeleteMasteredBtn')?.addEventListener('click', () => {
             if (confirm('Удалить все замастеренные знания? Их можно будет восстановить из корзины.')) {
                 Store.deleteAllInCategory('mastered');
+                this.renderKnowledgeAvatarView();
+            }
+        });
+        document.getElementById('massDeleteDeletedBtn')?.addEventListener('click', () => {
+            if (confirm('Удалить все удалённые знания навсегда? Отменить будет нельзя.')) {
+                Store.deleteAllDeleted();
                 this.renderKnowledgeAvatarView();
             }
         });
@@ -496,14 +503,18 @@ const UI = {
                     ` : ''}
 
 
-                    ${tabName === 'ignored' || tabName === 'muted' || tabName === 'mastered' || tabName === 'active' ? `
-                        <div class="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition">
-                            <button onclick="event.stopPropagation(); UI.deleteKnowledgeUnit('${item.id}')" 
-                                class="text-xs px-2 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 border border-red-100">
-                                🗑️
-                            </button>
-                        </div>
-                    ` : ''}
+                    ${tabName === 'ignored' ? `
+    <div class="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition">
+        <button onclick="event.stopPropagation(); UI.restoreFromIgnored('${item.id}')" 
+            class="text-xs px-2 py-1 bg-green-50 text-green-600 rounded hover:bg-green-100 border border-green-100">
+            ↻ Восстановить
+        </button>
+        <button onclick="event.stopPropagation(); UI.deleteKnowledgeUnit('${item.id}')" 
+            class="text-xs px-2 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 border border-red-100 ml-1">
+            🗑️
+        </button>
+    </div>
+` : ''}
 
 
 
@@ -521,6 +532,18 @@ const UI = {
             state.status = 'active';
             state.lastUpdated = Date.now();
             Store.save();
+            const currentTab = document.querySelector('.tab-btn.text-blue-600').dataset.tab;
+            this.switchAvatarTab(currentTab);
+            this.showNotification('Знание восстановлено');
+        }
+    },
+    restoreFromIgnored(unitId) {
+        const state = Store.data.cognitive.userKnowledgeStates.find(s => s.unitId === unitId);
+        if (state && state.status === 'ignored') {
+            state.status = 'active';
+            state.lastUpdated = Date.now();
+            Store.save();
+            // Переключимся на вкладку активных, чтобы увидеть результат
             const currentTab = document.querySelector('.tab-btn.text-blue-600').dataset.tab;
             this.switchAvatarTab(currentTab);
             this.showNotification('Знание восстановлено');
