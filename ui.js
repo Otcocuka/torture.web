@@ -1206,7 +1206,7 @@ const UI = {
 
         // Обновляем уровень знания и планируем следующее повторение
         const levelDelta = (percent - 50) / 250;
-        Store.updateKnowledgeAfterQuiz(unitId, levelDelta, 'quiz');
+        Store.updateKnowledgeAfterQuiz(unitId, levelDelta, 'quiz', isCorrect);
         try {
             Store.scheduleNextReview(unitId, isCorrect, q.userLevel || 0);
         } catch (e) {

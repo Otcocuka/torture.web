@@ -891,26 +891,29 @@ const Store = {
      * @param {string} unitId
      * @param {boolean} isCorrect
      */
-    updateKnowledgeAfterQuiz(unitId, delta, action = 'quiz') {
+    // state.js — updateKnowledgeAfterQuiz
+    updateKnowledgeAfterQuiz(unitId, delta, action = 'quiz', performance = null) {
         const state = this.data.cognitive.userKnowledgeStates.find(s => s.unitId === unitId);
         if (!state) return;
+
         let newLevel = Math.max(0, Math.min(1, state.level + delta));
         state.level = newLevel;
 
-        // Логика смены статуса
+        // Сохраняем информацию об успешности для scheduleNextReview
+        state.history.push({
+            action,
+            timestamp: Date.now(),
+            performance: performance  // ← добавляем
+        });
+
+        // Логика смены статуса (оставляем как есть)
         if (newLevel >= 0.999) {
             state.status = 'mastered';
         } else if (newLevel >= 0.7 && state.status === 'learning') {
             state.status = 'learned';
-        } else if (newLevel >= 0.9 && state.status === 'learned') {
-            state.status = 'mastered';
-        } else if (newLevel <= 0.1 && state.status === 'learned') {
-            state.status = 'learning';
         }
 
-        state.history.push({ action, timestamp: Date.now() });
         state.lastUpdated = Date.now();
-
         this.save();
     },
 
@@ -1113,26 +1116,42 @@ const Store = {
         const state = this.data.cognitive.userKnowledgeStates.find(s => s.unitId === unitId);
         if (!state) return;
 
-        const prevInterval = state.lastReviewInterval || 1;
-        let easeFactor = state.easeFactor || 2.5;
-        let multiplier;
+        const successes = state.history.filter(h => h.action === 'quiz' && h.performance === true).length;
+        const failures = state.history.filter(h => h.action === 'quiz' && h.performance === false).length;
 
-        if (performance) {
-            easeFactor = Math.max(1.3, easeFactor * 1.1);
-            multiplier = currentLevel > 0.7
-                ? 1 + Math.log2(1 + currentLevel)
-                : 1 + currentLevel;
-        } else {
-            easeFactor = Math.max(1.3, easeFactor * 0.8);
-            multiplier = 0.5;
+        const intervals = [1, 3, 7, 14, 28];
+
+        // Определяем текущий шаг по количеству успехов
+        let step = successes;
+
+        // Откат при неудаче: если текущий ответ неудачный и были неудачи, уменьшаем шаг
+        if (failures > 0 && performance === false) {
+            step = Math.max(0, step - 1);
         }
 
-        const newInterval = Math.max(1, Math.min(365, prevInterval * easeFactor * multiplier));
+        // Выбираем интервал: для step=0 (нет успехов) — 1 день
+        // для step=1 (1 успех) — 1 день (индекс 0)
+        // для step=2 (2 успеха) — 3 дня (индекс 1) и т.д.
+        let newIntervalDays;
+        if (step === 0) {
+            newIntervalDays = 1;
+        } else {
+            const idx = Math.min(step - 1, intervals.length - 1);
+            newIntervalDays = intervals[idx];
+        }
 
-        state.easeFactor = easeFactor;
-        state.lastReviewInterval = newInterval;
-        state.nextReview = Date.now() + newInterval * 24 * 60 * 60 * 1000;
+        state.lastReviewInterval = newIntervalDays;
+        state.nextReview = Date.now() + newIntervalDays * 24 * 60 * 60 * 1000;
         state.lastUpdated = Date.now();
+        state.easeFactor = 2.5;
+
+        this.logResearchEvent('spaced_repetition', {
+            unitId,
+            intervalDays: newIntervalDays,
+            step: step,
+            performance
+        });
+
         this.save();
     },
 
