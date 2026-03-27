@@ -115,6 +115,9 @@ const UI = {
             if (viewId === "view-settings") {
                 this.renderSettingsView();
             }
+            if (viewId === "view-habits") {
+                this.renderHabits();
+            }
         }
     },
 
@@ -126,7 +129,7 @@ const UI = {
         const files = Store.getReaderFiles();
         const settings = Store.data.reader.settings;
 
-        view.className = `app-view active p-0 w-full h-screen ${settings.theme === "dark" ? "bg-gray-900 text-gray-100" : "bg-gray-50 text-gray-800"}`;
+        view.className = `app-view active p-0 w-full h-[90vh] ${settings.theme === "dark" ? "bg-gray-900 text-gray-100" : "bg-gray-50 text-gray-800"}`;
         let html = `
         <div class="max-w-4xl mx-auto space-y-6">
             <div class="flex justify-between items-center">
@@ -208,7 +211,7 @@ const UI = {
 
         const settings = Store.data.reader.settings;
 
-        view.className = `app-view active p-0 w-full h-screen ${settings.theme === "dark" ? "bg-gray-900 text-gray-100" : "bg-white text-gray-800"}`;
+        view.className = `app-view active p-0 w-full h-[90vh] ${settings.theme === "dark" ? "bg-gray-900 text-gray-100" : "bg-white text-gray-800"}`;
         const historyHtml = (file.stats.sessionsHistory || []).slice(-3).reverse().map((h) => {
             const d = new Date(h.date).toLocaleDateString();
             const t = `${Math.floor(h.time / 60)}м${h.time % 60}с`;
@@ -452,117 +455,37 @@ const UI = {
         const container = document.getElementById('avatar-content-container');
         if (!container) return;
 
-        const items = grouped[tabName];
-        items.sort((a, b) => (b.state.lastUpdated || 0) - (a.state.lastUpdated || 0));
-        if (items.length === 0) {
-            container.innerHTML = `
-                <div class="text-center py-12 text-gray-400 bg-gray-50 rounded-xl">
-                    <p>Нет знаний в этой категории.</p>
-                </div>
-            `;
+        // Обработка вкладки "review"
+        if (tabName === 'review') {
+            const items = grouped.review || [];
+            const due = items.filter(i => i.state.nextReview && i.state.nextReview <= Date.now());
+            const upcoming = items.filter(i => i.state.nextReview && i.state.nextReview > Date.now()).sort((a, b) => a.state.nextReview - b.state.nextReview);
+            let html = '';
+            if (due.length) {
+                html += `<div class="mb-6"><div class="text-sm font-bold text-red-600 mb-2 flex items-center gap-2"><span>🔥</span> Срочно повторить (${due.length})</div><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">${due.map(item => this._renderKnowledgeCard(item, tabName)).join('')}</div></div>`;
+            } else {
+                html += `<div class="bg-green-50 text-green-700 p-3 rounded-lg text-center mb-6">✅ Отлично! Все знания вовремя повторены. 🎉</div>`;
+            }
+            if (upcoming.length) {
+                html += `<div class="mt-4"><div class="text-sm font-bold text-blue-600 mb-2 flex items-center gap-2"><span>⏳</span> Скоро повторять (${upcoming.length})</div><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">${upcoming.map(item => this._renderKnowledgeCard(item, tabName)).join('')}</div></div>`;
+            }
+            container.innerHTML = html;
             return;
         }
 
+        // Все остальные вкладки (active, mastered, ignored, deleted)
+        const items = grouped[tabName];
+        if (!items || items.length === 0) {
+            container.innerHTML = `<div class="text-center py-12 text-gray-400 bg-gray-50 rounded-xl"><p>Нет знаний в этой категории.</p></div>`;
+            return;
+        }
+        items.sort((a, b) => (b.state.lastUpdated || 0) - (a.state.lastUpdated || 0));
         let controls = '';
         if (tabName === 'active') {
-            controls = `
-                <div class="mb-4 text-right">
-                     <button onclick="UI.startQuizFromAvatar('active')" class="bg-blue-100 text-blue-700 px-4 py-1.5 rounded hover:bg-blue-200 text-sm font-medium">
-                        📝 Начать проверку
-                    </button>
-                </div>
-            `;
+            controls = `<div class="mb-4 text-right"><button onclick="UI.startQuizFromAvatar('active')" class="bg-blue-100 text-blue-700 px-4 py-1.5 rounded hover:bg-blue-200 text-sm font-medium">📝 Начать проверку</button></div>`;
         }
-
-        if (tabName === 'review') {
-            controls = `
-                    <div class="mb-4 text-right">
-                        <button onclick="UI.startQuizFromAvatar('review')" class="bg-blue-100 text-blue-700 px-4 py-1.5 rounded hover:bg-blue-200 text-sm font-medium">
-                            🔁 Повторить все
-                        </button>
-                    </div>
-                `;
-        }
-
-        const cards = items.map(item => {
-            const state = item.state;
-            const progress = Math.round(state.level * 100);
-
-            let progressColor = 'bg-blue-500';
-            if (tabName === 'mastered') progressColor = 'bg-green-500';
-            if (tabName === 'ignored') progressColor = 'bg-red-400';
-
-            const statusBadge = tabName === 'active'
-                ? `<span class="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">Активно</span>`
-                : `<span class="text-[10px] bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded capitalize">${tabName}</span>`;
-
-            return `
-                <div class="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition cursor-pointer relative group"
-                     onclick="UI.showKnowledgeDetails('${item.id}')">
-                    <div class="flex justify-between items-start mb-2">
-                        <div class="font-semibold text-gray-800 leading-tight">${item.title}</div>
-                        <div class="flex flex-col items-end gap-1">
-                            ${statusBadge}
-                            <span class="text-[10px] text-gray-400 font-mono uppercase">${item.type}</span>
-                        </div>
-                    </div>
-                    
-                    <div class="flex items-center gap-2">
-                        <div class="flex-1 bg-gray-200 rounded-full h-2 overflow-hidden">
-                            <div class="${progressColor} h-full rounded-full" style="width: ${progress}%"></div>
-                        </div>
-                        <span class="text-xs font-mono text-gray-500 w-8 text-right">${progress}%</span>
-                    </div>
-                    <div class="flex items-center gap-1 mt-1">
-                        <span class="text-xs text-gray-400">🏷️ ${item.topic || 'Без темы'}</span>
-                        <button onclick="event.stopPropagation(); UI.editKnowledgeTopic('${item.id}', '${item.topic || ''}')" 
-                            class="text-xs text-blue-400 hover:text-blue-600">✏️</button>
-                    </div>
-
-                    ${tabName === 'active' ? `
-                        <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition">
-                             <button onclick="event.stopPropagation(); UI.quickChangeStatus('${item.id}', 'ignored')" 
-                                class="text-xs px-2 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 border border-red-100">
-                                Игнор
-                            </button>
-                        </div>
-                    ` : ''}
-
-
-                    ${tabName === 'deleted' ? `
-                        <div class="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition">
-                            <button onclick="event.stopPropagation(); UI.restoreKnowledgeUnit('${item.id}')" 
-                                class="text-xs px-2 py-1 bg-green-50 text-green-600 rounded hover:bg-green-100 border border-green-100">
-                                ↻ Восстановить
-                            </button>
-                            <button onclick="event.stopPropagation(); UI.deleteKnowledgeUnitPermanently('${item.id}')" 
-                                class="text-xs px-2 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 border border-red-100 ml-1">
-                                🗑️ Навсегда
-                            </button>
-                        </div>
-                    ` : ''}
-
-
-                    ${tabName === 'ignored' ? `
-    <div class="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition">
-        <button onclick="event.stopPropagation(); UI.restoreFromIgnored('${item.id}')" 
-            class="text-xs px-2 py-1 bg-green-50 text-green-600 rounded hover:bg-green-100 border border-green-100">
-            ↻ Восстановить
-        </button>
-        <button onclick="event.stopPropagation(); UI.deleteKnowledgeUnit('${item.id}')" 
-            class="text-xs px-2 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 border border-red-100 ml-1">
-            🗑️
-        </button>
-    </div>
-` : ''}
-
-
-
-                </div>
-            `;
-        }).join('');
-
-        container.innerHTML = controls + `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">${cards}</div>`;
+        const cardsHtml = items.map(item => this._renderKnowledgeCard(item, tabName)).join('');
+        container.innerHTML = controls + `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">${cardsHtml}</div>`;
     },
 
 
@@ -1261,6 +1184,23 @@ const UI = {
     // --- SETTINGS UI ---
     initSettings() {
         const btn = document.getElementById('saveSettingsBtn');
+
+        document.getElementById('saveKanbanSettingsBtn')?.addEventListener('click', () => {
+            const colName = document.getElementById('completeColumnName').value.trim();
+            if (colName) {
+                Store.data.kanban.completeColumnName = colName;
+                Store.save();
+                this.showNotification(`Колонка для выполненных задач: "${colName}"`);
+            }
+        });
+
+
+        // При загрузке приложения восстановим значение
+        const savedColName = Store.data.kanban.completeColumnName;
+        if (savedColName) {
+            document.getElementById('completeColumnName').value = savedColName;
+        }
+
         if (btn) {
             btn.onclick = () => {
                 const settings = {
@@ -1305,6 +1245,11 @@ const UI = {
         const elMax = document.getElementById('settingMaxTokens');
         const elTemp = document.getElementById('settingTemperature');
         const elAuto = document.getElementById('settingAutoRequest');
+        const completeColInput = document.getElementById('completeColumnName');
+        if (completeColInput) {
+            completeColInput.value = Store.data.kanban.completeColumnName || "Выполнено";
+        }
+
 
         if (elMax) {
             elMax.value = s.maxTokens;
@@ -1781,6 +1726,8 @@ const UI = {
             };
         });
 
+
+
         const board = document.getElementById("kanbanBoard");
         if (board) {
             board.addEventListener("dragstart", (e) => {
@@ -1860,6 +1807,13 @@ const UI = {
                 }
                 if (btn.dataset.action === "delete-column") { if (confirm("Удалить колонку и все задачи в ней?")) { Store.deleteKanbanColumn(parseInt(btn.dataset.columnId)); this.renderKanban(); } }
                 if (btn.dataset.action === "delete-card") { Store.deleteKanbanCard(parseInt(btn.dataset.cardId)); this.renderKanban(); }
+                if (btn.dataset.action === "complete-card") {
+                    const cardId = parseInt(btn.dataset.cardId);
+                    const targetColumnName = Store.data.kanban.completeColumnName || "Выполнено";
+                    Store.moveCardToColumnByName(cardId, targetColumnName);
+                    this.renderKanban();
+                    this.showNotification(`Задача перемещена в "${targetColumnName}"`);
+                }
             });
         }
     },
@@ -1871,7 +1825,14 @@ const UI = {
         if (!data.columns.length) { board.innerHTML = '<div class="text-gray-400 p-4">Нет колонок. Добавьте первую!</div>'; return; }
         board.innerHTML = data.columns.map((col) => {
             const cards = data.cards.filter((c) => c.columnId === col.id);
-            return `<div class="flex-shrink-0 w-72 bg-gray-100 rounded-lg p-2 flex flex-col max-h-[600px]"><div class="flex justify-between items-center mb-2 bg-white p-2 rounded shadow-sm" draggable="true" data-column-id="${col.id}" data-type="column"><div class="flex items-center gap-2"><span class="cursor-grab text-gray-400">☰</span><h3 class="font-bold text-gray-700 truncate">${col.title}</h3></div><div class="flex gap-1"><button data-action="add-card" data-column-id="${col.id}" class="text-green-600 font-bold text-xl hover:text-green-800">+</button><button data-action="delete-column" data-column-id="${col.id}" class="text-red-300 font-bold hover:text-red-500">×</button></div></div><div class="kanban-column-inner flex-1 overflow-y-auto space-y-2 p-1" data-column-id="${col.id}">${cards.length ? cards.map((card) => `<div class="kanban-card bg-white p-3 rounded shadow-sm border-l-4 border-blue-400 cursor-move hover:shadow-md transition-shadow" draggable="true" data-card-id="${card.id}" data-column-id="${col.id}"><div class="flex justify-between items-start mb-1"><span class="font-semibold text-sm text-gray-800 card-title">${card.title}</span><div class="flex gap-1"><button data-action="edit-card" data-card-id="${card.id}" class="text-blue-400 hover:text-blue-600 text-xs px-1" title="Редактировать">✏️</button><button data-action="delete-card" data-card-id="${card.id}" class="text-gray-300 hover:text-red-500 text-xs px-1">×</button></div></div>${card.description ? `<div class="text-xs text-gray-500 card-desc">${card.description}</div>` : ""}</div>`).join("") : '<div class="text-xs text-gray-400 text-center py-2">Пусто</div>'}</div></div>`;
+            return `<div class="flex-shrink-0 w-72 bg-gray-100 rounded-lg p-2 flex flex-col max-h-[600px]"><div class="flex justify-between items-center mb-2 bg-white p-2 rounded shadow-sm" draggable="true" data-column-id="${col.id}" data-type="column"><div class="flex items-center gap-2"><span class="cursor-grab text-gray-400">☰</span><h3 class="font-bold text-gray-700 truncate">${col.title}</h3></div><div class="flex gap-1"><button data-action="add-card" data-column-id="${col.id}" class="text-green-600 font-bold text-xl hover:text-green-800">+</button><button data-action="delete-column" data-column-id="${col.id}" class="text-red-300 font-bold hover:text-red-500">×</button></div></div><div class="kanban-column-inner flex-1 overflow-y-auto space-y-2 p-1" data-column-id="${col.id}">${cards.length ? cards.map((card) => `<div class="kanban-card bg-white p-3 rounded shadow-sm border-l-4 border-blue-400 cursor-move hover:shadow-md transition-shadow" draggable="true" data-card-id="${card.id}" data-column-id="${col.id}"><div class="flex justify-between items-start mb-1">
+    <span class="font-semibold text-sm text-gray-800 card-title">${card.title}</span>
+    <div class="flex gap-1">
+        <button data-action="complete-card" data-card-id="${card.id}" class="text-green-500 hover:text-green-700 text-xs px-1" title="Отметить выполненным">✅</button>
+        <button data-action="edit-card" data-card-id="${card.id}" class="text-blue-400 hover:text-blue-600 text-xs px-1" title="Редактировать">✏️</button>
+        <button data-action="delete-card" data-card-id="${card.id}" class="text-gray-300 hover:text-red-500 text-xs px-1">×</button>
+    </div>
+</div>${card.description ? `<div class="text-xs text-gray-500 card-desc">${card.description}</div>` : ""}</div>`).join("") : '<div class="text-xs text-gray-400 text-center py-2">Пусто</div>'}</div></div>`;
         }).join("");
         board.scrollLeft = board.scrollWidth;
     },
@@ -2842,4 +2803,114 @@ const UI = {
             this.runAiAnalysis(file, btn, { category, topicName });
         });
     },
+
+    formatRelativeTime(timestamp) {
+        if (!timestamp) return '—';
+        const now = Date.now();
+        const diff = timestamp - now;
+        if (diff <= 0) return '🔴 Пора повторять!';
+        const seconds = Math.floor(diff / 1000);
+        const minutes = Math.floor(seconds / 60);
+        const hours = Math.floor(minutes / 60);
+        const days = Math.floor(hours / 24);
+        const weeks = Math.floor(days / 7);
+        if (weeks >= 1) return `🟢 через ${weeks} нед.`;
+        if (days >= 1) return `🟡 через ${days} дн.`;
+        if (hours >= 1) return `🟡 через ${hours} ч.`;
+        if (minutes >= 1) return `🟢 через ${minutes} мин.`;
+        return `🟢 сейчас`;
+    },
+
+
+    // ui.js — добавить в UI объект
+    _renderKnowledgeCard(item, tabName) {
+        const state = item.state;
+        const progress = Math.round(state.level * 100);
+        let progressColor = 'bg-blue-500';
+        if (tabName === 'mastered') progressColor = 'bg-green-500';
+        if (tabName === 'ignored') progressColor = 'bg-red-400';
+        const statusBadge = tabName === 'active'
+            ? `<span class="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">Активно</span>`
+            : `<span class="text-[10px] bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded capitalize">${tabName}</span>`;
+        const reviewText = UI.formatRelativeTime(state.nextReview);
+        return `
+        <div class="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition cursor-pointer relative group" onclick="UI.showKnowledgeDetails('${item.id}')">
+            <div class="flex justify-between items-start mb-2">
+                <div class="font-semibold text-gray-800 leading-tight">${item.title}</div>
+                <div class="flex flex-col items-end gap-1">
+                    ${statusBadge}
+                    <span class="text-[10px] text-gray-400 font-mono uppercase">${item.type}</span>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <div class="flex-1 bg-gray-200 rounded-full h-2 overflow-hidden">
+                    <div class="${progressColor} h-full rounded-full" style="width: ${progress}%"></div>
+                </div>
+                <span class="text-xs font-mono text-gray-500 w-8 text-right">${progress}%</span>
+            </div>
+            <div class="flex items-center gap-1 mt-1 text-xs text-gray-400">
+                <span>⏰ ${reviewText}</span>
+                <span class="mx-1">·</span>
+                <span>🏷️ ${item.topic || 'Без темы'}</span>
+                <button onclick="event.stopPropagation(); UI.editKnowledgeTopic('${item.id}', '${item.topic || ''}')" class="text-blue-400 hover:text-blue-600">✏️</button>
+            </div>
+            ${tabName === 'active' ? `
+                <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition">
+                     <button onclick="event.stopPropagation(); UI.quickChangeStatus('${item.id}', 'ignored')" 
+                        class="text-xs px-2 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 border border-red-100">
+                        Игнор
+                    </button>
+                </div>
+            ` : ''}
+            ${tabName === 'deleted' ? `
+                <div class="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition">
+                    <button onclick="event.stopPropagation(); UI.restoreKnowledgeUnit('${item.id}')" 
+                        class="text-xs px-2 py-1 bg-green-50 text-green-600 rounded hover:bg-green-100 border border-green-100">
+                        ↻ Восстановить
+                    </button>
+                    <button onclick="event.stopPropagation(); UI.deleteKnowledgeUnitPermanently('${item.id}')" 
+                        class="text-xs px-2 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 border border-red-100 ml-1">
+                        🗑️ Навсегда
+                    </button>
+                </div>
+            ` : ''}
+            ${tabName === 'ignored' ? `
+                <div class="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition">
+                    <button onclick="event.stopPropagation(); UI.restoreFromIgnored('${item.id}')" 
+                        class="text-xs px-2 py-1 bg-green-50 text-green-600 rounded hover:bg-green-100 border border-green-100">
+                        ↻ Восстановить
+                    </button>
+                    <button onclick="event.stopPropagation(); UI.deleteKnowledgeUnit('${item.id}')" 
+                        class="text-xs px-2 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 border border-red-100 ml-1">
+                        🗑️
+                    </button>
+                </div>
+            ` : ''}
+        </div>
+    `;
+    },
+
+
+
+    // Получить или создать колонку по имени
+    getOrCreateColumn(name) {
+        let column = this.data.kanban.columns.find(c => c.title === name);
+        if (!column) {
+            column = { id: Date.now(), title: name };
+            this.data.kanban.columns.push(column);
+            this.save();
+        }
+        return column;
+    },
+
+    // Переместить карточку в колонку по имени
+    moveCardToColumnByName(cardId, columnName) {
+        const card = this.data.kanban.cards.find(c => c.id === cardId);
+        if (!card) return false;
+        const targetColumn = this.getOrCreateColumn(columnName);
+        card.columnId = targetColumn.id;
+        this.save();
+        return true;
+    },
+
 };

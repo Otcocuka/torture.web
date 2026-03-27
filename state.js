@@ -1083,8 +1083,10 @@ const Store = {
             description,
             userAgent: navigator.userAgent,
             timestamp: Date.now(),
-            storeSnapshot: JSON.parse(JSON.stringify(this.data)),
-            actionLog: this.data.actionLog || []
+
+            // полный снепшот и экшенлог будут добавлены в отправку фидбека после добавления фичи репорта о багах, дабы иметь возможность легко воспроизвести поведение пользователя при дебаге
+            // storeSnapshot: JSON.parse(JSON.stringify(this.data)),
+            // actionLog: this.data.actionLog || []
         };
     },
 
@@ -1208,6 +1210,24 @@ const Store = {
         )].sort();
     },
 
+    getOrCreateColumn(name) {
+        if (!this.data.kanban.columns) this.data.kanban.columns = [];
+        let column = this.data.kanban.columns.find(c => c.title === name);
+        if (!column) {
+            column = { id: Date.now(), title: name };
+            this.data.kanban.columns.push(column);
+            this.save();
+        }
+        return column;
+    },
 
+    moveCardToColumnByName(cardId, columnName) {
+        const card = this.data.kanban.cards.find(c => c.id === cardId);
+        if (!card) return false;
+        const targetColumn = this.getOrCreateColumn(columnName);
+        card.columnId = targetColumn.id;
+        this.save();
+        return true;
+    },
 
 };

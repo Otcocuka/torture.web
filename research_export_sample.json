@@ -1,0 +1,1212 @@
+{
+  "version": "1.0",
+  "exportDate": "2026-03-27T01:41:34.269Z",
+  "events": [
+    {
+      "timestamp": 1772178989927,
+      "type": "knowledge_added",
+      "data": "{\"source\":\"Reader: Data Science\",\"unitsCount\":3}"
+    },
+    {
+      "timestamp": 1772185294268,
+      "type": "habit",
+      "data": "{\"habitId\":\"habit_001\"}"
+    },
+    {
+      "timestamp": 1772189724083,
+      "type": "pomodoro",
+      "data": "{\"phase\":\"work\",\"duration\":1500}"
+    },
+    {
+      "timestamp": 1772195468506,
+      "type": "read_session",
+      "data": "{\"duration\":2317,\"wordsCount\":3160,\"fileId\":1743000000000}"
+    },
+    {
+      "timestamp": 1772209405167,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_003\",\"score\":22,\"timeSpent\":89}"
+    },
+    {
+      "timestamp": 1772216914326,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_003\",\"score\":32,\"timeSpent\":123}"
+    },
+    {
+      "timestamp": 1772271694268,
+      "type": "habit",
+      "data": "{\"habitId\":\"habit_003\"}"
+    },
+    {
+      "timestamp": 1772275728924,
+      "type": "read_session",
+      "data": "{\"duration\":2199,\"wordsCount\":2088,\"fileId\":1743000000000}"
+    },
+    {
+      "timestamp": 1772289404096,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_004\",\"score\":40,\"timeSpent\":88}"
+    },
+    {
+      "timestamp": 1772295495632,
+      "type": "knowledge_added",
+      "data": "{\"source\":\"Фрагмент: Python Guide\",\"unitsCount\":1}"
+    },
+    {
+      "timestamp": 1772358094268,
+      "type": "habit",
+      "data": "{\"habitId\":\"habit_002\"}"
+    },
+    {
+      "timestamp": 1772358938967,
+      "type": "knowledge_added",
+      "data": "{\"source\":\"Фрагмент: Python Guide\",\"unitsCount\":3}"
+    },
+    {
+      "timestamp": 1772362776282,
+      "type": "pomodoro",
+      "data": "{\"phase\":\"work\",\"duration\":1500}"
+    },
+    {
+      "timestamp": 1772384074498,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_004\",\"score\":30,\"timeSpent\":32}"
+    },
+    {
+      "timestamp": 1772404013795,
+      "type": "knowledge_added",
+      "data": "{\"source\":\"Фрагмент: Python Guide\",\"unitsCount\":1}"
+    },
+    {
+      "timestamp": 1772444494268,
+      "type": "habit",
+      "data": "{\"habitId\":\"habit_002\"}"
+    },
+    {
+      "timestamp": 1772446626029,
+      "type": "read_session",
+      "data": "{\"duration\":672,\"wordsCount\":4763,\"fileId\":1743000000000}"
+    },
+    {
+      "timestamp": 1772451837764,
+      "type": "pomodoro",
+      "data": "{\"phase\":\"work\",\"duration\":1500}"
+    },
+    {
+      "timestamp": 1772462148355,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_002\",\"score\":37,\"timeSpent\":123}"
+    },
+    {
+      "timestamp": 1772511076455,
+      "type": "knowledge_added",
+      "data": "{\"source\":\"Reader: ML Textbook\",\"unitsCount\":1}"
+    },
+    {
+      "timestamp": 1772539495281,
+      "type": "pomodoro",
+      "data": "{\"phase\":\"break\",\"duration\":300}"
+    },
+    {
+      "timestamp": 1772540622874,
+      "type": "read_session",
+      "data": "{\"duration\":1252,\"wordsCount\":2529,\"fileId\":1743000000000}"
+    },
+    {
+      "timestamp": 1772545447440,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_001\",\"score\":42,\"timeSpent\":34}"
+    },
+    {
+      "timestamp": 1772599082902,
+      "type": "knowledge_added",
+      "data": "{\"source\":\"Фрагмент: Python Guide\",\"unitsCount\":3}"
+    },
+    {
+      "timestamp": 1772617294268,
+      "type": "habit",
+      "data": "{\"habitId\":\"habit_002\"}"
+    },
+    {
+      "timestamp": 1772619301829,
+      "type": "read_session",
+      "data": "{\"duration\":1824,\"wordsCount\":3914,\"fileId\":1743000000000}"
+    },
+    {
+      "timestamp": 1772627536056,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_005\",\"score\":38,\"timeSpent\":40}"
+    },
+    {
+      "timestamp": 1772627646452,
+      "type": "pomodoro",
+      "data": "{\"phase\":\"work\",\"duration\":1500}"
+    },
+    {
+      "timestamp": 1772634677690,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_004\",\"score\":38,\"timeSpent\":41}"
+    },
+    {
+      "timestamp": 1772686715219,
+      "type": "knowledge_added",
+      "data": "{\"source\":\"Reader: ML Textbook\",\"unitsCount\":3}"
+    },
+    {
+      "timestamp": 1772703694268,
+      "type": "habit",
+      "data": "{\"habitId\":\"habit_003\"}"
+    },
+    {
+      "timestamp": 1772708120167,
+      "type": "pomodoro",
+      "data": "{\"phase\":\"work\",\"duration\":1500}"
+    },
+    {
+      "timestamp": 1772711734656,
+      "type": "read_session",
+      "data": "{\"duration\":1339,\"wordsCount\":2491,\"fileId\":1743000000000}"
+    },
+    {
+      "timestamp": 1772716445379,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_004\",\"score\":35,\"timeSpent\":69}"
+    },
+    {
+      "timestamp": 1772719848902,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_004\",\"score\":35,\"timeSpent\":122}"
+    },
+    {
+      "timestamp": 1772728841782,
+      "type": "knowledge_added",
+      "data": "{\"source\":\"Reader: ML Textbook\",\"unitsCount\":2}"
+    },
+    {
+      "timestamp": 1772731177187,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_001\",\"score\":55,\"timeSpent\":81}"
+    },
+    {
+      "timestamp": 1772790094268,
+      "type": "habit",
+      "data": "{\"habitId\":\"habit_001\"}"
+    },
+    {
+      "timestamp": 1772791392795,
+      "type": "read_session",
+      "data": "{\"duration\":1849,\"wordsCount\":4103,\"fileId\":1743000000000}"
+    },
+    {
+      "timestamp": 1772801753721,
+      "type": "pomodoro",
+      "data": "{\"phase\":\"work\",\"duration\":1500}"
+    },
+    {
+      "timestamp": 1772829437556,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_003\",\"score\":61,\"timeSpent\":113}"
+    },
+    {
+      "timestamp": 1772865121434,
+      "type": "knowledge_added",
+      "data": "{\"source\":\"Reader: ML Textbook\",\"unitsCount\":1}"
+    },
+    {
+      "timestamp": 1772876494268,
+      "type": "habit",
+      "data": "{\"habitId\":\"habit_003\"}"
+    },
+    {
+      "timestamp": 1772884935377,
+      "type": "read_session",
+      "data": "{\"duration\":2073,\"wordsCount\":6003,\"fileId\":1743000000000}"
+    },
+    {
+      "timestamp": 1772887536952,
+      "type": "pomodoro",
+      "data": "{\"phase\":\"work\",\"duration\":1500}"
+    },
+    {
+      "timestamp": 1772895282295,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_002\",\"score\":54,\"timeSpent\":37}"
+    },
+    {
+      "timestamp": 1772906398397,
+      "type": "knowledge_added",
+      "data": "{\"source\":\"Reader: ML Textbook\",\"unitsCount\":1}"
+    },
+    {
+      "timestamp": 1772962894268,
+      "type": "habit",
+      "data": "{\"habitId\":\"habit_001\"}"
+    },
+    {
+      "timestamp": 1772966581971,
+      "type": "read_session",
+      "data": "{\"duration\":1786,\"wordsCount\":6479,\"fileId\":1743000000000}"
+    },
+    {
+      "timestamp": 1772968530281,
+      "type": "spaced_repetition",
+      "data": "{\"unitId\":\"unit_005\",\"intervalDays\":3,\"step\":2,\"performance\":true}"
+    },
+    {
+      "timestamp": 1772969961687,
+      "type": "pomodoro",
+      "data": "{\"phase\":\"work\",\"duration\":1500}"
+    },
+    {
+      "timestamp": 1772970082858,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_001\",\"score\":58,\"timeSpent\":38}"
+    },
+    {
+      "timestamp": 1772979899239,
+      "type": "spaced_repetition",
+      "data": "{\"unitId\":\"unit_004\",\"intervalDays\":14,\"step\":0,\"performance\":true}"
+    },
+    {
+      "timestamp": 1772989040125,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_002\",\"score\":43,\"timeSpent\":36}"
+    },
+    {
+      "timestamp": 1772992473705,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_002\",\"score\":42,\"timeSpent\":139}"
+    },
+    {
+      "timestamp": 1772993346550,
+      "type": "spaced_repetition",
+      "data": "{\"unitId\":\"unit_002\",\"intervalDays\":14,\"step\":2,\"performance\":true}"
+    },
+    {
+      "timestamp": 1773003460756,
+      "type": "knowledge_added",
+      "data": "{\"source\":\"Reader: Data Science\",\"unitsCount\":3}"
+    },
+    {
+      "timestamp": 1773050200227,
+      "type": "read_session",
+      "data": "{\"duration\":2027,\"wordsCount\":2005,\"fileId\":1743000000000}"
+    },
+    {
+      "timestamp": 1773063535508,
+      "type": "pomodoro",
+      "data": "{\"phase\":\"break\",\"duration\":300}"
+    },
+    {
+      "timestamp": 1773073869059,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_003\",\"score\":57,\"timeSpent\":119}"
+    },
+    {
+      "timestamp": 1773073875293,
+      "type": "spaced_repetition",
+      "data": "{\"unitId\":\"unit_005\",\"intervalDays\":7,\"step\":2,\"performance\":true}"
+    },
+    {
+      "timestamp": 1773120945950,
+      "type": "knowledge_added",
+      "data": "{\"source\":\"Reader: Data Science\",\"unitsCount\":2}"
+    },
+    {
+      "timestamp": 1773135694268,
+      "type": "habit",
+      "data": "{\"habitId\":\"habit_003\"}"
+    },
+    {
+      "timestamp": 1773141101636,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_005\",\"score\":60,\"timeSpent\":33}"
+    },
+    {
+      "timestamp": 1773143226759,
+      "type": "pomodoro",
+      "data": "{\"phase\":\"break\",\"duration\":300}"
+    },
+    {
+      "timestamp": 1773147130241,
+      "type": "read_session",
+      "data": "{\"duration\":2266,\"wordsCount\":3730,\"fileId\":1743000000000}"
+    },
+    {
+      "timestamp": 1773168033705,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_003\",\"score\":65,\"timeSpent\":141}"
+    },
+    {
+      "timestamp": 1773192717374,
+      "type": "knowledge_added",
+      "data": "{\"source\":\"Reader: Data Science\",\"unitsCount\":2}"
+    },
+    {
+      "timestamp": 1773205691980,
+      "type": "spaced_repetition",
+      "data": "{\"unitId\":\"unit_003\",\"intervalDays\":28,\"step\":2,\"performance\":true}"
+    },
+    {
+      "timestamp": 1773222094268,
+      "type": "habit",
+      "data": "{\"habitId\":\"habit_002\"}"
+    },
+    {
+      "timestamp": 1773228335275,
+      "type": "read_session",
+      "data": "{\"duration\":753,\"wordsCount\":4401,\"fileId\":1743000000000}"
+    },
+    {
+      "timestamp": 1773230496113,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_003\",\"score\":52,\"timeSpent\":148}"
+    },
+    {
+      "timestamp": 1773244267501,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_004\",\"score\":59,\"timeSpent\":92}"
+    },
+    {
+      "timestamp": 1773259671054,
+      "type": "knowledge_added",
+      "data": "{\"source\":\"Reader: ML Textbook\",\"unitsCount\":3}"
+    },
+    {
+      "timestamp": 1773275898183,
+      "type": "spaced_repetition",
+      "data": "{\"unitId\":\"unit_004\",\"intervalDays\":1,\"step\":4,\"performance\":true}"
+    },
+    {
+      "timestamp": 1773276724880,
+      "type": "spaced_repetition",
+      "data": "{\"unitId\":\"unit_003\",\"intervalDays\":3,\"step\":4,\"performance\":true}"
+    },
+    {
+      "timestamp": 1773308494268,
+      "type": "habit",
+      "data": "{\"habitId\":\"habit_002\"}"
+    },
+    {
+      "timestamp": 1773310408275,
+      "type": "spaced_repetition",
+      "data": "{\"unitId\":\"unit_002\",\"intervalDays\":7,\"step\":4,\"performance\":true}"
+    },
+    {
+      "timestamp": 1773315038145,
+      "type": "read_session",
+      "data": "{\"duration\":1756,\"wordsCount\":2542,\"fileId\":1743000000000}"
+    },
+    {
+      "timestamp": 1773316170455,
+      "type": "pomodoro",
+      "data": "{\"phase\":\"work\",\"duration\":1500}"
+    },
+    {
+      "timestamp": 1773329678655,
+      "type": "spaced_repetition",
+      "data": "{\"unitId\":\"unit_003\",\"intervalDays\":28,\"step\":1,\"performance\":true}"
+    },
+    {
+      "timestamp": 1773333303978,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_003\",\"score\":70,\"timeSpent\":126}"
+    },
+    {
+      "timestamp": 1773347636211,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_004\",\"score\":60,\"timeSpent\":112}"
+    },
+    {
+      "timestamp": 1773354050187,
+      "type": "knowledge_added",
+      "data": "{\"source\":\"Reader: ML Textbook\",\"unitsCount\":2}"
+    },
+    {
+      "timestamp": 1773355706929,
+      "type": "spaced_repetition",
+      "data": "{\"unitId\":\"unit_004\",\"intervalDays\":28,\"step\":0,\"performance\":true}"
+    },
+    {
+      "timestamp": 1773394894268,
+      "type": "habit",
+      "data": "{\"habitId\":\"habit_002\"}"
+    },
+    {
+      "timestamp": 1773403716955,
+      "type": "pomodoro",
+      "data": "{\"phase\":\"work\",\"duration\":1500}"
+    },
+    {
+      "timestamp": 1773404101463,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_001\",\"score\":59,\"timeSpent\":134}"
+    },
+    {
+      "timestamp": 1773404551188,
+      "type": "read_session",
+      "data": "{\"duration\":968,\"wordsCount\":5810,\"fileId\":1743000000000}"
+    },
+    {
+      "timestamp": 1773407173237,
+      "type": "spaced_repetition",
+      "data": "{\"unitId\":\"unit_002\",\"intervalDays\":1,\"step\":1,\"performance\":false}"
+    },
+    {
+      "timestamp": 1773411570478,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_004\",\"score\":65,\"timeSpent\":53}"
+    },
+    {
+      "timestamp": 1773455807809,
+      "type": "spaced_repetition",
+      "data": "{\"unitId\":\"unit_002\",\"intervalDays\":3,\"step\":2,\"performance\":true}"
+    },
+    {
+      "timestamp": 1773481294268,
+      "type": "habit",
+      "data": "{\"habitId\":\"habit_002\"}"
+    },
+    {
+      "timestamp": 1773488802531,
+      "type": "pomodoro",
+      "data": "{\"phase\":\"work\",\"duration\":1500}"
+    },
+    {
+      "timestamp": 1773506910675,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_003\",\"score\":49,\"timeSpent\":121}"
+    },
+    {
+      "timestamp": 1773557734181,
+      "type": "spaced_repetition",
+      "data": "{\"unitId\":\"unit_005\",\"intervalDays\":14,\"step\":0,\"performance\":true}"
+    },
+    {
+      "timestamp": 1773567694268,
+      "type": "habit",
+      "data": "{\"habitId\":\"habit_002\"}"
+    },
+    {
+      "timestamp": 1773571175302,
+      "type": "read_session",
+      "data": "{\"duration\":1036,\"wordsCount\":4619,\"fileId\":1743000000000}"
+    },
+    {
+      "timestamp": 1773571670978,
+      "type": "pomodoro",
+      "data": "{\"phase\":\"work\",\"duration\":1500}"
+    },
+    {
+      "timestamp": 1773574651865,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_003\",\"score\":74,\"timeSpent\":76}"
+    },
+    {
+      "timestamp": 1773575764975,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_005\",\"score\":70,\"timeSpent\":74}"
+    },
+    {
+      "timestamp": 1773590884949,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_001\",\"score\":72,\"timeSpent\":116}"
+    },
+    {
+      "timestamp": 1773620873575,
+      "type": "spaced_repetition",
+      "data": "{\"unitId\":\"unit_004\",\"intervalDays\":3,\"step\":1,\"performance\":true}"
+    },
+    {
+      "timestamp": 1773654094268,
+      "type": "habit",
+      "data": "{\"habitId\":\"habit_003\"}"
+    },
+    {
+      "timestamp": 1773655866944,
+      "type": "spaced_repetition",
+      "data": "{\"unitId\":\"unit_005\",\"intervalDays\":28,\"step\":2,\"performance\":true}"
+    },
+    {
+      "timestamp": 1773660070713,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_001\",\"score\":66,\"timeSpent\":104}"
+    },
+    {
+      "timestamp": 1773662164159,
+      "type": "read_session",
+      "data": "{\"duration\":1945,\"wordsCount\":5626,\"fileId\":1743000000000}"
+    },
+    {
+      "timestamp": 1773666592097,
+      "type": "pomodoro",
+      "data": "{\"phase\":\"work\",\"duration\":1500}"
+    },
+    {
+      "timestamp": 1773670965442,
+      "type": "spaced_repetition",
+      "data": "{\"unitId\":\"unit_001\",\"intervalDays\":14,\"step\":1,\"performance\":true}"
+    },
+    {
+      "timestamp": 1773691238072,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_001\",\"score\":52,\"timeSpent\":50}"
+    },
+    {
+      "timestamp": 1773735335653,
+      "type": "spaced_repetition",
+      "data": "{\"unitId\":\"unit_005\",\"intervalDays\":7,\"step\":2,\"performance\":true}"
+    },
+    {
+      "timestamp": 1773740494268,
+      "type": "habit",
+      "data": "{\"habitId\":\"habit_003\"}"
+    },
+    {
+      "timestamp": 1773745130059,
+      "type": "pomodoro",
+      "data": "{\"phase\":\"break\",\"duration\":300}"
+    },
+    {
+      "timestamp": 1773750416120,
+      "type": "read_session",
+      "data": "{\"duration\":2220,\"wordsCount\":1636,\"fileId\":1743000000000}"
+    },
+    {
+      "timestamp": 1773778819823,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_004\",\"score\":77,\"timeSpent\":75}"
+    },
+    {
+      "timestamp": 1773826894268,
+      "type": "habit",
+      "data": "{\"habitId\":\"habit_001\"}"
+    },
+    {
+      "timestamp": 1773837569430,
+      "type": "read_session",
+      "data": "{\"duration\":694,\"wordsCount\":4436,\"fileId\":1743000000000}"
+    },
+    {
+      "timestamp": 1773842696383,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_003\",\"score\":59,\"timeSpent\":114}"
+    },
+    {
+      "timestamp": 1773913294268,
+      "type": "habit",
+      "data": "{\"habitId\":\"habit_002\"}"
+    },
+    {
+      "timestamp": 1773923537021,
+      "type": "pomodoro",
+      "data": "{\"phase\":\"work\",\"duration\":1500}"
+    },
+    {
+      "timestamp": 1773925514999,
+      "type": "read_session",
+      "data": "{\"duration\":1674,\"wordsCount\":4763,\"fileId\":1743000000000}"
+    },
+    {
+      "timestamp": 1773933200939,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_003\",\"score\":79,\"timeSpent\":41}"
+    },
+    {
+      "timestamp": 1773944043332,
+      "type": "spaced_repetition",
+      "data": "{\"unitId\":\"unit_002\",\"intervalDays\":1,\"step\":1,\"performance\":true}"
+    },
+    {
+      "timestamp": 1773946982951,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_005\",\"score\":72,\"timeSpent\":48}"
+    },
+    {
+      "timestamp": 1773948474138,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_003\",\"score\":74,\"timeSpent\":109}"
+    },
+    {
+      "timestamp": 1773961713893,
+      "type": "spaced_repetition",
+      "data": "{\"unitId\":\"unit_005\",\"intervalDays\":1,\"step\":0,\"performance\":true}"
+    },
+    {
+      "timestamp": 1773999694268,
+      "type": "habit",
+      "data": "{\"habitId\":\"habit_003\"}"
+    },
+    {
+      "timestamp": 1774006631648,
+      "type": "spaced_repetition",
+      "data": "{\"unitId\":\"unit_005\",\"intervalDays\":1,\"step\":1,\"performance\":true}"
+    },
+    {
+      "timestamp": 1774008022714,
+      "type": "read_session",
+      "data": "{\"duration\":2008,\"wordsCount\":4955,\"fileId\":1743000000000}"
+    },
+    {
+      "timestamp": 1774013026001,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_001\",\"score\":73,\"timeSpent\":40}"
+    },
+    {
+      "timestamp": 1774026352153,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_003\",\"score\":75,\"timeSpent\":86}"
+    },
+    {
+      "timestamp": 1774086094268,
+      "type": "habit",
+      "data": "{\"habitId\":\"habit_003\"}"
+    },
+    {
+      "timestamp": 1774086130317,
+      "type": "read_session",
+      "data": "{\"duration\":868,\"wordsCount\":5382,\"fileId\":1743000000000}"
+    },
+    {
+      "timestamp": 1774095114141,
+      "type": "pomodoro",
+      "data": "{\"phase\":\"work\",\"duration\":1500}"
+    },
+    {
+      "timestamp": 1774102756245,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_004\",\"score\":82,\"timeSpent\":60}"
+    },
+    {
+      "timestamp": 1774115973402,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_004\",\"score\":71,\"timeSpent\":62}"
+    },
+    {
+      "timestamp": 1774158149559,
+      "type": "spaced_repetition",
+      "data": "{\"unitId\":\"unit_004\",\"intervalDays\":1,\"step\":3,\"performance\":true}"
+    },
+    {
+      "timestamp": 1774164645919,
+      "type": "spaced_repetition",
+      "data": "{\"unitId\":\"unit_005\",\"intervalDays\":7,\"step\":1,\"performance\":true}"
+    },
+    {
+      "timestamp": 1774172494268,
+      "type": "habit",
+      "data": "{\"habitId\":\"habit_003\"}"
+    },
+    {
+      "timestamp": 1774180247091,
+      "type": "read_session",
+      "data": "{\"duration\":1927,\"wordsCount\":2719,\"fileId\":1743000000000}"
+    },
+    {
+      "timestamp": 1774183264976,
+      "type": "pomodoro",
+      "data": "{\"phase\":\"work\",\"duration\":1500}"
+    },
+    {
+      "timestamp": 1774193011677,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_002\",\"score\":86,\"timeSpent\":123}"
+    },
+    {
+      "timestamp": 1774199267748,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_001\",\"score\":90,\"timeSpent\":114}"
+    },
+    {
+      "timestamp": 1774236810417,
+      "type": "spaced_repetition",
+      "data": "{\"unitId\":\"unit_005\",\"intervalDays\":28,\"step\":4,\"performance\":true}"
+    },
+    {
+      "timestamp": 1774262576364,
+      "type": "pomodoro",
+      "data": "{\"phase\":\"work\",\"duration\":1500}"
+    },
+    {
+      "timestamp": 1774262679924,
+      "type": "read_session",
+      "data": "{\"duration\":1096,\"wordsCount\":2588,\"fileId\":1743000000000}"
+    },
+    {
+      "timestamp": 1774274449816,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_002\",\"score\":66,\"timeSpent\":82}"
+    },
+    {
+      "timestamp": 1774293528896,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_002\",\"score\":76,\"timeSpent\":108}"
+    },
+    {
+      "timestamp": 1774299342231,
+      "type": "spaced_repetition",
+      "data": "{\"unitId\":\"unit_002\",\"intervalDays\":14,\"step\":1,\"performance\":false}"
+    },
+    {
+      "timestamp": 1774345294268,
+      "type": "habit",
+      "data": "{\"habitId\":\"habit_003\"}"
+    },
+    {
+      "timestamp": 1774351560306,
+      "type": "pomodoro",
+      "data": "{\"phase\":\"work\",\"duration\":1500}"
+    },
+    {
+      "timestamp": 1774351748030,
+      "type": "spaced_repetition",
+      "data": "{\"unitId\":\"unit_005\",\"intervalDays\":7,\"step\":1,\"performance\":true}"
+    },
+    {
+      "timestamp": 1774369677009,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_005\",\"score\":92,\"timeSpent\":145}"
+    },
+    {
+      "timestamp": 1774375035264,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_001\",\"score\":72,\"timeSpent\":35}"
+    },
+    {
+      "timestamp": 1774382562962,
+      "type": "spaced_repetition",
+      "data": "{\"unitId\":\"unit_004\",\"intervalDays\":3,\"step\":0,\"performance\":true}"
+    },
+    {
+      "timestamp": 1774431694268,
+      "type": "habit",
+      "data": "{\"habitId\":\"habit_002\"}"
+    },
+    {
+      "timestamp": 1774436507433,
+      "type": "pomodoro",
+      "data": "{\"phase\":\"work\",\"duration\":1500}"
+    },
+    {
+      "timestamp": 1774439638491,
+      "type": "read_session",
+      "data": "{\"duration\":1764,\"wordsCount\":6016,\"fileId\":1743000000000}"
+    },
+    {
+      "timestamp": 1774441575449,
+      "type": "spaced_repetition",
+      "data": "{\"unitId\":\"unit_003\",\"intervalDays\":14,\"step\":4,\"performance\":false}"
+    },
+    {
+      "timestamp": 1774460953604,
+      "type": "spaced_repetition",
+      "data": "{\"unitId\":\"unit_004\",\"intervalDays\":1,\"step\":3,\"performance\":true}"
+    },
+    {
+      "timestamp": 1774465699343,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_002\",\"score\":87,\"timeSpent\":107}"
+    },
+    {
+      "timestamp": 1774518094268,
+      "type": "habit",
+      "data": "{\"habitId\":\"habit_003\"}"
+    },
+    {
+      "timestamp": 1774523080596,
+      "type": "read_session",
+      "data": "{\"duration\":2227,\"wordsCount\":4866,\"fileId\":1743000000000}"
+    },
+    {
+      "timestamp": 1774533482364,
+      "type": "spaced_repetition",
+      "data": "{\"unitId\":\"unit_001\",\"intervalDays\":14,\"step\":3,\"performance\":true}"
+    },
+    {
+      "timestamp": 1774548112276,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_001\",\"score\":91,\"timeSpent\":40}"
+    },
+    {
+      "timestamp": 1774556101192,
+      "type": "quiz",
+      "data": "{\"knowledgeId\":\"unit_004\",\"score\":77,\"timeSpent\":135}"
+    },
+    {
+      "timestamp": 1774568683798,
+      "type": "spaced_repetition",
+      "data": "{\"unitId\":\"unit_002\",\"intervalDays\":14,\"step\":0,\"performance\":true}"
+    }
+  ],
+  "snapshot": {
+    "knowledgeUnits": [
+      {
+        "id": "unit_001",
+        "title": "Кривая забывания",
+        "type": "concept",
+        "topic": "Память",
+        "category": "Психология",
+        "description": "Описание: Кривая забывания",
+        "sourceBlockIds": [
+          "sb_demo"
+        ],
+        "confidence": 0.85
+      },
+      {
+        "id": "unit_002",
+        "title": "Метод Pomodoro",
+        "type": "fact",
+        "topic": "Продуктивность",
+        "category": "Тайм-менеджмент",
+        "description": "Описание: Метод Pomodoro",
+        "sourceBlockIds": [
+          "sb_demo"
+        ],
+        "confidence": 0.85
+      },
+      {
+        "id": "unit_003",
+        "title": "Интервальное повторение",
+        "type": "procedure",
+        "topic": "SRS",
+        "category": "Обучение",
+        "description": "Описание: Интервальное повторение",
+        "sourceBlockIds": [
+          "sb_demo"
+        ],
+        "confidence": 0.85
+      },
+      {
+        "id": "unit_004",
+        "title": "Когнитивная нагрузка",
+        "type": "concept",
+        "topic": "Нагрузка",
+        "category": "Психология",
+        "description": "Описание: Когнитивная нагрузка",
+        "sourceBlockIds": [
+          "sb_demo"
+        ],
+        "confidence": 0.85
+      },
+      {
+        "id": "unit_005",
+        "title": "Активное воспроизведение",
+        "type": "procedure",
+        "topic": "Retrieval",
+        "category": "Обучение",
+        "description": "Описание: Активное воспроизведение",
+        "sourceBlockIds": [
+          "sb_demo"
+        ],
+        "confidence": 0.85
+      }
+    ],
+    "userKnowledgeStates": [
+      {
+        "id": "uk_unit_001",
+        "unitId": "unit_001",
+        "status": "mastered",
+        "level": 1,
+        "history": [
+          {
+            "action": "quiz",
+            "timestamp": 1772545447440,
+            "performance": false
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1772731177187,
+            "performance": true
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1772970082858,
+            "performance": true
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1773404101463,
+            "performance": true
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1773590884949,
+            "performance": true
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1773660070713,
+            "performance": true
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1773691238072,
+            "performance": true
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1774013026001,
+            "performance": true
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1774199267748,
+            "performance": true
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1774375035264,
+            "performance": true
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1774548112276,
+            "performance": true
+          }
+        ],
+        "lastUpdated": 1774575694268,
+        "nextReview": 1775181734467.5327,
+        "easeFactor": 2.5,
+        "lastReviewInterval": 3
+      },
+      {
+        "id": "uk_unit_002",
+        "unitId": "unit_002",
+        "status": "mastered",
+        "level": 1,
+        "history": [
+          {
+            "action": "quiz",
+            "timestamp": 1772462148355,
+            "performance": false
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1772895282295,
+            "performance": true
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1772989040125,
+            "performance": false
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1772992473705,
+            "performance": false
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1774193011677,
+            "performance": true
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1774274449816,
+            "performance": true
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1774293528896,
+            "performance": true
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1774465699343,
+            "performance": true
+          }
+        ],
+        "lastUpdated": 1774575694268,
+        "nextReview": 1775042440848.1477,
+        "easeFactor": 2.5,
+        "lastReviewInterval": 1
+      },
+      {
+        "id": "uk_unit_003",
+        "unitId": "unit_003",
+        "status": "mastered",
+        "level": 1,
+        "history": [
+          {
+            "action": "quiz",
+            "timestamp": 1772209405167,
+            "performance": false
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1772216914326,
+            "performance": false
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1772829437556,
+            "performance": true
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1773073869059,
+            "performance": true
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1773168033705,
+            "performance": true
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1773230496113,
+            "performance": true
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1773333303978,
+            "performance": true
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1773506910675,
+            "performance": false
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1773574651865,
+            "performance": true
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1773842696383,
+            "performance": true
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1773933200939,
+            "performance": true
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1773948474138,
+            "performance": true
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1774026352153,
+            "performance": true
+          }
+        ],
+        "lastUpdated": 1774575694268,
+        "nextReview": 1774723491146.0286,
+        "easeFactor": 2.5,
+        "lastReviewInterval": 1
+      },
+      {
+        "id": "uk_unit_004",
+        "unitId": "unit_004",
+        "status": "active",
+        "level": 0.6992077518568655,
+        "history": [
+          {
+            "action": "quiz",
+            "timestamp": 1772289404096,
+            "performance": false
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1772384074498,
+            "performance": false
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1772634677690,
+            "performance": false
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1772716445379,
+            "performance": false
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1772719848902,
+            "performance": false
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1773244267501,
+            "performance": true
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1773347636211,
+            "performance": true
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1773411570478,
+            "performance": true
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1773778819823,
+            "performance": true
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1774102756245,
+            "performance": true
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1774115973402,
+            "performance": true
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1774556101192,
+            "performance": true
+          }
+        ],
+        "lastUpdated": 1774575694268,
+        "nextReview": 1775074388272.3623,
+        "easeFactor": 2.5,
+        "lastReviewInterval": 3
+      },
+      {
+        "id": "uk_unit_005",
+        "unitId": "unit_005",
+        "status": "mastered",
+        "level": 1,
+        "history": [
+          {
+            "action": "quiz",
+            "timestamp": 1772627536056,
+            "performance": false
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1773141101636,
+            "performance": true
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1773575764975,
+            "performance": true
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1773946982951,
+            "performance": true
+          },
+          {
+            "action": "quiz",
+            "timestamp": 1774369677009,
+            "performance": true
+          }
+        ],
+        "lastUpdated": 1774575694268,
+        "nextReview": 1774918343516.0288,
+        "easeFactor": 2.5,
+        "lastReviewInterval": 1
+      }
+    ]
+  }
+}

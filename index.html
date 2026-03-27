@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Torture2 - Unified</title>
+    <title>Torture.web</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="styles.css">
 </head>
@@ -13,7 +13,7 @@
 
     <!-- Navigation -->
     <nav class="bg-white shadow-sm sticky top-0 z-20">
-        <div class="max-w-5xl mx-auto px-4">
+        <div class="max-w-[70%] mx-auto px-4">
             <div class="flex justify-center space-x-1 p-1 bg-gray-100 rounded-lg mt-2 mb-2 w-fit mx-auto">
                 <button data-nav="view-habits"
                     class="nav-btn px-4 py-2 rounded-md text-sm font-medium transition-standard hover:bg-white hover:shadow-sm text-gray-600">Привычки</button>
@@ -314,7 +314,7 @@
         </div>
 
         <!-- 8. reader VIEW -->
-        <div id="view-reader" class="app-view hidden p-6 max-w-6xl mx-auto w-full h-[calc(100vh-180px)]">
+        <div id="view-reader" class="app-view hidden p-6 max-w-6xl mx-auto w-full h-[300px]">
             <div class="flex flex-col gap-4 h-full">
 
                 <!-- 1. Управление файлом -->
@@ -434,6 +434,21 @@
             <div class="bg-white p-6 rounded-xl shadow-sm">
                 <h2 class="text-2xl font-bold mb-6 text-gray-800 border-b pb-2">⚙️ Настройки приложения</h2>
 
+
+                <!-- канбан -->
+
+                <div class="mt-6 pt-4 border-t mb-8">
+                    <h3 class="text-md font-semibold text-gray-700 mb-3">📋 Настройки канбана</h3>
+                    <div class="flex items-center gap-3">
+                        <label class="text-sm">Колонка для кнопки "Выполнено":</label>
+                        <input type="text" id="completeColumnName" class="border rounded px-2 py-1 text-sm"
+                            value="Выполнено">
+                        <button id="saveKanbanSettingsBtn"
+                            class="bg-blue-500 text-white px-3 py-1 rounded text-sm">Сохранить</button>
+                    </div>
+                </div>
+
+
                 <!-- Группа: Сноски (Explanation) -->
                 <div class="mb-8">
                     <h3 class="text-lg font-semibold text-blue-600 mb-4">🧠 Настройки Сносок (MiMo)</h3>
@@ -525,7 +540,6 @@
 
     <!-- Scripts -->
     <script src="config.js"></script>
-    <script src="spaced_repetition.js"></script>
     <script src="state.js"></script>
     <script src="logic.js"></script>
     <script src="ui.js"></script>

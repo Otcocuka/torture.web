@@ -7,7 +7,7 @@
 > **Torture** is a browser-based SPA that bridges personal productivity (GTD, Pomodoro, Kanban)
 > with an AI-powered cognitive learning engine grounded in spaced repetition and active recall.
 > Knowledge is not stored as raw text — it is extracted, atomized, and tracked as structured
-> *Knowledge Units* with individual mastery levels.
+> _Knowledge Units_ with individual mastery levels.
 
 ---
 
@@ -16,14 +16,14 @@
 This system was developed as part of a Bachelor's thesis at [University Name], 2025.
 Key novel contributions:
 
-| Contribution | Description |
-|---|---|
-| **Cognitive Avatar** | Visual knowledge graph with per-concept mastery tracking (0–100%) |
-| **LLM-Driven Extraction** | Semantic segmentation + atomic knowledge extraction via DeepSeek |
-| **Modified SRS Algorithm** | SM-2 variant integrating user productivity state into interval calculation |
-| **Adaptive Quiz Engine** | LLM-scored open-ended answers (0–100% scale, not binary) |
-| **Research Data Pipeline** | Structured event logging (quiz, read_session, habit, pomodoro) with JSON export |
-| **Topic Clustering** | Auto-categorization of knowledge units via LLM + manual override |
+| Contribution               | Description                                                                        |
+| -------------------------- | ---------------------------------------------------------------------------------- |
+| **Cognitive Avatar**       | Visual knowledge graph with per-concept mastery tracking (0–100%)                  |
+| **LLM-Driven Extraction**  | Semantic segmentation + atomic knowledge extraction via DeepSeek                   |
+| **Modified SRS Algorithm** | Step-based SRS with intervals [1, 3, 7, 14, 28] days, adaptive to quiz performance |
+| **Adaptive Quiz Engine**   | LLM-scored open-ended answers (0–100% scale, not binary)                           |
+| **Research Data Pipeline** | Structured event logging (quiz, read_session, habit, pomodoro) with JSON export    |
+| **Topic Clustering**       | Auto-categorization of knowledge units via LLM + manual override                   |
 
 **Experimental validation:** n=30, 4-week study — **+31.3% retention rate**, **−25.5% cognitive load** vs. control group (NASA-TLX).
 
@@ -32,23 +32,20 @@ Key novel contributions:
 ## 🏗️ Architecture
 
 User Interface (ui.js)
-       ↕  events / renders
+↕ events / renders
 Business Logic (logic.js)
-  ├── PomodoroController
-  ├── CognitiveQuiz        ← LLM-scored open-ended Q&A
-  ├── CognitiveProcessor   ← text → semantic blocks → knowledge atoms
-  ├── SpacedRepetition     ← modified SM-2 algorithm
-  └── NotificationScheduler
-       ↕  read / write
+├── PomodoroController
+├── CognitiveQuiz ← LLM-scored open-ended Q&A
+├── CognitiveProcessor ← text → semantic blocks → knowledge atoms
+├── SpacedRepetition ← modified SM-2 algorithm
+└── NotificationScheduler
+↕ read / write
 Data Store (state.js — LocalStorage)
-  ├── cognitive.knowledgeUnits       (atomic facts, concepts, procedures)
-  ├── cognitive.userKnowledgeStates  (mastery level, nextReview, easeFactor)
-  └── researchData[]                 (structured event log for export)
-       ↕  API calls (via proxy)
-DeepSeek LLM API  ←  server.js (Express proxy, CORS bypass)
-
-
-
+├── cognitive.knowledgeUnits (atomic facts, concepts, procedures)
+├── cognitive.userKnowledgeStates (mastery level, nextReview, easeFactor)
+└── researchData[] (structured event log for export)
+↕ API calls (via proxy)
+DeepSeek LLM API ← server.js (Express proxy, CORS bypass)
 
 ---
 
@@ -68,6 +65,7 @@ DeepSeek LLM API  ←  server.js (Express proxy, CORS bypass)
 ## 🚀 Quick Start
 
 ### Prerequisites
+
 - Node.js ≥ 18
 - DeepSeek API key ([get here](https://platform.deepseek.com))
 
@@ -79,58 +77,59 @@ cd torture.web
 npm install
 \```
 
-
 ### Configuration
+
 Edit config.js:
 
-
 window.appConfig = {
-    DEEPSEEK_API_KEY: "your-key-here",
-    DEEPSEEK_MODEL:   "deepseek-chat",
-    DEEPSEEK_API_URL: "http://localhost:3000/api/deepseek/chat/completions",
+DEEPSEEK_API_KEY: "your-key-here",
+DEEPSEEK_MODEL: "deepseek-chat",
+DEEPSEEK_API_URL: "http://localhost:3000/api/deepseek/chat/completions",
 };
+
 ### Run
 
 \```bash
 node server.js
+
 # Open → http://localhost:3000
+
 \```
-
-
 
 ### 📁 Project Structure
 
-├── index.html          # App shell & navigation
-├── config.js           # API configuration
-├── state.js            # Store (data model + cognitive core methods)
-├── logic.js            # Controllers: Pomodoro, Quiz, SRS, Notifications
-├── ui.js               # All rendering & event binding
-├── main.js             # Entry point & initialization
+├── index.html # App shell & navigation
+├── config.js # API configuration
+├── state.js # Store (data model + cognitive core methods)
+├── logic.js # Controllers: Pomodoro, Quiz, SRS, Notifications
+├── ui.js # All rendering & event binding
+├── main.js # Entry point & initialization
 ├── spaced_repetition.js# SRS algorithm (SM-2 variant)
-├── styles.css          # Custom animations, calendar, kanban styles
-└── server.js           # Express proxy for DeepSeek API
+├── styles.css # Custom animations, calendar, kanban styles
+└── server.js # Express proxy for DeepSeek API
 
 ### 🔬 Research Data Format
+
 Export via Settings → 📊 Export Research Data. Output JSON structure:
 
-
 {
-  "version": "1.0",
-  "exportDate": "2025-04-15T...",
-  "events": [
-    { "timestamp": 1744000000000, "type": "quiz",
-      "data": "{\"knowledgeId\":\"unit_...\",\"score\":73}" },
-    { "timestamp": 1744001000000, "type": "read_session",
-      "data": "{\"duration\":1234,\"wordsCount\":4200}" }
-  ],
-  "snapshot": {
-    "knowledgeUnits": [...],
-    "userKnowledgeStates": [...]
-  }
+"version": "1.0",
+"exportDate": "2025-04-15T...",
+"events": [
+{ "timestamp": 1744000000000, "type": "quiz",
+"data": "{\"knowledgeId\":\"unit_...\",\"score\":73}" },
+{ "timestamp": 1744001000000, "type": "read_session",
+"data": "{\"duration\":1234,\"wordsCount\":4200}" }
+],
+"snapshot": {
+"knowledgeUnits": [...],
+"userKnowledgeStates": [...]
 }
-Event types: quiz · read_session · habit · pomodoro · knowledge_added
+}
+Event types: quiz · read_session · habit · pomodoro · knowledge_added · spaced_repetition
 
 ### 🎓 Academic Context
+
 This project is the foundation for ongoing research in:
 
 Human-AI Interaction in self-regulated learning environments
@@ -143,24 +142,23 @@ Bachelor's thesis: [PDF]
 
 ## 📋 Known Limitations & Roadmap
 
-| Status | Item |
-|--------|------|
-| 🔧 Planned | Mobile responsive layout |
-| 🔧 Planned | Server-side storage (PostgreSQL) |
-| 🔧 Planned | Multi-user / collaborative learning |
-| 🔧 Planned | Video / audio source analysis |
-| 🔧 Planned | Biometric integration (HRV, EEG) |
-| ✅ Done | Research event logging + JSON export |
-| ✅ Done | Spaced repetition with browser notifications |
-| ✅ Done | LLM topic clustering |
-| ✅ Done | Adaptive quiz: retry on failure, next on success |
-| ✅ Done | Knowledge trash bin with restore |
-| ✅ Done | Multi-fragment selection (Alt + mouse) |
+| Status     | Item                                             |
+| ---------- | ------------------------------------------------ |
+| 🔧 Planned | Mobile responsive layout                         |
+| 🔧 Planned | Server-side storage (PostgreSQL)                 |
+| 🔧 Planned | Multi-user / collaborative learning              |
+| 🔧 Planned | Video / audio source analysis                    |
+| 🔧 Planned | Biometric integration (HRV, EEG)                 |
+| ✅ Done    | Research event logging + JSON export             |
+| ✅ Done    | Spaced repetition with browser notifications     |
+| ✅ Done    | LLM topic clustering                             |
+| ✅ Done    | Adaptive quiz: retry on failure, next on success |
+| ✅ Done    | Knowledge trash bin with restore                 |
+| ✅ Done    | Multi-fragment selection (Alt + mouse)           |
 
 ### 📄 License
+
 MIT © 2025 Damir Farziev
 
 This project was built as a research platform, not just a product.
 Every interaction is a data point. Every quiz answer advances the science.
-
-
