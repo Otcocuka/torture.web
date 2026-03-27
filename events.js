@@ -1,4 +1,3 @@
-// Audio Engine - exact copy
 const AudioEngine = {
     ctx: null,
     init() {
