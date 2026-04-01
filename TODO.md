@@ -1,1 +1,2 @@
-See ya in the morning(when you wake up)
+-See ya in the morning(when you wake up)
+-nah, see ya tomorrow, when i fix dependencies on my omarchy laptop
