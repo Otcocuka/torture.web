@@ -13,3 +13,6 @@ fool
 04.06
 -met one of my clients with car service- came up with a nice marketing plan, aim to be their CMO and CIO, negotiations seem to go well. they're starting in a month
 -negotiated with another one, a local plumbing company. as usual- poor bastards can't afford advertisement for their services. sometimes i question myself on how do they stay alive w\o any ads or marketing whatsoever in Georgia
+
+04.09
+-gotta continue making own shi- seems like the mvs at the moment
