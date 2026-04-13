@@ -22,3 +22,5 @@ fool
 
 04.13
 -HEEEEEEEEEE'S BAAAAAAAAAACK
+04.14
+-got a little bit of work done today, full send tommorrow 
