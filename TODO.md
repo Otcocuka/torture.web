@@ -24,3 +24,9 @@ fool
 -HEEEEEEEEEE'S BAAAAAAAAAACK
 04.14
 -got a little bit of work done today, full send tommorrow 
+
+04.14
+-now focusing on three different projects: 
+1)continuation of this torture(A LOT of new features are to be added this month. I'm aiming on making it as valuable for myself as it can be so I'm sure someone'll benefit from it too)
+2)cms-core
+3)my agency's website, marketing optimizations
