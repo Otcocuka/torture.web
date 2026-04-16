@@ -30,3 +30,6 @@ fool
 1)continuation of this torture(A LOT of new features are to be added this month. I'm aiming on making it as valuable for myself as it can be so I'm sure someone'll benefit from it too)
 2)cms-core
 3)my agency's website, marketing optimizations
+
+04.15
+-oh, if only managing life with so many interests and goals were easy
