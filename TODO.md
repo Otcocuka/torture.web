@@ -36,3 +36,6 @@ fool
 
 04.20
 -getting back to work
+
+04.21
+-hitler's bd went well, going on
