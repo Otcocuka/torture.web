@@ -39,3 +39,6 @@ fool
 
 04.21
 -hitler's bd went well, going on
+
+04.23
+-gonna start someday
