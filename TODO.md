@@ -42,3 +42,10 @@ fool
 
 04.23
 -gonna start someday
+
+04.24
+-peggingg me in the ass with these debugging sessions from the start baby? nice, that's just as i expected. nonetheless new view almost ready- need to add some final touches 
+-need to:
+1)fix node positioning- in fact they're drawn in the wrong place
+2)same issue makes whole canvas go parallax on panning and dragging- need to fix main logic of world\screen coordinates
+3)implement some shi for me to be able to transfer miro boards here(after ux is KK)

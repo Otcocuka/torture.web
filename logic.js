@@ -986,6 +986,9 @@ class MiroController {
 
         // Для отладки
         this.debug = false;
+        // Дебаг режим для паннинга
+        this.debugPan = true;
+        this.lastPanTime = 0;
     }
 
     /**
@@ -1867,12 +1870,11 @@ class MiroController {
 
                 console.log(`Dragging node: "${hit.element.text}" from world(${hit.element.x}, ${hit.element.y})`);
             } else {
-                // Начало панорамирования
+                // начало панорамирования
                 this.isPanning = true;
-                this.panStart = { x: canvasXY.x, y: canvasXY.y };
+                this.panStart = { x: e.clientX, y: e.clientY };
                 this.canvas.style.cursor = 'grabbing';
-
-                console.log('Starting pan');
+                console.log(`[Pan] Start at client: (${e.clientX}, ${e.clientY})`);
             }
         }
     }
@@ -1921,15 +1923,30 @@ class MiroController {
             this.scheduleRedraw();
         }
 
-        // Обработка панорамирования
-        if (this.isPanning) {
-            const dx = canvasXY.x - this.panStart.x;
-            const dy = canvasXY.y - this.panStart.y;
+        // Обработка панорамирования (перетаскивания canvas)
+        if (this.isPanning && !this.draggedElement) {
+            const dx = e.clientX - this.panStart.x;
+            const dy = e.clientY - this.panStart.y;
 
+            // КРИТИЧНЫЙ FIX: Учитываем масштаб при панорамировании
+            // 1. Сохраняем старую позицию для дебага
+            const oldViewportX = this.viewport.x;
+            const oldViewportY = this.viewport.y;
+
+            // 2. Просто добавляем разницу в координатах курсора
+            // НЕ НУЖНО делить на scale, ведь мы двигаем сам viewport!
             this.viewport.x += dx;
             this.viewport.y += dy;
 
-            this.panStart = { x: canvasXY.x, y: canvasXY.y };
+            // 3. Обновляем точку начала панорамирования
+            this.panStart.x = e.clientX;
+            this.panStart.y = e.clientY;
+
+            // 4. Дебаг
+            if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
+                console.log(`[Pan] dx=${dx.toFixed(1)}, dy=${dy.toFixed(1)}, scale=${this.viewport.scale.toFixed(2)}`);
+                console.log(`      Viewport: (${oldViewportX.toFixed(0)},${oldViewportY.toFixed(0)}) → (${this.viewport.x.toFixed(0)},${this.viewport.y.toFixed(0)})`);
+            }
 
             this.scheduleRedraw();
         }
@@ -1967,33 +1984,31 @@ class MiroController {
         e.stopPropagation();
 
         const rect = this.canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        const canvasX = e.clientX - rect.left;
+        const canvasY = e.clientY - rect.top;
 
-        // Сохраняем мировую позицию под курсором ДО зума
-        const worldBefore = this.screenToWorld(x, y);
+        // 1. Мировые координаты под курсором до зума
+        const worldBefore = this.screenToWorld(canvasX, canvasY);
 
-        // Определяем направление и коэффициент
+        // 2. Изменяем масштаб
         const delta = e.deltaY;
         const zoomFactor = delta > 0 ? 0.9 : 1.1;
         const newScale = this.viewport.scale * zoomFactor;
 
-        // Ограничиваем зум
-        this.viewport.scale = Math.max(0.1, Math.min(5, newScale));
+        // Ограничиваем масштаб
+        const clampedScale = Math.max(0.1, Math.min(5, newScale));
 
-        // FIX: Вычисляем мировую позицию после зума через ту же точку
-        // Новая формула: корректируем viewport так, чтобы worldBefore осталась под курсором
-        this.viewport.x = x - worldBefore.x * this.viewport.scale;
-        this.viewport.y = y - worldBefore.y * this.viewport.scale;
+        // 3. Нужно скорректировать viewport так, чтобы точка под курсором осталась на месте
+        // Формула: изменить viewport чтобы компенсировать изменение масштаба
+        this.viewport.x = canvasX - worldBefore.x * clampedScale;
+        this.viewport.y = canvasY - worldBefore.y * clampedScale;
 
-        // Принудительная перерисовка
+        this.viewport.scale = clampedScale;
+
+        console.log(`[Zoom] scale: ${zoomFactor > 1 ? '+' : '-'} (${this.viewport.scale.toFixed(2)})`);
+
         this.scheduleRedraw();
         this.updateStats();
-
-        // Отладочная информация
-        if (this.debugCoords) {
-            console.log(`Zoom: factor=${zoomFactor}, scale=${this.viewport.scale.toFixed(2)}, delta=${delta}`);
-        }
     }
 
 
