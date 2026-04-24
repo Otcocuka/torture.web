@@ -67,9 +67,29 @@ const UI = {
         this.switchView("view-habits");
     },
 
+
+
+
     // --- CORE NAVIGATION ---
     switchView(viewId) {
+        // Stop any active sessions when switching away
+        if (this.readerSessionStartTime && viewId !== 'view-reader') {
+            this.stopReaderSession();
+        }
+
+        // DEINIT Miro если уходим с вьюхи
+        const activeView = document.querySelector('.app-view.active');
+        if (activeView && activeView.id === 'view-miro' && window.Controllers.miro) {
+            try {
+                window.Controllers.miro.deinit();
+            } catch (e) {
+                console.warn('Miro deinit error:', e);
+            }
+        }
+
         this.cleanupContextMenus();
+
+        // Hide all views
         document.querySelectorAll(".app-view").forEach((el) => {
             el.classList.remove("active");
             el.style.display = "none";
@@ -80,6 +100,7 @@ const UI = {
             target.style.display = "block";
             target.classList.add("active");
 
+            // Special initialization for each view
             if (viewId === "view-reader") {
                 target.innerHTML = "";
                 const file = Store.getActiveFile();
@@ -112,11 +133,20 @@ const UI = {
                 this.renderStatsView();
             }
 
-            if (viewId === "view-settings") {
-                this.renderSettingsView();
-            }
             if (viewId === "view-habits") {
                 this.renderHabits();
+            }
+
+            // CRITICAL FIX: Proper Miro initialization
+            if (viewId === "view-miro") {
+                // FORCE visible
+                target.style.display = 'block';
+                target.classList.add('active');
+
+                // Delay initialization to ensure DOM is ready
+                setTimeout(() => {
+                    this.initMiroView();
+                }, 50);
             }
         }
     },
@@ -2913,4 +2943,107 @@ const UI = {
         return true;
     },
 
+
+
+
+    // --- MIRO VIEW ---
+    initMiroView() {
+        console.log('UI: Initializing Miro view...');
+
+        const miroView = document.getElementById('view-miro');
+        if (!miroView) {
+            console.error('Miro view not found');
+            return;
+        }
+
+        // 1. Обеспечить видимость
+        miroView.style.display = 'block';
+        miroView.classList.add('active');
+
+        // 2. Очистить старый canvas если есть
+        const oldCanvas = document.getElementById('miroCanvas');
+        if (oldCanvas && oldCanvas.parentNode) {
+            oldCanvas.parentNode.removeChild(oldCanvas);
+        }
+
+        // 3. Создать новый canvas
+        const container = document.getElementById('miroCanvasContainer');
+        if (!container) {
+            console.error('Miro container not found');
+            return;
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.id = 'miroCanvas';
+        canvas.className = 'absolute top-0 left-0';
+        canvas.style.cursor = 'grab';
+        canvas.style.touchAction = 'none';
+        container.appendChild(canvas);
+
+        // 4. Инициализировать контроллер
+        if (window.Controllers && window.Controllers.miro) {
+            try {
+                // Удаляем старый контроллер если есть
+                if (window.Controllers.miro.deinit) {
+                    window.Controllers.miro.deinit();
+                }
+
+                // Создаем новый
+                window.Controllers.miro = new MiroController();
+
+                // Даем время DOM
+                setTimeout(() => {
+                    if (window.Controllers.miro.init) {
+                        window.Controllers.miro.init();
+                        setTimeout(() => {
+                            if (window.Controllers.miro.emergencyReset) {
+                                window.Controllers.miro.emergencyReset();
+                            }
+                        }, 200);
+
+                        // Принудительно обновить размеры
+                        setTimeout(() => {
+                            if (window.Controllers.miro.setupCanvas) {
+                                window.Controllers.miro.setupCanvas();
+                            }
+                            if (window.Controllers.miro.centerView) {
+                                window.Controllers.miro.centerView();
+                            }
+                            if (window.Controllers.miro.draw) {
+                                window.Controllers.miro.draw();
+                            }
+                        }, 100);
+                    }
+                }, 50);
+
+            } catch (error) {
+                console.error('Miro init error:', error);
+                // Fallback
+                miroView.innerHTML = `
+                <div class="p-8 text-center">
+                    <h3 class="text-xl font-bold text-red-600 mb-2">Ошибка инициализации Miro</h3>
+                    <p class="text-gray-600 mb-4">${error.message}</p>
+                    <button onclick="location.reload()" class="px-4 py-2 bg-blue-500 text-white rounded">
+                        Перезагрузить
+                    </button>
+                </div>
+            `;
+            }
+        } else {
+            console.error('Miro controller not available');
+            window.Controllers = window.Controllers || {};
+            window.Controllers.miro = new MiroController();
+            setTimeout(() => {
+                if (window.Controllers.miro.init) {
+                    window.Controllers.miro.init();
+                }
+            }, 100);
+        }
+    },
+
+    // ДОБАВИТЬ метод для обновления статистики Miro
+    updateMiroStats() {
+        if (!window.Controllers || !window.Controllers.miro) return;
+        window.Controllers.miro.updateStats();
+    }
 };

@@ -896,3 +896,2145 @@ const AIClient = {
         });
     }
 };
+
+/**
+ * ------------------------------------------------------------------
+ * MIRO-LIKE CANVAS CONTROLLER (MVP)
+ * ------------------------------------------------------------------
+ */
+class MiroController {
+    constructor() {
+        this.canvas = null;
+        this.ctx = null;
+        this.elements = new Map(); // id → {type, x, y, width, height, text, color, parentId, childrenIds}
+        this.nextId = 1;
+
+        // Viewport state (world coordinates)
+        this.viewport = {
+            x: 0,
+            y: 0,
+            scale: 1
+        };
+
+
+        // FIX: Флаг для отладки координат
+        this.debugCoords = true;
+
+
+        // FIX: Инициализация viewport с предсказуемыми значениями
+        this.viewport = {
+            x: 0,
+            y: 0,
+            scale: 1
+        };
+        this._viewportSynced = false;
+
+        // FIX: Последние координаты мыши
+        this.lastMouseScreen = { x: 0, y: 0 };
+        this.lastMouseWorld = { x: 0, y: 0 };
+
+        // FIX: Инициализация значений
+        this.NODE_WIDTH = 160;
+        this.NODE_HEIGHT = 100;
+
+        console.log('MiroController: Constructor initialized');
+
+        // Interaction state
+        this.isDragging = false;
+        this.dragStart = { x: 0, y: 0 };
+        this.draggedElement = null;
+        this.isPanning = false;
+        this.panStart = { x: 0, y: 0 };
+        this.hoveredElement = null;
+        this.hoverSide = null; // 'left' | 'right'
+
+        // Constants
+        this.NODE_WIDTH = 160;
+        this.NODE_HEIGHT = 100;  // ← ИСПРАВЛЕНО: было [?]0
+        this.NODE_PADDING = 10;
+        this.CHILD_OFFSET_X = 200;
+        this.CHILD_OFFSET_Y = 120;
+        this.PLUS_BUTTON_SIZE = 20;
+
+        // Render loop
+        this.animationId = null;
+        this.lastFrameTime = 0;
+
+        // Key states
+        this.keys = new Set();
+
+        // Bind methods
+        this.onMouseDown = this.onMouseDown.bind(this);
+        this.onMouseMove = this.onMouseMove.bind(this);
+        this.onMouseUp = this.onMouseUp.bind(this);
+        this.onWheel = this.onWheel.bind(this);
+        this.onContextMenu = this.onContextMenu.bind(this);
+        this.onKeyDown = this.onKeyDown.bind(this);
+        this.onKeyUp = this.onKeyUp.bind(this);
+
+
+
+        this.needsRedraw = true;
+        this.renderQueue = [];
+        this.lastRenderTime = 0;
+        this.FPS_LIMIT = 60;
+        this.FRAME_TIME = 1000 / this.FPS_LIMIT;
+        this.gridEnabled = true;
+        this.gridSize = 50; // pixels at scale=1
+        this.gridColor = '#e5e7eb';
+        this.gridOpacity = 0.3;
+
+        // Для отладки
+        this.debug = false;
+    }
+
+    /**
+     * Initialize controller (called from UI.initMiroView)
+     */
+    init() {
+        this.canvas = document.getElementById('miroCanvas');
+        if (!this.canvas) {
+            console.error('MiroController: Canvas element not found');
+            return;
+        }
+
+        this.ctx = this.canvas.getContext('2d');
+        this.setupCanvas();
+
+        // КРИТИЧНЫЙ FIX: Принудительный сброс viewport при каждом открытии
+        setTimeout(() => {
+            console.log('[Miro] Force resetting viewport to default state');
+            this.viewport = {
+                x: this.canvas.width / 2,
+                y: this.canvas.height / 2,
+                scale: 1
+            };
+            this._viewportSynced = true;
+
+            // Принудительная перерисовка
+            this.scheduleRedraw();
+            this.updateStats();
+
+            console.log(`[Miro] Viewport установлен: (${this.viewport.x}, ${this.viewport.y}), scale=${this.viewport.scale}`);
+        }, 100);
+        this.loadFromStorage();
+        this.startAnimation();
+        this.setupEventListeners();
+
+        console.log('MiroController: Initialized');
+    }
+
+    // ===== ИСПРАВЛЕННАЯ НАСТРОЙКА КАНВАСА =====
+    setupCanvas() {
+        console.log('MiroController: Setting up canvas...');
+
+        const container = this.canvas.parentElement;
+        if (!container) {
+            console.error('No container found for canvas');
+            return;
+        }
+
+        const updateCanvasSize = () => {
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            // Устанавливаем реальные размеры
+            this.canvas.width = width;
+            this.canvas.height = height;
+
+            // CSS должен совпадать
+            this.canvas.style.width = width + 'px';
+            this.canvas.style.height = height + 'px';
+
+            console.log(`Canvas: ${width}x${height}`);
+
+            this.scheduleRedraw();
+        };
+
+        // Первоначальная настройка
+        updateCanvasSize();
+
+        // Resize observer
+        if (window.ResizeObserver) {
+            this.resizeObserver = new ResizeObserver(() => {
+                requestAnimationFrame(() => updateCanvasSize());
+            });
+            this.resizeObserver.observe(container);
+        } else {
+            window.addEventListener('resize', () => {
+                requestAnimationFrame(() => updateCanvasSize());
+            });
+        }
+    }
+
+
+    setupEventListeners() {
+        if (!this.canvas) return;
+
+        // Existing listeners...
+        this.canvas.addEventListener('mousedown', this.onMouseDown);
+        this.canvas.addEventListener('mousemove', this.onMouseMove);
+        this.canvas.addEventListener('mouseup', this.onMouseUp);
+        this.canvas.addEventListener('wheel', this.onWheel);
+        this.canvas.addEventListener('contextmenu', this.onContextMenu);
+
+        document.addEventListener('keydown', this.onKeyDown);
+        document.addEventListener('keyup', this.onKeyUp);
+
+        // CRITICAL FIX: ПРЕВЕНТ ДЕФОЛТ КОНТЕКСТНОГО МЕНЮ
+        this.canvas.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        }, { passive: false });
+
+        // Enhanced toolbar handlers
+        document.getElementById('miroClearBtn')?.addEventListener('click', () => this.clearBoard());
+        document.getElementById('miroExportBtn')?.addEventListener('click', () => this.exportJSON());
+
+        // NEW: Import button
+        document.getElementById('miroImportBtn')?.addEventListener('click', () => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const result = this.importJSON(event.target.result);
+                    if (result.success) {
+                        UI.showNotification(`✅ Imported ${result.count} elements`);
+                    } else {
+                        UI.showNotification(`❌ Import failed: ${result.error}`);
+                    }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        });
+
+        // NEW: Double-click to edit
+        this.canvas.addEventListener('dblclick', (e) => {
+            const rect = this.canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            const hit = this.getElementAt(x, y);
+            if (hit && hit.element) {
+                this.showEditDialog(hit.element);
+            }
+        });
+    }
+
+    removeEventListeners() {
+        if (!this.canvas) return;
+
+        this.canvas.removeEventListener('mousedown', this.onMouseDown);
+        this.canvas.removeEventListener('mousemove', this.onMouseMove);
+        this.canvas.removeEventListener('mouseup', this.onMouseUp);
+        this.canvas.removeEventListener('wheel', this.onWheel);
+        this.canvas.removeEventListener('contextmenu', this.onContextMenu);
+
+        document.removeEventListener('keydown', this.onKeyDown);
+        document.removeEventListener('keyup', this.onKeyUp);
+    }
+
+    // ===== COORDINATE TRANSFORMATIONS =====
+
+    /**
+ * Преобразует координаты canvas в мировые координаты
+ * FIX: Viewport хранит смещение canvas относительно мировых координат
+ */
+    screenToWorld(canvasX, canvasY) {
+        return {
+            x: canvasX - this.viewport.x,  // КРИТИЧНЫЙ FIX: убрал деление на scale для простоты
+            y: canvasY - this.viewport.y
+        };
+    }
+
+    /**
+     * Преобразует мировые координаты в координаты canvas
+     * FIX: Система теперь симметрична
+     */
+    worldToScreen(worldX, worldY) {
+        return {
+            x: worldX + this.viewport.x,
+            y: worldY + this.viewport.y
+        };
+    }
+
+
+    // ===== HIT TESTING =====
+
+    // FIX: ИСПРАВИТЬ метод getElementAt для правильного определения хита
+    getElementAt(canvasX, canvasY) {
+        // Сохранить для отладки
+        this.lastMouseScreen = { x: canvasX, y: canvasY };
+        this.lastMouseWorld = this.screenToWorld(canvasX, canvasY);
+
+        console.log(`🎯 Хит-тест: Canvas(${canvasX},${canvasY}) -> World(${this.lastMouseWorld.x.toFixed(0)},${this.lastMouseWorld.y.toFixed(0)})`);
+
+        const elementsArray = Array.from(this.elements.values()).reverse();
+
+        console.log(`🔍 Проверка ${elementsArray.length} элементов`);
+
+        for (const el of elementsArray) {
+            if (el.type === 'node' || el.type === 'knowledge-node') {
+                const width = el.width || this.NODE_WIDTH;
+                const height = el.height || this.NODE_HEIGHT;
+
+                // Проверка попадания в ноду (МИРОВЫЕ координаты!)
+                const inNode = this.lastMouseWorld.x >= el.x &&
+                    this.lastMouseWorld.x <= el.x + width &&
+                    this.lastMouseWorld.y >= el.y &&
+                    this.lastMouseWorld.y <= el.y + height;
+
+                console.log(`  📍 Нода "${el.text}"`);
+                console.log(`    Мировые координаты: (${el.x}, ${el.y})`);
+                console.log(`    Размер: ${width}x${height}`);
+                console.log(`    Курсор в мире: (${this.lastMouseWorld.x.toFixed(0)}, ${this.lastMouseWorld.y.toFixed(0)})`);
+                console.log(`    Попадание в ноду: ${inNode}`);
+
+                if (inNode) {
+                    console.log(`  ✅ ХИТ! Попал в ноду "${el.text}"`);
+
+                    // Теперь проверяем кнопки в ЭКРАННЫХ координатах
+                    const screenPos = this.worldToScreen(el.x, el.y);
+                    const screenWidth = width * this.viewport.scale;
+                    const screenHeight = height * this.viewport.scale;
+
+                    const plusSize = this.PLUS_BUTTON_SIZE * this.viewport.scale;
+
+                    // Правая кнопка "+"
+                    const plusRightX = screenPos.x + screenWidth - plusSize;
+                    const plusRightY = screenPos.y + screenHeight / 2 - plusSize / 2;
+
+                    // Левая кнопка "+"
+                    const plusLeftX = screenPos.x;
+                    const plusLeftY = plusRightY;
+
+                    console.log(`    Экранные координаты ноды: (${screenPos.x.toFixed(0)}, ${screenPos.y.toFixed(0)})`);
+                    console.log(`    Экранный размер: ${screenWidth.toFixed(0)}x${screenHeight.toFixed(0)}`);
+                    console.log(`    Кнопка + справа: (${plusRightX.toFixed(0)}, ${plusRightY.toFixed(0)}), размер ${plusSize.toFixed(0)}px`);
+                    console.log(`    Кнопка + слева: (${plusLeftX.toFixed(0)}, ${plusLeftY.toFixed(0)})`);
+
+                    let hoverSide = null;
+
+                    // Проверка попадания в кнопки (ЭКРАННЫЕ координаты!)
+                    const inRightButton = canvasX >= plusRightX && canvasX <= plusRightX + plusSize &&
+                        canvasY >= plusRightY && canvasY <= plusRightY + plusSize;
+
+                    const inLeftButton = canvasX >= plusLeftX && canvasX <= plusLeftX + plusSize &&
+                        canvasY >= plusLeftY && canvasY <= plusLeftY + plusSize;
+
+                    console.log(`    Курсор в canvas: (${canvasX},${canvasY})`);
+                    console.log(`    В правой кнопке: ${inRightButton}`);
+                    console.log(`    В левой кнопке: ${inLeftButton}`);
+
+                    if (inRightButton) {
+                        hoverSide = 'right';
+                        console.log(`    ↪ hoverSide = 'right'`);
+                    } else if (inLeftButton) {
+                        hoverSide = 'left';
+                        console.log(`    ↪ hoverSide = 'left'`);
+                    } else {
+                        console.log(`    ↪ hoverSide = null`);
+                    }
+
+                    return { element: el, hoverSide };
+                }
+            }
+        }
+
+        console.log(`❌ НЕТ ХИТА для всех ${elementsArray.length} элементов`);
+        return null;
+    }
+    // Создать простую функцию проверки попадания
+    testHitCoordinates() {
+        const canvasX = 961;
+        const canvasY = 550;
+
+        const worldPos = this.screenToWorld(canvasX, canvasY);
+        console.log(`=== ТЕСТ ПРОСТОГО ХИТА ===`);
+        console.log(`Canvas: (${canvasX}, ${canvasY})`);
+        console.log(`World: (${worldPos.x.toFixed(0)}, ${worldPos.y.toFixed(0)})`);
+
+        // Проверить попадание в первую ноду
+        const firstNode = Array.from(this.elements.values()).find(el => el.type === 'node');
+        if (firstNode) {
+            console.log(`Нода: "${firstNode.text}"`);
+            console.log(`Мировые координаты ноды: (${firstNode.x}, ${firstNode.y})`);
+            console.log(`Размер ноды: ${this.NODE_WIDTH}x${this.NODE_HEIGHT}`);
+
+            const hitX = worldPos.x >= firstNode.x && worldPos.x <= firstNode.x + this.NODE_WIDTH;
+            const hitY = worldPos.y >= firstNode.y && worldPos.y <= firstNode.y + this.NODE_HEIGHT;
+
+            console.log(`Попадание по X: ${hitX} (${worldPos.x.toFixed(0)} >= ${firstNode.x} && ${worldPos.x.toFixed(0)} <= ${firstNode.x + this.NODE_WIDTH})`);
+            console.log(`Попадание по Y: ${hitY} (${worldPos.y.toFixed(0)} >= ${firstNode.y} && ${worldPos.y.toFixed(0)} <= ${firstNode.y + this.NODE_HEIGHT})`);
+            console.log(`Общее попадание: ${hitX && hitY}`);
+
+            // Проверить кнопку +
+            const screenPos = this.worldToScreen(firstNode.x, firstNode.y);
+            const plusSize = this.PLUS_BUTTON_SIZE;
+            const screenWidth = this.NODE_WIDTH * this.viewport.scale;
+            const screenHeight = this.NODE_HEIGHT * this.viewport.scale;
+
+            const rightX = screenPos.x + screenWidth - plusSize;
+            const rightY = screenPos.y + screenHeight / 2 - plusSize / 2;
+
+            console.log(`Экранные координаты ноды: (${screenPos.x.toFixed(0)}, ${screenPos.y.toFixed(0)})`);
+            console.log(`Кнопка + справа: (${rightX.toFixed(0)}, ${rightY.toFixed(0)})`);
+
+            const inButton = canvasX >= rightX && canvasX <= rightX + plusSize &&
+                canvasY >= rightY && canvasY <= rightY + plusSize;
+
+            console.log(`Попадание в кнопку: ${inButton}`);
+        } else {
+            console.log("Ноды не найдены");
+        }
+    }
+
+    // ===== ИСПРАВЛЕННЫЙ КООРДИНАТНЫЙ ТЕСТ =====
+    testCoordinates() {
+        if (!this.canvas) {
+            console.log("Canvas не инициализирован!");
+            return;
+        }
+
+        console.log("=== ТЕСТ КООРДИНАТ ===");
+
+        // Центр экрана
+        const centerX = this.canvas.width / 2;
+        const centerY = this.canvas.height / 2;
+        console.log(`Canvas: ${this.canvas.width}x${this.canvas.height}`);
+        console.log(`Центр экрана: Canvas(${centerX}, ${centerY})`);
+
+        const worldCenter = this.screenToWorld(centerX, centerY);
+        console.log(`Центр экрана в мировых: (${worldCenter.x}, ${worldCenter.y})`);
+
+        // Viewport
+        console.log(`Viewport: (${this.viewport.x}, ${this.viewport.y}), Scale: ${this.viewport.scale}`);
+
+        // Проверка существующих нод
+        if (this.elements.size === 0) {
+            console.log("Нод нет");
+        } else {
+            this.elements.forEach((node, i) => {
+                const screenPos = this.worldToScreen(node.x, node.y);
+                console.log(`Нода ${i}: "${node.text}"`);
+                console.log(`  Мировые: (${node.x}, ${node.y})`);
+                console.log(`  Экранные: (${screenPos.x.toFixed(0)}, ${screenPos.y.toFixed(0)})`);
+
+                // Прямоугольник кнопки +
+                const screenWidth = (node.width || this.NODE_WIDTH) * this.viewport.scale;
+                const screenHeight = (node.height || this.NODE_HEIGHT) * this.viewport.scale;
+                const plusSize = this.PLUS_BUTTON_SIZE * this.viewport.scale;
+
+                const rightX = screenPos.x + screenWidth - plusSize;
+                const rightY = screenPos.y + screenHeight / 2 - plusSize / 2;
+
+                console.log(`  Кнопка + справа: (${rightX.toFixed(0)}, ${rightY.toFixed(0)}) размер ${plusSize.toFixed(0)}px`);
+            });
+        }
+    }
+    // ===== RENDERING =====
+
+    startAnimation() {
+        const animate = (timestamp) => {
+            const delta = timestamp - this.lastRenderTime;
+
+            if (this.needsRedraw && delta >= this.FRAME_TIME) {
+                this.draw();
+                this.needsRedraw = false;
+                this.lastRenderTime = timestamp;
+            }
+
+            this.animationId = requestAnimationFrame(animate);
+        };
+
+        this.animationId = requestAnimationFrame(animate);
+    }
+
+
+    // Добавляем метод для планирования перерисовки
+    scheduleRedraw() {
+        this.needsRedraw = true;
+    }
+
+
+    stopAnimation() {
+        if (this.animationId) {
+            cancelAnimationFrame(this.animationId);
+            this.animationId = null;
+        }
+    }
+
+    // Обновить draw метод для включения debug
+    draw() {
+        if (!this.canvas || !this.ctx) {
+            console.warn('[Miro] Canvas not ready, skipping draw');
+            return;
+        }
+
+        const { ctx, canvas } = this;
+        const { width, height } = canvas;
+
+        // Проверка размеров
+        if (width === 0 || height === 0) {
+            console.warn('[Miro] Canvas has zero dimensions');
+            return;
+        }
+
+        // Очистка
+        ctx.clearRect(0, 0, width, height);
+
+        // FIX: Принудительная синхронизация viewport если не синхронизирован
+        if (!this._viewportSynced) {
+            this.viewport = {
+                x: width / 2,
+                y: height / 2,
+                scale: 1
+            };
+            this._viewportSynced = true;
+            console.log('[Miro] Viewport auto-synced in draw()');
+        }
+
+
+        // 1. Сетка
+        this.drawGrid();
+
+        // 2. Сохранить трансформацию
+        ctx.save();
+
+        // 3. Применить viewport трансформацию
+        ctx.translate(this.viewport.x, this.viewport.y);
+        ctx.scale(this.viewport.scale, this.viewport.scale);
+
+        // 4. Соединительные линии (под нодами)
+        this.drawConnections();
+
+        // 5. Ноды
+        this.drawNodes();
+
+        // 6. Восстановить трансформацию
+        ctx.restore();
+
+        // 7. Кнопки "+" если ховер (должно быть ПОСЛЕ восстановления трансформации!)
+        if (this.hoveredElement && this.hoverSide) {
+            this.drawPlusButton(this.hoveredElement.element, this.hoverSide);
+        }
+
+        // 8. Отладочная информация
+        if (this.debugCoords) {
+            this.drawDebugInfo();
+        }
+
+        // Обновить статистику
+        this.updateStats();
+    }
+
+
+    // ===== ДЕТАЛЬНАЯ ОТЛАДКА КООРДИНАТ =====
+    drawDebugInfo() {
+        if (!this.debugCoords || !this.ctx) return;
+
+        const { ctx } = this;
+        const mouseWorld = this.screenToWorld(this.lastMouseScreen.x, this.lastMouseScreen.y);
+
+        ctx.save();
+        ctx.resetTransform();
+
+        // Фон
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+        ctx.fillRect(10, 10, 400, 180);
+
+        // Текст
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 12px monospace';
+        ctx.textAlign = 'left';
+
+        const lines = [
+            `=== MIRO DEBUG ===`,
+            `Canvas: ${this.canvas.width}x${this.canvas.height}`,
+            `Viewport: ${this.viewport.x.toFixed(0)}, ${this.viewport.y.toFixed(0)}`,
+            `Scale: ${this.viewport.scale.toFixed(2)}`,
+            `=== Последний клик ===`,
+            `Canvas: ${this.lastMouseScreen.x}, ${this.lastMouseScreen.y}`,
+            `World: ${mouseWorld.x.toFixed(1)}, ${mouseWorld.y.toFixed(1)}`,
+            `=== Элементы ===`,
+            `Nodes: ${this.elements.size}`,
+            `Hover: ${this.hoveredElement ? this.hoveredElement.element.text : 'none'}`,
+            `HoverSide: ${this.hoverSide || 'none'}`
+        ];
+
+        lines.forEach((line, i) => {
+            ctx.fillText(line, 20, 30 + i * 20);
+        });
+
+        // 1. Зеленая точка - центр viewport (где мировые координаты (0,0))
+        ctx.fillStyle = '#00ff00';
+        ctx.beginPath();
+        ctx.arc(this.viewport.x, this.viewport.y, 6, 0, Math.PI * 2);
+        ctx.fill();
+
+
+        // Внутри drawDebugInfo, после зеленой точки:
+        ctx.fillStyle = '#ff0000';
+        ctx.beginPath();
+        ctx.arc(this.canvas.width / 2, this.canvas.height / 2, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillText(`ЦЕНТР ЭКРАНА (0,0 world)`, this.canvas.width / 2 + 15, this.canvas.height / 2 - 10);
+        // 2. Красная точка - где кликнули
+        ctx.fillStyle = '#ff0000';
+        ctx.beginPath();
+        ctx.arc(this.lastMouseScreen.x, this.lastMouseScreen.y, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 3. Линия от центра к курсору
+        ctx.strokeStyle = '#ffff00';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(this.viewport.x, this.viewport.y);
+        ctx.lineTo(this.lastMouseScreen.x, this.lastMouseScreen.y);
+        ctx.stroke();
+
+        // 4. Текст координат для обеих точек
+        ctx.fillStyle = '#00ff00';
+        ctx.fillText(`CENTER (0,0)`, this.viewport.x + 10, this.viewport.y - 10);
+
+        ctx.fillStyle = '#ff0000';
+        ctx.fillText(`CLICK (${mouseWorld.x.toFixed(0)},${mouseWorld.y.toFixed(0)})`,
+            this.lastMouseScreen.x + 10, this.lastMouseScreen.y - 10);
+
+        ctx.restore();
+
+
+        if (this.elements.size > 0) {
+            const lastNode = Array.from(this.elements.values()).pop();
+            ctx.fillText(`Последняя нода: "${lastNode.text}"`, 20, 180);
+            ctx.fillText(`Мировые: (${lastNode.x.toFixed(1)}, ${lastNode.y.toFixed(1)})`, 20, 200);
+            ctx.fillText(`Экранные: (${this.worldToScreen(lastNode.x, lastNode.y).x.toFixed(0)}, ${this.worldToScreen(lastNode.x, lastNode.y).y.toFixed(0)})`, 20, 220);
+        }
+    }
+
+    // ДОБАВИТЬ новый метод для быстрых уведомлений
+    showNotification(message, duration = 2000) {
+        const notification = document.getElementById('miroNotification');
+        if (!notification) return;
+
+        notification.textContent = message;
+        notification.classList.remove('hidden');
+
+        setTimeout(() => {
+            notification.classList.add('hidden');
+        }, duration);
+    }
+
+    // Добавить в MiroController
+    debugButtonCoordinates(canvasX, canvasY) {
+        const hit = this.getElementAt(canvasX, canvasY);
+
+        if (hit && hit.element) {
+            console.log("=== ДЕТАЛЬНЫЙ ДЕБАГ КНОПКИ ===");
+
+            const el = hit.element;
+            const screenPos = this.worldToScreen(el.x, el.y);
+            const screenWidth = (el.width || this.NODE_WIDTH) * this.viewport.scale;
+            const screenHeight = (el.height || this.NODE_HEIGHT) * this.viewport.scale;
+            const plusSize = this.PLUS_BUTTON_SIZE * this.viewport.scale;
+
+            const rightX = screenPos.x + screenWidth - plusSize;
+            const rightY = screenPos.y + screenHeight / 2 - plusSize / 2;
+
+            const leftX = screenPos.x;
+            const leftY = rightY;
+
+            console.log(`Нода: "${el.text}"`);
+            console.log(`Мировые: (${el.x}, ${el.y})`);
+            console.log(`Экранные: (${screenPos.x.toFixed(0)}, ${screenPos.y.toFixed(0)})`);
+            console.log(`Размер экранный: ${screenWidth.toFixed(0)}x${screenHeight.toFixed(0)}`);
+            console.log(`Кнопка + справа: (${rightX.toFixed(0)}, ${rightY.toFixed(0)}), размер ${plusSize.toFixed(0)}px`);
+            console.log(`Кнопка + слева: (${leftX.toFixed(0)}, ${leftY.toFixed(0)})`);
+            console.log(`Курсор: (${canvasX}, ${canvasY})`);
+
+            // Проверка попадания
+            const inRight = canvasX >= rightX && canvasX <= rightX + plusSize &&
+                canvasY >= rightY && canvasY <= rightY + plusSize;
+
+            const inLeft = canvasX >= leftX && canvasX <= leftX + plusSize &&
+                canvasY >= leftY && canvasY <= leftY + plusSize;
+
+            console.log(`В правой кнопке: ${inRight}`);
+            console.log(`В левой кнопке: ${inLeft}`);
+            console.log(`Результат хит-теста: hoverSide=${hit.hoverSide}`);
+        } else {
+            console.log("Не попал в ноду");
+        }
+    }
+
+
+    drawGrid() {
+        if (!this.gridEnabled || !this.ctx) return;
+
+        const { ctx, canvas, viewport } = this;
+        const { width, height } = canvas;
+
+        // Calculate visible grid area in world coordinates
+        const worldTopLeft = this.screenToWorld(0, 0);
+        const worldBottomRight = this.screenToWorld(width, height);
+
+        // Grid size in world units
+        const gridWorldSize = this.gridSize;
+
+        // Calculate start positions in world coordinates
+        const startX = Math.floor(worldTopLeft.x / gridWorldSize) * gridWorldSize;
+        const startY = Math.floor(worldTopLeft.y / gridWorldSize) * gridWorldSize;
+        const endX = Math.ceil(worldBottomRight.x / gridWorldSize) * gridWorldSize;
+        const endY = Math.ceil(worldBottomRight.y / gridWorldSize) * gridWorldSize;
+
+        // Set grid style
+        ctx.strokeStyle = this.gridColor;
+        ctx.lineWidth = 1;
+        ctx.globalAlpha = this.gridOpacity;
+
+        // Draw vertical lines
+        for (let x = startX; x <= endX; x += gridWorldSize) {
+            const screenX = this.worldToScreen(x, 0).x;
+            ctx.beginPath();
+            ctx.moveTo(screenX, 0);
+            ctx.lineTo(screenX, height);
+            ctx.stroke();
+        }
+
+        // Draw horizontal lines
+        for (let y = startY; y <= endY; y += gridWorldSize) {
+            const screenY = this.worldToScreen(0, y).y;
+            ctx.beginPath();
+            ctx.moveTo(0, screenY);
+            ctx.lineTo(width, screenY);
+            ctx.stroke();
+        }
+
+        // Draw dots at intersections (optional)
+        ctx.fillStyle = this.gridColor;
+        ctx.globalAlpha = this.gridOpacity * 0.7;
+
+        for (let x = startX; x <= endX; x += gridWorldSize) {
+            for (let y = startY; y <= endY; y += gridWorldSize) {
+                const screenPos = this.worldToScreen(x, y);
+                ctx.beginPath();
+                ctx.arc(screenPos.x, screenPos.y, 1.5 * viewport.scale, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        ctx.globalAlpha = 1.0;
+    }
+
+
+
+    drawConnections() {
+        const { ctx, viewport } = this;
+
+        for (const element of this.elements.values()) {
+            if (element.type === 'node' && element.parentId) {
+                const parent = this.elements.get(element.parentId);
+                if (!parent) continue;
+
+                const childPos = this.worldToScreen(
+                    element.x + this.NODE_WIDTH / 2,
+                    element.y + this.NODE_HEIGHT / 2
+                );
+                const parentPos = this.worldToScreen(
+                    parent.x + this.NODE_WIDTH / 2,
+                    parent.y + this.NODE_HEIGHT / 2
+                );
+
+                // Line with arrow
+                ctx.beginPath();
+                ctx.moveTo(parentPos.x, parentPos.y);
+                ctx.lineTo(childPos.x, childPos.y);
+                ctx.strokeStyle = '#94a3b8';
+                ctx.lineWidth = 2 * viewport.scale;
+                ctx.stroke();
+
+                // Arrow
+                const angle = Math.atan2(childPos.y - parentPos.y, childPos.x - parentPos.x);
+                const arrowLength = 10 * viewport.scale;
+                const arrowX = childPos.x - arrowLength * Math.cos(angle);
+                const arrowY = childPos.y - arrowLength * Math.sin(angle);
+
+                ctx.beginPath();
+                ctx.moveTo(arrowX, arrowY);
+                ctx.lineTo(
+                    arrowX - arrowLength * Math.cos(angle - Math.PI / 6),
+                    arrowY - arrowLength * Math.sin(angle - Math.PI / 6)
+                );
+                ctx.moveTo(arrowX, arrowY);
+                ctx.lineTo(
+                    arrowX - arrowLength * Math.cos(angle + Math.PI / 6),
+                    arrowY - arrowLength * Math.sin(angle + Math.PI / 6)
+                );
+                ctx.stroke();
+            }
+        }
+    }
+
+    drawNodes() {
+        for (const element of this.elements.values()) {
+            if (element.type === 'node') {
+                this.drawNode(element);
+            }
+        }
+    }
+
+    // ===== ИСПРАВЛЕННЫЙ METОД ОТРИСОВКИ НОДЫ =====
+    drawNode(node) {
+        const { ctx, viewport } = this;
+
+        // КРИТИЧНО: получаем экранные координаты для отрисовки
+        const screenPos = this.worldToScreen(node.x, node.y);
+        const width = this.NODE_WIDTH * viewport.scale;
+        const height = this.NODE_HEIGHT * viewport.scale;
+
+        // Зеленая точка для отладки
+        if (this.debugCoords) {
+            ctx.save();
+            ctx.fillStyle = '#00ff00';
+            ctx.fillRect(screenPos.x - 3, screenPos.y - 3, 6, 6);
+            ctx.restore();
+        }
+
+        // Нода
+        ctx.save();
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.1)';
+        ctx.shadowBlur = 8 * viewport.scale;
+        ctx.shadowOffsetY = 2 * viewport.scale;
+
+        ctx.fillStyle = node.color || '#3b82f6';
+        ctx.fillRect(screenPos.x, screenPos.y, width, height);
+
+        ctx.strokeStyle = node === this.hoveredElement?.element ? '#1d4ed8' : '#2563eb';
+        ctx.lineWidth = 2 * viewport.scale;
+        ctx.strokeRect(screenPos.x, screenPos.y, width, height);
+
+        ctx.restore();
+
+        // Текст
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `${Math.max(12, 14 * viewport.scale)}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        const textX = screenPos.x + width / 2;
+        const textY = screenPos.y + height / 2;
+        ctx.fillText(node.text.substring(0, 20), textX, textY);
+    }
+
+
+    drawPlusButton(element, side) {
+        const { ctx, viewport } = this;
+
+        // Получить экранные координаты ноды
+        const screenPos = this.worldToScreen(element.x, element.y);
+        const width = (element.width || this.NODE_WIDTH) * viewport.scale;
+        const height = (element.height || this.NODE_HEIGHT) * viewport.scale;
+
+        const plusSize = this.PLUS_BUTTON_SIZE * viewport.scale;
+        let plusX, plusY;
+
+        if (side === 'right') {
+            plusX = screenPos.x + width - plusSize;
+        } else { // left
+            plusX = screenPos.x;
+        }
+
+        plusY = screenPos.y + height / 2 - plusSize / 2;
+
+        // Отладочная рамка (показывать всегда если debugCoords)
+        if (this.debugCoords) {
+            ctx.save();
+            ctx.strokeStyle = '#ff0000';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(plusX, plusY, plusSize, plusSize);
+            ctx.fillStyle = '#ff0000';
+            ctx.font = '10px monospace';
+            ctx.fillText(side, plusX + 3, plusY + plusSize - 3);
+            ctx.restore();
+        }
+
+        // Круглая кнопка
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(plusX + plusSize / 2, plusY + plusSize / 2, plusSize / 2, 0, Math.PI * 2);
+        ctx.fillStyle = '#10b981';
+        ctx.fill();
+
+        ctx.strokeStyle = '#047857';
+        ctx.lineWidth = 1 * viewport.scale;
+        ctx.stroke();
+
+        // Знак плюса
+        ctx.fillStyle = '#ffffff';
+        const barWidth = plusSize / 3;
+        const barHeight = plusSize / 2;
+
+        // Горизонтальная черта
+        ctx.fillRect(
+            plusX + plusSize / 2 - barWidth / 2,
+            plusY + plusSize / 4,
+            barWidth,
+            barHeight
+        );
+
+        // Вертикальная черта
+        ctx.fillRect(
+            plusX + plusSize / 4,
+            plusY + plusSize / 2 - barWidth / 2,
+            barHeight,
+            barWidth
+        );
+
+        ctx.restore();
+    }
+
+
+    // ===== INTERACTION HANDLERS =====
+
+    onKeyDown(e) {
+        this.keys.add(e.code);
+
+        if (e.code === 'Space' && !this.isPanning) {
+            this.isPanning = true;
+            this.canvas.style.cursor = 'grab';
+        }
+
+        // Enter for adding child node when focused
+        if (e.code === 'Enter' && this.hoveredElement && !e.altKey) {
+            e.preventDefault();
+            const childId = this.createChildNode(this.hoveredElement.element.id, this.hoverSide || 'right');
+            if (childId) {
+                this.saveToStorage();
+                this.draw();
+            }
+        }
+    }
+
+    onKeyUp(e) {
+        this.keys.delete(e.code);
+
+        if (e.code === 'Space') {
+            this.isPanning = false;
+            this.canvas.style.cursor = 'default';
+        }
+    }
+
+    // ===== ИСПРАВЛЕННЫЙ onMouseDown =====
+    onMouseDown(e) {
+        e.preventDefault();
+
+        const canvasXY = this.getCanvasXY(e.clientX, e.clientY);
+        this.lastMouseScreen = { x: canvasXY.x, y: canvasXY.y };
+        this.lastMouseWorld = this.screenToWorld(canvasXY.x, canvasXY.y);
+
+        console.log(`🖱️ Mouse down: Canvas(${canvasXY.x}, ${canvasXY.y}), World(${this.lastMouseWorld.x.toFixed(0)}, ${this.lastMouseWorld.y.toFixed(0)})`);
+
+        const hit = this.getElementAt(canvasXY.x, canvasXY.y);
+
+        if (e.button === 0) {
+            if (hit && hit.hoverSide) {
+                // Клик по кнопке "+"
+                console.log(`➕ Clicked plus button on side: ${hit.hoverSide}`);
+                const childId = this.createChildNode(hit.element.id, hit.hoverSide);
+                if (childId) {
+                    this.saveToStorage();
+                    this.scheduleRedraw();
+                }
+                return;
+            }
+
+            if (hit) {
+                // Начало перетаскивания ноды
+                this.draggedElement = hit.element;
+                this.dragStart = { x: canvasXY.x, y: canvasXY.y };
+                this.isDragging = true;
+                this.canvas.style.cursor = 'move';
+
+                // КРИТИЧНЫЙ FIX: Сохраняем начальную мировую позицию для корректного смещения детей
+                this._dragStartWorld = { x: hit.element.x, y: hit.element.y };
+
+                console.log(`Dragging node: "${hit.element.text}" from world(${hit.element.x}, ${hit.element.y})`);
+            } else {
+                // Начало панорамирования
+                this.isPanning = true;
+                this.panStart = { x: canvasXY.x, y: canvasXY.y };
+                this.canvas.style.cursor = 'grabbing';
+
+                console.log('Starting pan');
+            }
+        }
+    }
+
+
+
+    onMouseMove(e) {
+        e.preventDefault();
+
+        // Получить координаты мыши относительно canvas
+        const canvasXY = this.getCanvasXY(e.clientX, e.clientY);
+
+        // Сохранить для отладки
+        this.lastMouseScreen = { x: canvasXY.x, y: canvasXY.y };
+        this.lastMouseWorld = this.screenToWorld(canvasXY.x, canvasXY.y);
+
+        // Проверить ховер (результат сохраняется в this.hoveredElement и this.hoverSide)
+        const hit = this.getElementAt(canvasXY.x, canvasXY.y);
+
+        // Обновить ховер и курсор
+        if (hit && hit.hoverSide) {
+            this.hoveredElement = hit;
+            this.hoverSide = hit.hoverSide;
+            this.canvas.style.cursor = 'pointer';
+        } else if (hit) {
+            this.hoveredElement = hit;
+            this.hoverSide = null;
+            this.canvas.style.cursor = this.isPanning ? 'grabbing' : 'move';
+        } else {
+            this.hoveredElement = null;
+            this.hoverSide = null;
+            this.canvas.style.cursor = this.isPanning ? 'grabbing' : 'grab';
+        }
+
+        // Обработка перетаскивания
+        if (this.isDragging && this.draggedElement) {
+            // КРИТИЧНЫЙ FIX: Перемещаем левый верхний угол ноды под курсор
+            const currentWorld = this.screenToWorld(canvasXY.x, canvasXY.y);
+
+            this.draggedElement.x = currentWorld.x;
+            this.draggedElement.y = currentWorld.y;
+            this.draggedElement.updatedAt = Date.now();
+
+            console.log(`[Drag] Нода "${this.draggedElement.text}" moved to world(${currentWorld.x.toFixed(1)}, ${currentWorld.y.toFixed(1)})`);
+
+            this.scheduleRedraw();
+        }
+
+        // Обработка панорамирования
+        if (this.isPanning) {
+            const dx = canvasXY.x - this.panStart.x;
+            const dy = canvasXY.y - this.panStart.y;
+
+            this.viewport.x += dx;
+            this.viewport.y += dy;
+
+            this.panStart = { x: canvasXY.x, y: canvasXY.y };
+
+            this.scheduleRedraw();
+        }
+    }
+
+
+
+    onMouseUp(e) {
+        if (e.button === 0) { // Левая кнопка мыши
+            if (this.isDragging && this.draggedElement) {
+                console.log(`Node ${this.draggedElement.text} dropped at world(${this.draggedElement.x.toFixed(1)}, ${this.draggedElement.y.toFixed(1)})`);
+                this.saveToStorage();
+            }
+
+            this.isDragging = false;
+            this.isPanning = false;
+            this.draggedElement = null;
+
+            // Восстановить курсор
+            const hit = this.getElementAt(this.lastMouseScreen.x, this.lastMouseScreen.y);
+            if (hit && hit.hoverSide) {
+                this.canvas.style.cursor = 'pointer';
+            } else if (hit) {
+                this.canvas.style.cursor = 'move';
+            } else {
+                this.canvas.style.cursor = 'grab';
+            }
+        }
+    }
+
+
+    // FIX: ИСПРАВИТЬ обработку wheel (zoom)
+    onWheel(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const rect = this.canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        // Сохраняем мировую позицию под курсором ДО зума
+        const worldBefore = this.screenToWorld(x, y);
+
+        // Определяем направление и коэффициент
+        const delta = e.deltaY;
+        const zoomFactor = delta > 0 ? 0.9 : 1.1;
+        const newScale = this.viewport.scale * zoomFactor;
+
+        // Ограничиваем зум
+        this.viewport.scale = Math.max(0.1, Math.min(5, newScale));
+
+        // FIX: Вычисляем мировую позицию после зума через ту же точку
+        // Новая формула: корректируем viewport так, чтобы worldBefore осталась под курсором
+        this.viewport.x = x - worldBefore.x * this.viewport.scale;
+        this.viewport.y = y - worldBefore.y * this.viewport.scale;
+
+        // Принудительная перерисовка
+        this.scheduleRedraw();
+        this.updateStats();
+
+        // Отладочная информация
+        if (this.debugCoords) {
+            console.log(`Zoom: factor=${zoomFactor}, scale=${this.viewport.scale.toFixed(2)}, delta=${delta}`);
+        }
+    }
+
+
+    onContextMenu(e) {
+        // КРИТИЧНЫЙ FIX: предотвращение на всех уровнях
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+
+        // Для старых браузеров
+        if (e.cancelable) e.preventDefault();
+        e.returnValue = false;
+
+        const rect = this.canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        console.log(`Context menu at: screen(${x}, ${y})`);
+
+        const hit = this.getElementAt(x, y);
+
+        if (hit && hit.element) {
+            this.showNodeContextMenu(x, y, hit.element);
+        } else {
+            this.showCanvasContextMenu(x, y);
+        }
+
+        return false;
+    }
+
+    // ===== NODE MANAGEMENT =====
+
+    // ===== ИСПРАВЛЕННЫЙ createNodeAt =====
+    createNodeAt(clientX, clientY, text = 'New node', parentId = null) {
+        const canvasXY = this.getCanvasXY(clientX, clientY);
+
+        // КРИТИЧНЫЙ FIX: Преобразование canvas -> world по новой формуле
+        const worldX = canvasXY.x - this.viewport.x;
+        const worldY = canvasXY.y - this.viewport.y;
+
+        console.log(`[Miro] Создание ноды (FIX координатной системы):`);
+        console.log(`  Canvas клик: (${canvasXY.x}, ${canvasXY.y})`);
+        console.log(`  Viewport смещение: (${this.viewport.x}, ${this.viewport.y})`);
+        console.log(`  Мировые координаты клика: (${worldX}, ${worldY})`);
+
+        const id = this.nextId++;
+        const node = {
+            id,
+            type: 'node',
+            x: worldX,      // Левый верхний угол под курсором
+            y: worldY,
+            width: this.NODE_WIDTH,
+            height: this.NODE_HEIGHT,
+            text: text || `Node ${id}`,
+            color: this.getNodeColor(parentId),
+            parentId,
+            childrenIds: [],
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+        };
+
+        this.elements.set(id, node);
+
+        // Проверка: экранные координаты должны быть теми же, где кликнули!
+        const screenPos = this.worldToScreen(node.x, node.y);
+        console.log(`  Экранные координаты ноды: (${screenPos.x}, ${screenPos.y})`);
+        console.log(`  Ожидаемые: те же как клик canvas (${canvasXY.x}, ${canvasXY.y})`);
+
+        // Проверка совпадения
+        const diffX = Math.abs(screenPos.x - canvasXY.x);
+        const diffY = Math.abs(screenPos.y - canvasXY.y);
+        console.log(`  Разница: (${diffX}, ${diffY})`);
+
+        if (parentId) {
+            const parent = this.elements.get(parentId);
+            if (parent) parent.childrenIds.push(id);
+        }
+
+        this.saveToStorage();
+        this.scheduleRedraw();
+        this.updateStats();
+
+        return id;
+    }
+
+
+
+    createChildNode(parentId, side = 'right') {
+        const parent = this.elements.get(parentId);
+        if (!parent) return null;
+
+        const offsetX = side === 'right' ? this.CHILD_OFFSET_X : -this.CHILD_OFFSET_X;
+
+        const id = this.nextId++;
+        const node = {
+            id,
+            type: 'node',
+            x: parent.x + offsetX,
+            y: parent.y + (parent.childrenIds.length * this.CHILD_OFFSET_Y),
+            width: this.NODE_WIDTH,
+            height: this.NODE_HEIGHT,
+            text: `Child ${id}`,
+            color: this.getNodeColor(parentId),
+            parentId,
+            childrenIds: [],
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+        };
+
+        this.elements.set(id, node);
+        parent.childrenIds.push(id);
+
+        return id;
+    }
+
+    getNodeColor(parentId) {
+        if (!parentId) return '#3b82f6'; // Blue for root
+
+        const colors = [
+            '#10b981', // Green
+            '#f59e0b', // Orange
+            '#ef4444', // Red
+            '#8b5cf6', // Purple
+            '#ec4899'  // Pink
+        ];
+
+        const parent = this.elements.get(parentId);
+        if (!parent) return colors[0];
+
+        return colors[parent.childrenIds.length % colors.length];
+    }
+
+    moveChildrenWithParent(parentId, dx, dy) {
+        const parent = this.elements.get(parentId);
+        if (!parent) return;
+
+        const moveRecursive = (nodeId) => {
+            const node = this.elements.get(nodeId);
+            if (!node) return;
+
+            node.x += dx;
+            node.y += dy;
+            node.updatedAt = Date.now();
+
+            for (const childId of node.childrenIds) {
+                moveRecursive(childId);
+            }
+        };
+
+        for (const childId of parent.childrenIds) {
+            moveRecursive(childId);
+        }
+    }
+
+    // ===== CONTEXT MENUS =====
+
+    // FIX: ИСПРАВИТЬ контекстное меню
+    showCanvasContextMenu(x, y) {
+        const menu = document.getElementById('miroContextMenu');
+        if (!menu) return;
+
+        // Очистить меню
+        menu.innerHTML = '';
+
+        // Вычислить мировые координаты для отладки
+        const worldPos = this.screenToWorld(x, y);
+
+        menu.innerHTML = `
+            <div>
+        <div class="px-4 py-2 font-semibold text-gray-700 border-b bg-gray-50">
+            Canvas Menu
+        </div>
+        <button data-action="test-center-click" 
+                class="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2">
+            <span class="text-lg">🎯</span> Test: Create at exact center
+        </button>
+        <button data-action="create-node" 
+                class="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2">
+            <span class="text-lg">＋</span> Create node here
+        </button>
+        <button data-action="reset-vars" 
+                class="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2">
+            <span class="text-lg">🔄</span> Reset viewport to (0,0,1)
+        </button>
+        <div class="divider"></div>
+        <button data-action="debug-coords" 
+                class="w-full text-left px-4 py-2 hover:bg-gray-100 text-xs text-gray-500">
+            🐛 Debug coordinates: ${this.debugCoords ? 'ON' : 'OFF'}
+        </button>
+
+        <button data-action="test-center-node" 
+                class="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2">
+            <span class="text-lg">🧪</span> Test: Create node at exact center
+        </button>
+
+        <button data-action="test-coord-system" 
+        class="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2">
+    <span class="text-lg">📊</span> Test: Debug coordinate system
+</button>
+    </div>
+        `;
+
+        // Позиционировать меню
+        menu.style.left = `${x}px`;
+        menu.style.top = `${y}px`;
+        menu.classList.remove('hidden');
+
+        menu.querySelector('[data-action="test-center-node"]').onclick = (e) => {
+            e.stopPropagation();
+
+            // Создать ноду точно в центре экрана (0,0 мировых)
+            const centerX = this.canvas.width / 2;
+            const centerY = this.canvas.height / 2;
+
+            const worldPos = this.screenToWorld(centerX, centerY);
+            console.log(`TEST: Центр экрана в мировых координатах: (${worldPos.x}, ${worldPos.y})`);
+
+            const id = this.nextId++;
+            const node = {
+                id,
+                type: 'node',
+                x: 0,      // точно в центре (0,0)
+                y: 0,      // точно в центре (0,0)
+                width: this.NODE_WIDTH,
+                height: this.NODE_HEIGHT,
+                text: `CENTER TEST ${id}`,
+                color: '#ff0000',
+                parentId: null,
+                childrenIds: [],
+                createdAt: Date.now(),
+                updatedAt: Date.now()
+            };
+
+            this.elements.set(id, node);
+            this.saveToStorage();
+            this.draw();
+
+            const screenPos = this.worldToScreen(0, 0);
+            console.log(`TEST: Экранные координаты ноды в центре: (${screenPos.x}, ${screenPos.y})`);
+
+            menu.classList.add('hidden');
+        };
+
+        // Новая тестовая кнопка
+        menu.querySelector('[data-action="test-center-click"]').onclick = (e) => {
+            e.stopPropagation();
+            // Создать ноду точно в центре экрана
+            const centerX = this.canvas.width / 2;
+            const centerY = this.canvas.height / 2;
+
+            // Имитируем клик в точный центр
+            this.lastMouseScreen = { x: centerX, y: centerY };
+
+            const worldPos = this.screenToWorld(centerX, centerY);
+            console.log(`ТЕСТ: Создание в точном центре:`);
+            console.log(`Canvas: (${centerX}, ${centerY})`);
+            console.log(`Viewport: (${this.viewport.x}, ${this.viewport.y})`);
+            console.log(`World: (${worldPos.x}, ${worldPos.y})`);
+
+            const id = this.nextId++;
+            const node = {
+                id,
+                type: 'node',
+                x: -this.NODE_WIDTH / 2, // гарантированно в (0,0)
+                y: -this.NODE_HEIGHT / 2,
+                width: this.NODE_WIDTH,
+                height: this.NODE_HEIGHT,
+                text: `CENTER ${id}`,
+                color: '#ff0000', // Красная для теста
+                parentId: null,
+                childrenIds: [],
+                createdAt: Date.now(),
+                updatedAt: Date.now()
+            };
+
+            this.elements.set(id, node);
+            this.saveToStorage();
+            this.draw();
+            menu.classList.add('hidden');
+        };
+
+        // Reset vars button
+        menu.querySelector('[data-action="reset-vars"]').onclick = (e) => {
+            e.stopPropagation();
+            this.viewport = { x: 0, y: 0, scale: 1 };
+            this.scheduleRedraw();
+            console.log(`Viewport сброшен к (0,0,1)`);
+            menu.classList.add('hidden');
+        };
+
+        // Обработчики
+        setTimeout(() => {
+            menu.querySelector('[data-action="create-node"]').onclick = (e) => {
+                e.stopPropagation();
+                const text = prompt('Node text:', 'New idea');
+                if (text !== null && text.trim()) {
+                    this.createNodeAt(x, y, text.trim());
+                }
+                menu.classList.add('hidden');
+            };
+
+            menu.querySelector('[data-action="center-view"]').onclick = (e) => {
+                e.stopPropagation();
+                this.centerView();
+                menu.classList.add('hidden');
+            };
+
+            menu.querySelector('[data-action="reset-zoom"]').onclick = (e) => {
+                e.stopPropagation();
+                this.viewport.scale = 1;
+                this.scheduleRedraw();
+                this.updateStats();
+                menu.classList.add('hidden');
+            };
+
+            menu.querySelector('[data-action="debug-coords"]').onclick = (e) => {
+                e.stopPropagation();
+                this.debugCoords = !this.debugCoords;
+                console.log(`Debug coordinates: ${this.debugCoords ? 'ON' : 'OFF'}`);
+                menu.classList.add('hidden');
+            };
+        }, 0);
+
+        // Закрыть меню при клике снаружи
+        const closeMenu = (e) => {
+            if (!menu.contains(e.target)) {
+                menu.classList.add('hidden');
+                document.removeEventListener('click', closeMenu);
+                document.removeEventListener('contextmenu', closeMenu);
+            }
+        };
+
+        setTimeout(() => {
+            document.addEventListener('click', closeMenu);
+            document.addEventListener('contextmenu', closeMenu);
+        }, 10);
+    }
+
+    showNodeContextMenu(x, y, node) {
+        const menu = document.getElementById('miroContextMenu');
+        if (!menu) return;
+
+        menu.innerHTML = `
+        <div class="w-[220px] py-2">
+            <div class="px-4 py-2 font-semibold text-gray-700 border-b">Node: "${node.text.substring(0, 20)}"</div>
+            <button class="w-full text-left px-4 py-2 hover:bg-gray-100" data-action="edit-text">✏️ Edit text</button>
+            <button class="w-full text-left px-4 py-2 hover:bg-gray-100" data-action="add-child-left">⬅️ Add left</button>
+            <button class="w-full text-left px-4 py-2 hover:bg-gray-100" data-action="add-child-right">➡️ Add right</button>
+            <button class="w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600" data-action="delete-node">🗑️ Delete</button>
+            ${node.knowledgeId ? `<button class="w-full text-left px-4 py-2 hover:bg-gray-100 text-blue-600" data-action="view-knowledge">🧠 View Knowledge</button>` : ''}
+        </div>
+    `;
+
+        // КРИТИЧНО: позиционирование относительно canvas контейнера
+        const container = this.canvas.parentElement;
+        const containerRect = container.getBoundingClientRect();
+
+        menu.style.left = `${x + containerRect.left}px`;
+        menu.style.top = `${y + containerRect.top}px`;
+        menu.style.position = 'fixed';
+        menu.classList.remove('hidden');
+
+        // Handlers
+        menu.querySelector('[data-action="edit-text"]').onclick = () => {
+            const text = prompt('New text:', node.text);
+            if (text !== null && text.trim()) {
+                node.text = text.trim();
+                node.updatedAt = Date.now();
+                this.saveToStorage();
+                this.draw();
+            }
+            menu.classList.add('hidden');
+        };
+
+        menu.querySelector('[data-action="add-child-left"]').onclick = () => {
+            this.createChildNode(node.id, 'left');
+            this.saveToStorage();
+            this.draw();
+            menu.classList.add('hidden');
+        };
+        menu.querySelector('[data-action="test-coord-system"]').onclick = (e) => {
+            e.stopPropagation();
+
+            console.log('=== TEST COORDINATE SYSTEM ===');
+            console.log(`Canvas: ${this.canvas.width}x${this.canvas.height}`);
+            console.log(`Viewport: (${this.viewport.x}, ${this.viewport.y}), scale=${this.viewport.scale}`);
+
+            // Тест 1: Центр canvas
+            const centerCanvas = { x: this.canvas.width / 2, y: this.canvas.height / 2 };
+            const centerWorld = this.screenToWorld(centerCanvas.x, centerCanvas.y);
+            const centerScreen = this.worldToScreen(centerWorld.x, centerWorld.y);
+
+            console.log(`Test 1: Центр canvas`);
+            console.log(`  Canvas: (${centerCanvas.x}, ${centerCanvas.y})`);
+            console.log(`  World: (${centerWorld.x}, ${centerWorld.y})`);
+            console.log(`  Screen обратно: (${centerScreen.x}, ${centerScreen.y})`);
+            console.log(`  Diff: (${centerScreen.x - centerCanvas.x}, ${centerScreen.y - centerCanvas.y})`);
+
+            // Тест 2: Клик в (0, 0) мировых
+            const zeroCanvas = this.worldToScreen(0, 0);
+            console.log(`Test 2: Мировые (0,0) на canvas`);
+            console.log(`  Canvas: (${zeroCanvas.x}, ${zeroCanvas.y})`);
+
+            menu.classList.add('hidden');
+        };
+
+        menu.querySelector('[data-action="add-child-right"]').onclick = () => {
+            this.createChildNode(node.id, 'right');
+            this.saveToStorage();
+            this.draw();
+            menu.classList.add('hidden');
+        };
+
+        menu.querySelector('[data-action="delete-node"]').onclick = () => {
+            if (confirm(`Delete node "${node.text}" and all children?`)) {
+                this.deleteNodeRecursive(node.id);
+                this.saveToStorage();
+                this.draw();
+            }
+            menu.classList.add('hidden');
+        };
+
+        if (node.knowledgeId) {
+            menu.querySelector('[data-action="view-knowledge"]').onclick = () => {
+                UI.switchView('view-knowledge-avatar');
+                menu.classList.add('hidden');
+            };
+        }
+
+        // Close on click outside
+        const closeMenu = (e) => {
+            if (!menu.contains(e.target)) {
+                menu.classList.add('hidden');
+                document.removeEventListener('click', closeMenu);
+                document.removeEventListener('contextmenu', closeMenu);
+            }
+        };
+
+        setTimeout(() => {
+            document.addEventListener('click', closeMenu);
+            document.addEventListener('contextmenu', closeMenu);
+        }, 10);
+    }
+
+    deleteNodeRecursive(nodeId) {
+        const node = this.elements.get(nodeId);
+        if (!node) return;
+
+        // Delete children recursively
+        for (const childId of node.childrenIds) {
+            this.deleteNodeRecursive(childId);
+        }
+
+        // Remove from parent
+        if (node.parentId) {
+            const parent = this.elements.get(node.parentId);
+            if (parent) {
+                parent.childrenIds = parent.childrenIds.filter(id => id !== nodeId);
+            }
+        }
+
+        this.elements.delete(nodeId);
+    }
+
+    // ===== STORAGE =====
+
+    saveToStorage() {
+        const data = {
+            elements: Array.from(this.elements.entries()),
+            nextId: this.nextId,
+            viewport: this.viewport,
+            version: '1.0',
+            savedAt: Date.now()
+        };
+
+        localStorage.setItem('miroBoard', JSON.stringify(data));
+    }
+
+    loadFromStorage() {
+        try {
+            const raw = localStorage.getItem('miroBoard');
+            if (!raw) {
+                console.log('[Miro] No saved board, using defaults');
+                return;
+            }
+
+            const data = JSON.parse(raw);
+            if (!data || !data.elements) {
+                console.warn('[Miro] Invalid board data, using defaults');
+                return;
+            }
+
+            this.elements = new Map(data.elements);
+            this.nextId = data.nextId || 1;
+
+            // FIX: Валидация viewport
+            if (data.viewport &&
+                typeof data.viewport.x === 'number' &&
+                typeof data.viewport.y === 'number' &&
+                typeof data.viewport.scale === 'number') {
+                this.viewport = data.viewport;
+                console.log(`[Miro] Загружен старый viewport, сохранен как новый: (${this.viewport.x}, ${this.viewport.y})`);
+            } else {
+                console.log('[Miro] Invalid viewport, using defaults');
+                this.viewport = { x: 0, y: 0, scale: 1 };
+            }
+
+            console.log(`[Miro] Loaded ${this.elements.size} elements`);
+
+        } catch (e) {
+            console.error('[Miro] Storage load error', e);
+            // При ошибке используем безопасные значения по умолчанию
+            this.elements.clear();
+            this.nextId = 1;
+            this.viewport = { x: 0, y: 0, scale: 1 };
+        }
+    }
+
+
+    /**
+ * Экстренный сброс всех проблем с координатами
+ */
+    emergencyReset() {
+        console.log('[Miro] EMERGENCY RESET - полный сброс состояния');
+
+        // 1. Останавливаем анимацию
+        this.stopAnimation();
+
+        // 2. Сбрасываем viewport
+        if (this.canvas) {
+            this.viewport = {
+                x: this.canvas.width / 2,
+                y: this.canvas.height / 2,
+                scale: 1
+            };
+        } else {
+            this.viewport = { x: 0, y: 0, scale: 1 };
+        }
+        this._viewportSynced = true;
+
+        // 3. Сбрасываем состояние интеракции
+        this.isDragging = false;
+        this.isPanning = false;
+        this.draggedElement = null;
+        this.hoveredElement = null;
+        this.hoverSide = null;
+
+        // 4. Очищаем canvas
+        if (this.canvas && this.ctx) {
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        }
+
+        // 5. Перезапускаем анимацию
+        this.startAnimation();
+
+        // 6. Принудительная перерисовка
+        setTimeout(() => {
+            this.scheduleRedraw();
+            this.updateStats();
+        }, 50);
+
+        console.log('[Miro] Emergency reset complete');
+    }
+
+    // ===== PUBLIC METHODS =====
+
+    clearBoard() {
+        if (!confirm('Clear entire board? This cannot be undone.')) return;
+
+        this.elements.clear();
+        this.nextId = 1;
+        this.viewport = { x: 0, y: 0, scale: 1 };
+        this.saveToStorage();
+        this.draw();
+
+        UI.showNotification('Board cleared');
+    }
+
+    exportJSON() {
+        const data = {
+            elements: Array.from(this.elements.values()),
+            viewport: this.viewport,
+            exportedAt: Date.now(),
+            version: '1.0'
+        };
+
+        const json = JSON.stringify(data, null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `miro-board_${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        URL.revokeObjectURL(url);
+        UI.showNotification('Board exported to JSON');
+    }
+
+    /**
+     * Deinitialize (when tab is hidden)
+     */
+    deinit() {
+        this.stopAnimation();
+        this.removeEventListeners();
+        console.log('MiroController: Deinitialized');
+    }
+
+
+
+
+    // Add to MiroController class after existing methods
+
+    /**
+     * Import JSON data into the board
+     */
+    importJSON(jsonString) {
+        try {
+            const data = JSON.parse(jsonString);
+
+            if (!data.elements || !Array.isArray(data.elements)) {
+                throw new Error('Invalid Miro board format');
+            }
+
+            // Clear existing board
+            this.elements.clear();
+
+            // Import elements
+            data.elements.forEach(element => {
+                this.elements.set(element.id, element);
+            });
+
+            // Update nextId
+            if (data.nextId) this.nextId = data.nextId;
+
+            // Restore viewport if available
+            if (data.viewport) {
+                this.viewport = data.viewport;
+            }
+
+            this.saveToStorage();
+            this.draw();
+
+            return { success: true, count: this.elements.size };
+        } catch (error) {
+            console.error('MiroController: Import error', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+
+    /**
+ * Деинициализация (когда вьюха скрывается)
+ */
+    deinit() {
+        console.log('MiroController: Deinitializing...');
+
+        // 1. Остановить анимацию
+        this.stopAnimation();
+
+        // 2. Удалить все обработчики
+        this.removeEventListeners();
+
+        // 3. Очистить canvas
+        if (this.canvas) {
+            this.ctx?.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        }
+
+        // 4. Сбросить состояние
+        this.isDragging = false;
+        this.isPanning = false;
+        this.draggedElement = null;
+        this.hoveredElement = null;
+        this.hoverSide = null;
+
+        console.log('MiroController: Deinitialized');
+    }
+
+    /**
+     * Add knowledge node from knowledge unit
+     */
+    addKnowledgeNode(knowledgeUnit, position = null) {
+        if (!knowledgeUnit || !knowledgeUnit.id) return null;
+
+        const worldPos = position || {
+            x: Math.random() * 1000 - 500,
+            y: Math.random() * 800 - 400
+        };
+
+        const id = this.nextId++;
+
+        const node = {
+            id,
+            type: 'knowledge-node',
+            x: worldPos.x,
+            y: worldPos.y,
+            width: this.NODE_WIDTH,
+            height: this.NODE_HEIGHT,
+            text: knowledgeUnit.title,
+            description: knowledgeUnit.description,
+            color: this.getKnowledgeNodeColor(knowledgeUnit.type),
+            knowledgeId: knowledgeUnit.id,
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+        };
+
+        this.elements.set(id, node);
+        this.saveToStorage();
+        this.draw();
+
+        return id;
+    }
+
+    /**
+     * Get color based on knowledge type
+     */
+    getKnowledgeNodeColor(type) {
+        const colors = {
+            'concept': '#3b82f6',    // Blue
+            'fact': '#10b981',       // Green
+            'procedure': '#f59e0b',  // Orange
+            'default': '#8b5cf6'     // Purple
+        };
+
+        return colors[type] || colors.default;
+    }
+
+    /**
+     * Update statistics display
+     */
+    updateStats() {
+        const nodeCount = Array.from(this.elements.values())
+            .filter(el => el.type === 'node' || el.type === 'knowledge-node').length;
+
+        const linkCount = Array.from(this.elements.values())
+            .filter(el => el.type === 'node' || el.type === 'knowledge-node')
+            .filter(el => el.parentId).length;
+
+        // Update UI elements
+        const nodeEl = document.getElementById('miroNodeCount');
+        const linkEl = document.getElementById('miroLinkCount');
+        const zoomEl = document.getElementById('miroZoomLevel');
+        const posEl = document.getElementById('miroViewportPos');
+
+        if (nodeEl) nodeEl.textContent = nodeCount;
+        if (linkEl) linkEl.textContent = linkCount;
+        if (zoomEl) zoomEl.textContent = `${Math.round(this.viewport.scale * 100)}%`;
+        if (posEl) posEl.textContent = `${Math.round(this.viewport.x)},${Math.round(this.viewport.y)}`;
+    }
+
+    // ===== ПРОСТОЙ centerView =====
+    /**
+ * Центрирует viewport на мировых координатах (0,0)
+ */
+    centerView() {
+        if (!this.canvas) return;
+
+        // КРИТИЧНЫЙ FIX: Viewport должен быть в центре canvas
+        this.viewport.x = this.canvas.width / 2;
+        this.viewport.y = this.canvas.height / 2;
+        this.viewport.scale = 1;
+
+        console.log(`🎯 Centered viewport: canvas смещение (${this.viewport.x}, ${this.viewport.y})`);
+        console.log(`  Мировые (0,0) будут в центре canvas`);
+
+        this.scheduleRedraw();
+        this.updateStats();
+    }
+
+
+
+    /**
+     * Show edit dialog for node
+     */
+    showEditDialog(node) {
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50';
+
+        modal.innerHTML = `
+        <div class="bg-white rounded-xl p-6 w-96 shadow-2xl">
+            <h3 class="text-lg font-bold mb-4">Edit Node</h3>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Text</label>
+                    <input type="text" id="editNodeText" 
+                           class="w-full border rounded-lg p-2"
+                           value="${node.text || ''}">
+                </div>
+                
+                ${node.description ? `
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                    <textarea id="editNodeDesc" 
+                              class="w-full border rounded-lg p-2 h-24"
+                              placeholder="Optional description">${node.description || ''}</textarea>
+                </div>` : ''}
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Color</label>
+                    <div class="flex gap-2 flex-wrap">
+                        ${['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'].map(color => `
+                            <button class="w-8 h-8 rounded-full border-2 ${node.color === color ? 'border-black' : 'border-transparent'}"
+                                    style="background-color: ${color}"
+                                    onclick="this.closest('.fixed').querySelector('#editNodeColor').value = '${color}'; this.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('border-black')); this.classList.add('border-black')">
+                            </button>
+                        `).join('')}
+                        <input type="hidden" id="editNodeColor" value="${node.color || '#3b82f6'}">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex justify-end gap-2 mt-6">
+                <button onclick="this.closest('.fixed').remove()"
+                        class="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200">
+                    Cancel
+                </button>
+                <button id="saveNodeEdit"
+                        class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+                    Save
+                </button>
+            </div>
+        </div>
+    `;
+
+        document.body.appendChild(modal);
+
+        // Save handler
+        modal.querySelector('#saveNodeEdit').onclick = () => {
+            const text = modal.querySelector('#editNodeText').value.trim();
+            const desc = modal.querySelector('#editNodeDesc')?.value.trim();
+            const color = modal.querySelector('#editNodeColor').value;
+
+            if (text) {
+                node.text = text;
+                if (desc !== undefined) node.description = desc;
+                node.color = color;
+                node.updatedAt = Date.now();
+
+                this.saveToStorage();
+                this.draw();
+                this.updateStats();
+            }
+
+            modal.remove();
+        };
+
+        // Close on click outside
+        modal.onclick = (e) => {
+            if (e.target === modal) modal.remove();
+        };
+    }
+
+    /**
+     * Enhanced context menu with more options
+     */
+    showCanvasContextMenu(x, y) {
+        const menu = document.getElementById('miroContextMenu');
+        if (!menu) return;
+
+        menu.innerHTML = `
+        <div class="w-[220px] py-2">
+            <div class="px-4 py-2 font-semibold text-gray-700 border-b">Board Actions</div>
+            
+            <button class="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2" data-action="create-node">
+                <span class="text-lg">＋</span> Create node
+            </button>
+            
+            <button class="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2" data-action="center-view">
+                <span class="text-lg">🎯</span> Center view
+            </button>
+            
+            <button class="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2" data-action="reset-zoom">
+                <span class="text-lg">🔍</span> Reset zoom
+            </button>
+            
+            <button class="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2" data-action="add-knowledge">
+                <span class="text-lg">🧠</span> Add from Knowledge
+            </button>
+            
+            <div class="border-t my-2"></div>
+            
+            <button class="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-600" data-action="show-help">
+                📚 Help & Shortcuts
+            </button>
+        </div>
+    `;
+
+        menu.style.left = `${x}px`;
+        menu.style.top = `${y}px`;
+        menu.classList.remove('hidden');
+
+        // Handlers
+        menu.querySelector('[data-action="create-node"]').onclick = () => {
+            const text = prompt('Node text:', 'New idea');
+            if (text !== null) {
+                this.createNodeAt(x, y, text);
+                this.saveToStorage();
+                this.draw();
+                this.updateStats();
+            }
+            menu.classList.add('hidden');
+        };
+
+        menu.querySelector('[data-action="center-view"]').onclick = () => {
+            this.centerView();
+            menu.classList.add('hidden');
+        };
+
+        menu.querySelector('[data-action="reset-zoom"]').onclick = () => {
+            this.viewport.scale = 1;
+            this.draw();
+            menu.classList.add('hidden');
+        };
+
+        menu.querySelector('[data-action="add-knowledge"]').onclick = () => {
+            this.showKnowledgeSelector(x, y);
+            menu.classList.add('hidden');
+        };
+
+        menu.querySelector('[data-action="show-help"]').onclick = () => {
+            this.showHelpModal();
+            menu.classList.add('hidden');
+        };
+
+        // Close on click outside
+        const closeMenu = (e) => {
+            if (!menu.contains(e.target)) {
+                menu.classList.add('hidden');
+                document.removeEventListener('click', closeMenu);
+            }
+        };
+
+        setTimeout(() => document.addEventListener('click', closeMenu), 10);
+    }
+
+
+
+    /**
+ * Show knowledge selector modal
+ */
+    showKnowledgeSelector(x, y) {
+        const knowledgeUnits = Store.data.cognitive.knowledgeUnits || [];
+
+        if (knowledgeUnits.length === 0) {
+            UI.showNotification('No knowledge units found. Try AI analysis first.');
+            return;
+        }
+
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50';
+
+        modal.innerHTML = `
+        <div class="bg-white rounded-xl p-6 w-[600px] max-h-[80vh] flex flex-col shadow-2xl">
+            <h3 class="text-lg font-bold mb-4">Add Knowledge to Canvas</h3>
+            
+            <div class="flex-1 overflow-y-auto mb-4">
+                <div class="space-y-2">
+                    ${knowledgeUnits.map((unit, index) => `
+                        <div class="p-3 border rounded-lg hover:bg-gray-50 cursor-pointer flex items-center gap-3"
+                             onclick="this.querySelector('input').checked = !this.querySelector('input').checked">
+                            <input type="checkbox" id="knowledge_${index}" class="w-4 h-4">
+                            <div class="flex-1">
+                                <div class="font-medium">${unit.title}</div>
+                                <div class="text-sm text-gray-500 truncate">${unit.description || 'No description'}</div>
+                                <div class="text-xs text-gray-400 mt-1">Type: ${unit.type} | Topic: ${unit.topic || 'N/A'}</div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+            
+            <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-500" id="selectedCount">0 selected</span>
+                <div class="flex gap-2">
+                    <button onclick="this.closest('.fixed').remove()"
+                            class="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200">
+                        Cancel
+                    </button>
+                    <button id="addSelectedKnowledge"
+                            class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+                        Add Selected
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+        document.body.appendChild(modal);
+
+        // Update selected count
+        const updateCount = () => {
+            const count = modal.querySelectorAll('input:checked').length;
+            modal.querySelector('#selectedCount').textContent = `${count} selected`;
+        };
+
+        modal.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+            cb.onchange = updateCount;
+        });
+
+        // Add selected handler
+        modal.querySelector('#addSelectedKnowledge').onclick = () => {
+            const selected = knowledgeUnits.filter((_, index) =>
+                modal.querySelector(`#knowledge_${index}`)?.checked
+            );
+
+            if (selected.length === 0) {
+                UI.showNotification('Please select at least one knowledge unit');
+                return;
+            }
+
+            // Add to canvas in a grid pattern
+            selected.forEach((unit, index) => {
+                const col = index % 3;
+                const row = Math.floor(index / 3);
+
+                const worldPos = this.screenToWorld(x + col * 220, y + row * 160);
+                this.addKnowledgeNode(unit, worldPos);
+            });
+
+            UI.showNotification(`Added ${selected.length} knowledge nodes to canvas`);
+            modal.remove();
+        };
+
+        // Close on click outside
+        modal.onclick = (e) => {
+            if (e.target === modal) modal.remove();
+        };
+    }
+
+
+    /**
+ * Получает координаты мыши относительно canvas элемента
+ */
+    getCanvasXY(clientX, clientY) {
+        const rect = this.canvas.getBoundingClientRect();
+        return {
+            x: clientX - rect.left,
+            y: clientY - rect.top
+        };
+    }
+}

@@ -23,6 +23,13 @@
                     class="nav-btn px-4 py-2 rounded-md text-sm font-medium transition-standard hover:bg-white hover:shadow-sm text-gray-600">Колесо</button>
                 <button data-nav="view-todo"
                     class="nav-btn px-4 py-2 rounded-md text-sm font-medium transition-standard hover:bg-white hover:shadow-sm text-gray-600">Kanban</button>
+
+                <button data-nav="view-miro"
+                    class="nav-btn px-4 py-2 rounded-md text-sm font-medium transition-standard hover:bg-white hover:shadow-sm text-gray-600">
+                    🗺️ Miro
+                </button>
+
+
                 <button data-nav="view-notifications"
                     class="nav-btn px-4 py-2 rounded-md text-sm font-medium transition-standard hover:bg-white hover:shadow-sm text-gray-600">
                     <span>🔔</span> Уведомления
@@ -512,6 +519,64 @@
                         настройки</button>
                     <span id="saveStatus" class="ml-3 text-sm text-green-600 hidden">✅ Сохранено</span>
                 </div>
+            </div>
+        </div>
+
+
+        <!-- 11. MIRO VIEW -->
+        <div id="view-miro" class="app-view hidden">
+            <!-- Canvas Container занимает всю высоту -->
+            <div id="miroCanvasContainer" class="relative h-[calc(100vh-60px)] bg-gray-50">
+                <canvas id="miroCanvas" class="absolute top-0 left-0"></canvas>
+
+                <!-- Floating Toolbar -->
+                <div id="miroToolbar"
+                    class="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white/95 backdrop-blur-sm shadow-xl rounded-xl p-3 flex gap-2 z-40 border border-gray-200">
+
+                    <button onclick="UI.switchView('view-habits')"
+                        class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium shadow-sm transition flex items-center gap-2">
+                        ← Назад
+                    </button>
+
+                    <button id="miroClearBtn"
+                        class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium shadow-sm transition">
+                        🗑️ Clear Board
+                    </button>
+                    <button id="miroExportBtn"
+                        class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium shadow-sm transition">
+                        📤 Export JSON
+                    </button>
+                    <button id="miroImportBtn"
+                        class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium shadow-sm transition">
+                        📥 Import JSON
+                    </button>
+                    <button id="miroCenterBtn"
+                        class="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 font-medium shadow-sm transition">
+                        🎯 Center
+                    </button>
+                    <div class="flex items-center gap-2 px-3 text-xs text-gray-500 border-l border-gray-300 ml-2">
+                        <span class="font-medium">Controls:</span>
+                        <span>Drag = Pan</span>
+                        <span>Wheel = Zoom</span>
+                        <span>RMB = Menu</span>
+                        <span>DblClick = Edit</span>
+                    </div>
+                </div>
+
+                <!-- Stats Panel -->
+                <div id="miroStatsPanel"
+                    class="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-white/90 backdrop-blur-sm shadow-lg rounded-lg p-3 z-40 border border-gray-200">
+                    <div class="text-xs font-medium text-gray-700 flex gap-3">
+                        <span>📊 Nodes: <span id="miroNodeCount">0</span></span>
+                        <span>🔗 Links: <span id="miroLinkCount">0</span></span>
+                        <span>🔍 Zoom: <span id="miroZoomLevel">100%</span></span>
+                        <span>📍 Viewport: <span id="miroViewportPos">0,0</span></span>
+                    </div>
+                </div>
+
+                <!-- Context Menu -->
+                <div id="miroContextMenu"
+                    class="absolute hidden bg-white shadow-2xl rounded-lg border z-50 min-w-[180px]"></div>
             </div>
         </div>
 

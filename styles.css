@@ -255,3 +255,129 @@
     margin: 0 auto;
     padding: 2rem;
 }
+
+/* MIRO CRITICAL FIXES */
+
+/* Навигация должна быть ВСЕГДА поверх */
+nav {
+    z-index: 100 !important;
+    position: relative !important;
+}
+
+#view-miro {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    width: 100vw !important;
+    height: 100vh !important;
+    display: none;
+    background: #f9fafb;
+    overflow: hidden;
+}
+
+#view-miro.active {
+    display: flex !important;
+    flex-direction: column;
+}
+
+#miroCanvasContainer {
+    position: absolute !important;
+    top: 0;
+    left: 0;
+    width: 100% !important;
+    height: 100% !important;
+    background: linear-gradient(45deg, #f9fafb 25%, transparent 25%),
+        linear-gradient(-45deg, #f9fafb 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #f9fafb 75%),
+        linear-gradient(-45deg, transparent 75%, #f9fafb 75%);
+    background-size: 40px 40px;
+    background-position: 0 0, 0 20px, 20px -20px, -20px 0px;
+}
+
+#miroCanvas {
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100% !important;
+    height: 100% !important;
+    cursor: grab;
+    touch-action: none;
+}
+
+#miroCanvas.panning {
+    cursor: grabbing !important;
+}
+
+#miroCanvas.dragging {
+    cursor: move !important;
+}
+
+/* Toolbar */
+#miroToolbar {
+    z-index: 2000 !important;
+    /* Выше навигации */
+    pointer-events: auto !important;
+    user-select: none;
+    position: absolute;
+    top: 80px !important;
+    /* Отступ от верхней навигации */
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255, 255, 255, 0.95) !important;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(229, 231, 235, 0.8) !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2) !important;
+    border-radius: 12px;
+}
+
+/* Stats */
+#miroStatsPanel {
+    z-index: 999 !important;
+    pointer-events: none;
+    user-select: none;
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255, 255, 255, 0.9) !important;
+    backdrop-filter: blur(5px);
+}
+
+/* Context menu */
+#miroContextMenu {
+    z-index: 10000 !important;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25) !important;
+    border: 1px solid #e5e7eb !important;
+    border-radius: 8px !important;
+    overflow: hidden !important;
+    position: fixed !important;
+}
+
+#miroContextMenu button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 8px 16px;
+    background: white;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.15s;
+    font-size: 14px;
+    color: #374151;
+}
+
+#miroContextMenu button:hover {
+    background-color: #f3f4f6 !important;
+}
+
+#miroContextMenu .divider {
+    height: 1px;
+    background: #e5e7eb;
+    margin: 4px 0;
+}
+
+/* Убираем стандартный outline при фокусе */
+#miroCanvas:focus {
+    outline: none !important;
+}

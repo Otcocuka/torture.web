@@ -1,8 +1,6 @@
-/**
- * Генератор примера исследовательских данных для демонстрации экспорта.
- * Запуск: node generate_research_data.js
- * Результат: research_export_sample.json
- */
+// Генератор примера исследовательских данных для демонстрации экспорта.
+// Запуск: node generate_research_data.js
+// Результат: research_export_sample.json
 
 const fs = require('fs');
 
