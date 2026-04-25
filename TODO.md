@@ -48,4 +48,8 @@ fool
 -need to:
 1)fix node positioning- in fact they're drawn in the wrong place
 2)same issue makes whole canvas go parallax on panning and dragging- need to fix main logic of world\screen coordinates
+3)delete button, center button in nav, double click context menu for editing, bumping rules(or z-index type shi), general ui\ux testing
 3)implement some shi for me to be able to transfer miro boards here(after ux is KK)
+
+04.25
+-debugging, ux testing and planning features for canvas  
