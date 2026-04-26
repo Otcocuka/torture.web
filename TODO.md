@@ -58,5 +58,10 @@ fool
 -fixed node render positioning issues and parallax effect(1,2 from 04.24)
 -gotta fix other two+ double modal popup
 -sub-screen for chosing boards
+-fix add right- add left seems to work just fine
+-text\wordbreak for nodes and automatic node resize
+-font size(next after that font styles and shit.)
+-next after that- adding pictires
+
 
 
