@@ -269,7 +269,11 @@ nav {
     top: 0;
     left: 0;
     width: 100vw !important;
-    height: 100vh !important;
+    /* dvh: dynamic viewport height — учитывает тулбар браузера на мобилках */
+    height: 100dvh !important;
+    /* Фолбэк для браузеров без dvh (Safari < 15.4) */
+    height: 100vh;
+    height: 100dvh;
     display: none;
     background: #f9fafb;
     overflow: hidden;

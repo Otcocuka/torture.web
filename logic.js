@@ -1007,9 +1007,11 @@ class MiroController {
         // КРИТИЧНЫЙ FIX: Принудительный сброс viewport при каждом открытии
         setTimeout(() => {
             console.log('[Miro] Force resetting viewport to default state');
+            const cw = this._cssWidth || this.canvas.width;
+            const ch = this._cssHeight || this.canvas.height;
             this.viewport = {
-                x: this.canvas.width / 2,
-                y: this.canvas.height / 2,
+                x: cw / 2,
+                y: ch / 2,
                 scale: 1
             };
             this._viewportSynced = true;
@@ -1027,7 +1029,6 @@ class MiroController {
         console.log('MiroController: Initialized');
     }
 
-    // ===== ИСПРАВЛЕННАЯ НАСТРОЙКА КАНВАСА =====
     setupCanvas() {
         console.log('MiroController: Setting up canvas...');
 
@@ -1038,26 +1039,33 @@ class MiroController {
         }
 
         const updateCanvasSize = () => {
-            const width = container.clientWidth;
-            const height = container.clientHeight;
+            const dpr = window.devicePixelRatio || 1;
+            const cssWidth = container.clientWidth;
+            const cssHeight = container.clientHeight;
 
-            // Устанавливаем реальные размеры
-            this.canvas.width = width;
-            this.canvas.height = height;
+            // Физические пиксели = CSS пиксели * DPR
+            this.canvas.width = Math.round(cssWidth * dpr);
+            this.canvas.height = Math.round(cssHeight * dpr);
 
-            // CSS должен совпадать
-            this.canvas.style.width = width + 'px';
-            this.canvas.style.height = height + 'px';
+            // CSS-размер остаётся в CSS-пикселях
+            this.canvas.style.width = cssWidth + 'px';
+            this.canvas.style.height = cssHeight + 'px';
 
-            console.log(`Canvas: ${width}x${height}`);
+            // Масштабируем контекст на DPR, чтобы дальше работать в CSS-пикселях
+            this.ctx = this.canvas.getContext('2d');
+            this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+            // Сохраняем CSS-размеры для координатных расчётов
+            this._cssWidth = cssWidth;
+            this._cssHeight = cssHeight;
+
+            console.log(`Canvas: ${cssWidth}x${cssHeight} css, ${this.canvas.width}x${this.canvas.height} px, dpr=${dpr}`);
 
             this.scheduleRedraw();
         };
 
-        // Первоначальная настройка
         updateCanvasSize();
 
-        // Resize observer
         if (window.ResizeObserver) {
             this.resizeObserver = new ResizeObserver(() => {
                 requestAnimationFrame(() => updateCanvasSize());
@@ -1152,19 +1160,15 @@ class MiroController {
  */
     screenToWorld(canvasX, canvasY) {
         return {
-            x: canvasX - this.viewport.x,  // КРИТИЧНЫЙ FIX: убрал деление на scale для простоты
-            y: canvasY - this.viewport.y
+            x: (canvasX - this.viewport.x) / this.viewport.scale,
+            y: (canvasY - this.viewport.y) / this.viewport.scale
         };
     }
 
-    /**
-     * Преобразует мировые координаты в координаты canvas
-     * FIX: Система теперь симметрична
-     */
     worldToScreen(worldX, worldY) {
         return {
-            x: worldX + this.viewport.x,
-            y: worldY + this.viewport.y
+            x: worldX * this.viewport.scale + this.viewport.x,
+            y: worldY * this.viewport.scale + this.viewport.y
         };
     }
 
@@ -1309,8 +1313,8 @@ class MiroController {
         console.log("=== ТЕСТ КООРДИНАТ ===");
 
         // Центр экрана
-        const centerX = this.canvas.width / 2;
-        const centerY = this.canvas.height / 2;
+        const centerX = (this._cssWidth || this.canvas.width) / 2;
+        const centerY = (this._cssHeight || this.canvas.height) / 2;
         console.log(`Canvas: ${this.canvas.width}x${this.canvas.height}`);
         console.log(`Центр экрана: Canvas(${centerX}, ${centerY})`);
 
@@ -1382,7 +1386,8 @@ class MiroController {
         }
 
         const { ctx, canvas } = this;
-        const { width, height } = canvas;
+        const width = this._cssWidth || canvas.width;
+        const height = this._cssHeight || canvas.height;
 
         // Проверка размеров
         if (width === 0 || height === 0) {
@@ -1390,7 +1395,7 @@ class MiroController {
             return;
         }
 
-        // Очистка
+        // Очистка (в физических пикселях через DPR-transform)
         ctx.clearRect(0, 0, width, height);
 
         // FIX: Принудительная синхронизация viewport если не синхронизирован
@@ -1408,28 +1413,18 @@ class MiroController {
         // 1. Сетка
         this.drawGrid();
 
-        // 2. Сохранить трансформацию
-        ctx.save();
-
-        // 3. Применить viewport трансформацию
-        ctx.translate(this.viewport.x, this.viewport.y);
-        ctx.scale(this.viewport.scale, this.viewport.scale);
-
-        // 4. Соединительные линии (под нодами)
+        // 2. Соединительные линии (под нодами)
         this.drawConnections();
 
-        // 5. Ноды
+        // 3. Ноды
         this.drawNodes();
 
-        // 6. Восстановить трансформацию
-        ctx.restore();
-
-        // 7. Кнопки "+" если ховер (должно быть ПОСЛЕ восстановления трансформации!)
+        // 4. Кнопки "+" если ховер
         if (this.hoveredElement && this.hoverSide) {
             this.drawPlusButton(this.hoveredElement.element, this.hoverSide);
         }
 
-        // 8. Отладочная информация
+        // 5. Отладочная информация
         if (this.debugCoords) {
             this.drawDebugInfo();
         }
@@ -1460,7 +1455,8 @@ class MiroController {
 
         const lines = [
             `=== MIRO DEBUG ===`,
-            `Canvas: ${this.canvas.width}x${this.canvas.height}`,
+            `Canvas CSS: ${this._cssWidth || this.canvas.width}x${this._cssHeight || this.canvas.height}`,
+            `DPR: ${window.devicePixelRatio || 1}`,
             `Viewport: ${this.viewport.x.toFixed(0)}, ${this.viewport.y.toFixed(0)}`,
             `Scale: ${this.viewport.scale.toFixed(2)}`,
             `=== Последний клик ===`,
@@ -1484,11 +1480,13 @@ class MiroController {
 
 
         // Внутри drawDebugInfo, после зеленой точки:
+        const cw = this._cssWidth || this.canvas.width;
+        const ch = this._cssHeight || this.canvas.height;
         ctx.fillStyle = '#ff0000';
         ctx.beginPath();
-        ctx.arc(this.canvas.width / 2, this.canvas.height / 2, 8, 0, Math.PI * 2);
+        ctx.arc(cw / 2, ch / 2, 8, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillText(`ЦЕНТР ЭКРАНА (0,0 world)`, this.canvas.width / 2 + 15, this.canvas.height / 2 - 10);
+        ctx.fillText(`ЦЕНТР ЭКРАНА (0,0 world)`, cw / 2 + 15, ch / 2 - 10);
         // 2. Красная точка - где кликнули
         ctx.fillStyle = '#ff0000';
         ctx.beginPath();
@@ -1582,7 +1580,8 @@ class MiroController {
         if (!this.gridEnabled || !this.ctx) return;
 
         const { ctx, canvas, viewport } = this;
-        const { width, height } = canvas;
+        const width = this._cssWidth || canvas.width;
+        const height = this._cssHeight || canvas.height;
 
         // Calculate visible grid area in world coordinates
         const worldTopLeft = this.screenToWorld(0, 0);
@@ -2041,25 +2040,19 @@ class MiroController {
 
     // ===== NODE MANAGEMENT =====
 
-    // ===== ИСПРАВЛЕННЫЙ createNodeAt =====
-    createNodeAt(clientX, clientY, text = 'New node', parentId = null) {
-        const canvasXY = this.getCanvasXY(clientX, clientY);
+    // createNodeAt принимает CANVAS-координаты (относительно canvas элемента)
+    createNodeAt(canvasX, canvasY, text = 'New node', parentId = null) {
+        // Преобразуем canvas → world с учётом scale
+        const worldPos = this.screenToWorld(canvasX, canvasY);
 
-        // КРИТИЧНЫЙ FIX: Преобразование canvas -> world по новой формуле
-        const worldX = canvasXY.x - this.viewport.x;
-        const worldY = canvasXY.y - this.viewport.y;
-
-        console.log(`[Miro] Создание ноды (FIX координатной системы):`);
-        console.log(`  Canvas клик: (${canvasXY.x}, ${canvasXY.y})`);
-        console.log(`  Viewport смещение: (${this.viewport.x}, ${this.viewport.y})`);
-        console.log(`  Мировые координаты клика: (${worldX}, ${worldY})`);
+        console.log(`[Miro] createNodeAt: canvas(${canvasX}, ${canvasY}) → world(${worldPos.x.toFixed(1)}, ${worldPos.y.toFixed(1)})`);
 
         const id = this.nextId++;
         const node = {
             id,
             type: 'node',
-            x: worldX,      // Левый верхний угол под курсором
-            y: worldY,
+            x: worldPos.x,
+            y: worldPos.y,
             width: this.NODE_WIDTH,
             height: this.NODE_HEIGHT,
             text: text || `Node ${id}`,
@@ -2071,16 +2064,6 @@ class MiroController {
         };
 
         this.elements.set(id, node);
-
-        // Проверка: экранные координаты должны быть теми же, где кликнули!
-        const screenPos = this.worldToScreen(node.x, node.y);
-        console.log(`  Экранные координаты ноды: (${screenPos.x}, ${screenPos.y})`);
-        console.log(`  Ожидаемые: те же как клик canvas (${canvasXY.x}, ${canvasXY.y})`);
-
-        // Проверка совпадения
-        const diffX = Math.abs(screenPos.x - canvasXY.x);
-        const diffY = Math.abs(screenPos.y - canvasXY.y);
-        console.log(`  Разница: (${diffX}, ${diffY})`);
 
         if (parentId) {
             const parent = this.elements.get(parentId);
@@ -2220,8 +2203,8 @@ class MiroController {
             e.stopPropagation();
 
             // Создать ноду точно в центре экрана (0,0 мировых)
-            const centerX = this.canvas.width / 2;
-            const centerY = this.canvas.height / 2;
+            const centerX = (this._cssWidth || this.canvas.width) / 2;
+            const centerY = (this._cssHeight || this.canvas.height) / 2;
 
             const worldPos = this.screenToWorld(centerX, centerY);
             console.log(`TEST: Центр экрана в мировых координатах: (${worldPos.x}, ${worldPos.y})`);
@@ -2256,8 +2239,8 @@ class MiroController {
         menu.querySelector('[data-action="test-center-click"]').onclick = (e) => {
             e.stopPropagation();
             // Создать ноду точно в центре экрана
-            const centerX = this.canvas.width / 2;
-            const centerY = this.canvas.height / 2;
+            const centerX = (this._cssWidth || this.canvas.width) / 2;
+            const centerY = (this._cssHeight || this.canvas.height) / 2;
 
             // Имитируем клик в точный центр
             this.lastMouseScreen = { x: centerX, y: centerY };
@@ -2397,7 +2380,7 @@ class MiroController {
             console.log(`Viewport: (${this.viewport.x}, ${this.viewport.y}), scale=${this.viewport.scale}`);
 
             // Тест 1: Центр canvas
-            const centerCanvas = { x: this.canvas.width / 2, y: this.canvas.height / 2 };
+            const centerCanvas = { x: (this._cssWidth || this.canvas.width) / 2, y: (this._cssHeight || this.canvas.height) / 2 };
             const centerWorld = this.screenToWorld(centerCanvas.x, centerCanvas.y);
             const centerScreen = this.worldToScreen(centerWorld.x, centerWorld.y);
 
@@ -2540,8 +2523,8 @@ class MiroController {
         // 2. Сбрасываем viewport
         if (this.canvas) {
             this.viewport = {
-                x: this.canvas.width / 2,
-                y: this.canvas.height / 2,
+                x: (this._cssWidth || this.canvas.width) / 2,
+                y: (this._cssHeight || this.canvas.height) / 2,
                 scale: 1
             };
         } else {
@@ -2558,7 +2541,9 @@ class MiroController {
 
         // 4. Очищаем canvas
         if (this.canvas && this.ctx) {
-            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            const cw = this._cssWidth || this.canvas.width;
+            const ch = this._cssHeight || this.canvas.height;
+            this.ctx.clearRect(0, 0, cw, ch);
         }
 
         // 5. Перезапускаем анимацию
@@ -2676,7 +2661,9 @@ class MiroController {
 
         // 3. Очистить canvas
         if (this.canvas) {
-            this.ctx?.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            const cw = this._cssWidth || this.canvas.width;
+            const ch = this._cssHeight || this.canvas.height;
+            this.ctx?.clearRect(0, 0, cw, ch);
         }
 
         // 4. Сбросить состояние
@@ -2768,13 +2755,13 @@ class MiroController {
     centerView() {
         if (!this.canvas) return;
 
-        // КРИТИЧНЫЙ FIX: Viewport должен быть в центре canvas
-        this.viewport.x = this.canvas.width / 2;
-        this.viewport.y = this.canvas.height / 2;
+        const cw = this._cssWidth || this.canvas.width;
+        const ch = this._cssHeight || this.canvas.height;
+        this.viewport.x = cw / 2;
+        this.viewport.y = ch / 2;
         this.viewport.scale = 1;
 
-        console.log(`🎯 Centered viewport: canvas смещение (${this.viewport.x}, ${this.viewport.y})`);
-        console.log(`  Мировые (0,0) будут в центре canvas`);
+        console.log(`🎯 Centered viewport: (${this.viewport.x}, ${this.viewport.y})`);
 
         this.scheduleRedraw();
         this.updateStats();
