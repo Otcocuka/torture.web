@@ -46,10 +46,17 @@ fool
 04.24
 -peggingg me in the ass with these debugging sessions from the start baby? nice, that's just as i expected. nonetheless new view almost ready- need to add some final touches 
 -need to:
-1)fix node positioning- in fact they're drawn in the wrong place
+1)fix node positioning- in fact they're drawn in the wrong place - tick 
 2)same issue makes whole canvas go parallax on panning and dragging- need to fix main logic of world\screen coordinates
 3)delete button, center button in nav, double click context menu for editing, bumping rules(or z-index type shi), general ui\ux testing
 3)implement some shi for me to be able to transfer miro boards here(after ux is KK)
 
 04.25
 -debugging, ux testing and planning features for canvas  
+
+04.26
+-fixed node render positioning issues and parallax effect(1,2 from 04.24)
+-gotta fix other two+ double modal popup
+-sub-screen for chosing boards
+
+
