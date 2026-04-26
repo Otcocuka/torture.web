@@ -63,5 +63,10 @@ fool
 -font size(next after that font styles and shit.)
 -next after that- adding pictires
 
++++++++++++++++++++
+very important shit
++++++++++++++++++++
+FIX UI, YOU BASTARD
+
 
 
