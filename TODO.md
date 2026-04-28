@@ -70,3 +70,11 @@ FIX UI, YOU BASTARD
 
 
 
+04.28
+-add keyboard support for miro: delete, add Marquee Selection on LMB+drag, TAB to create a node to the right, shift+TAB to create a node to the left, shift+enter to new line, 
+2)rework "+" buttons- left seems to work fine, right too, but their y axis positioning is kinda crooked. + fix the buttons' positioning so that they're outside the node
+3)change doubleclick from "edit node" popup to edit text inside node, w/o color change
+4)move color change to RMB context menu
+5)add font size change on RMB context menu
+6)add size change
+
