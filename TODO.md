@@ -78,3 +78,5 @@ FIX UI, YOU BASTARD
 5)add font size change on RMB context menu
 6)add size change
 
+04.29
+-gotta spend a lot of time contemplating on my relations w/ people, it's insufferable
