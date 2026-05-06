@@ -80,3 +80,7 @@ FIX UI, YOU BASTARD
 
 04.29
 -gotta spend a lot of time contemplating on my relations w/ people, it's insufferable
+
+
+06.05
+-got irl shit done, ready to come back strong with lots of new features  
