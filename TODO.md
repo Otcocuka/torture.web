@@ -84,3 +84,5 @@ FIX UI, YOU BASTARD
 
 06.05
 -got irl shit done, ready to come back strong with lots of new features  
+07.05
+-almost done getting ready
