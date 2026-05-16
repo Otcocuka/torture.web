@@ -86,3 +86,5 @@ FIX UI, YOU BASTARD
 -got irl shit done, ready to come back strong with lots of new features  
 07.05
 -almost done getting ready
+16.05.2026
+-it's been a bash
