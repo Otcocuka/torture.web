@@ -88,3 +88,5 @@ FIX UI, YOU BASTARD
 -almost done getting ready
 16.05.2026
 -it's been a bash
+19.05.2026
+-the hustle begins
