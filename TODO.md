@@ -90,3 +90,5 @@ FIX UI, YOU BASTARD
 -it's been a bash
 19.05.2026
 -the hustle begins
+20.05.2026
+-told ya
