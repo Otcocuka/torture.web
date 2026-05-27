@@ -98,3 +98,5 @@ FIX UI, YOU BASTARD
 -scaring dahoes
 23.05.2026
 -someday we'll find solace
+27.05.2026
+-new harness setup
