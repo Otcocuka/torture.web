@@ -108,3 +108,6 @@ FIX UI, YOU BASTARD
 -and so am i
 31.05.2026
 -WE'RE SO BACK
+-told ya, manic panic has begun
+02.05.2026
+-new office
