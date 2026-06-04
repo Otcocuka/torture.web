@@ -113,3 +113,7 @@ FIX UI, YOU BASTARD
 -new office
 04.05.2026
 -holy fuck my older brother almost died, got 90+% of his skin burnt, his house burned down, all the animals. god bless him and let him enjoy life once more after that, i don't wanna lose him
+05.05.2026
+-my brother died at 8:30(GMT+3) 04.06.2026
+Goodnight Sweet Prince
+Arthur you'll forever be remembered as the best older brother I could have ever wished for 
