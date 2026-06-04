@@ -111,3 +111,5 @@ FIX UI, YOU BASTARD
 -told ya, manic panic has begun
 02.05.2026
 -new office
+04.05.2026
+-holy fuck my older brother almost died, got 90+% of his skin burnt, his house burned down, all the animals. god bless him and let him enjoy life once more after that, i don't wanna lose him
