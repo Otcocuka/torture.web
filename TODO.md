@@ -117,3 +117,5 @@ FIX UI, YOU BASTARD
 -my brother died at 8:30(GMT+3) 04.06.2026
 Goodnight Sweet Prince
 Arthur you'll forever be remembered as the best older brother I could have ever wished for 
+06.05.2026
+-punk's not dead
