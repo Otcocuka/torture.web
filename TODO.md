@@ -119,3 +119,5 @@ Goodnight Sweet Prince
 Arthur you'll forever be remembered as the best older brother I could have ever wished for 
 06.05.2026
 -punk's not dead
+07.06.2026
+-started the shit
