@@ -121,3 +121,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -punk's not dead
 07.06.2026
 -started the shit
+08.06.2026
+-website redesign, so far so good 
