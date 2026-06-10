@@ -123,3 +123,7 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -started the shit
 08.06.2026
 -website redesign, so far so good 
+09.06.2026
+-new course
+10.06.2026
+-blog implementation and multilang. new harness, migrating web-come.agency 
