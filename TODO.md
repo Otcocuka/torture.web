@@ -127,3 +127,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -new course
 10.06.2026
 -blog implementation and multilang. new harness, migrating web-come.agency 
+11.06.2026
+-continuing doing migration of web-come.agency
