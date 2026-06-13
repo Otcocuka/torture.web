@@ -131,3 +131,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -continuing doing migration of web-come.agency
 12.06.2026
 -gj for today, most sections done
+13.06.2026
+-section control
