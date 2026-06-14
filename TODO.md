@@ -133,3 +133,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -gj for today, most sections done
 13.06.2026
 -section control
+14.06.2026
+-remembered how to have fun finally
