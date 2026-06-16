@@ -137,3 +137,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -remembered how to have fun finally
 15.06.2026
 -blood is boiling
+16.06.2026
+-ecu and wiring bought. turbo is coming
