@@ -141,3 +141,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -ecu and wiring bought. turbo is coming
 19.06.2026
 -holy shit i'm good. tough as nails as they say
+20.06.2026
+-new chapter begins
