@@ -143,3 +143,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -holy shit i'm good. tough as nails as they say
 20.06.2026
 -new chapter begins
+21.06.2026
+-it begins 
