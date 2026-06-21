@@ -144,4 +144,6 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 20.06.2026
 -new chapter begins
 21.06.2026
--it begins 
+-it begins
+22.06.2026
+-no shit, it has started
