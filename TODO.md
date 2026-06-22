@@ -147,3 +147,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -it begins
 22.06.2026
 -no shit, it has started
+23.06.2026
+-someone, somewhere
