@@ -151,3 +151,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -someone, somewhere
 24.06.2026
 -drawing tablet on its way
+25.06.2026
+-main page 90% ready
