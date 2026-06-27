@@ -155,3 +155,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -main page 90% ready
 26.06.2026
 -plans ready
+27.06.2026
+-new features coming
