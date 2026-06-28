@@ -157,3 +157,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -plans ready
 27.06.2026
 -new features coming
+28.06.2026
+-telegram sync feature coming
