@@ -20,6 +20,7 @@ const Store = {
         wheel: { history: [] },
         appStats: { totalUptime: 0, lastSeen: Date.now() },
         kanban: { columns: [], cards: [] },
+
         notifications: [],
         notificationHistory: [],
         reader: {
@@ -115,6 +116,10 @@ const Store = {
                     this.data.kanban = parsed.kanban;
                 } else {
                     this.data.kanban = { columns: [], cards: [] };
+                }
+                // Telegram (восстанавливаем lastUpdateId)
+                if (parsed.telegram) {
+                    this.data.telegram = parsed.telegram;
                 }
 
                 // Notifications
@@ -276,8 +281,10 @@ const Store = {
         this.data.kanban.columns.push({ id: Date.now(), title });
         this.save();
     },
-    addKanbanCard(columnId, title, description) {
-        this.data.kanban.cards.push({ id: Date.now(), columnId: parseInt(columnId), title, description });
+    addKanbanCard(columnId, title, description, telegramId = null) {
+        const card = { id: Date.now(), columnId: parseInt(columnId), title, description };
+        if (telegramId) card.telegramId = telegramId;
+        this.data.kanban.cards.push(card);
         this.save();
     },
     moveKanbanCard(cardId, newColumnId) {

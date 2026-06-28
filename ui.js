@@ -1268,6 +1268,10 @@ const UI = {
                 this.renderSettingsView();
             };
         }
+
+
+
+
     },
 
     renderSettingsView() {
@@ -1346,6 +1350,7 @@ const UI = {
                 }
             });
         }
+
 
         const view = document.getElementById("view-settings");
         if (view && view.style.display === "none") {
@@ -1756,7 +1761,10 @@ const UI = {
             };
         });
 
-
+        // Синхронизация с Telegram
+        document.getElementById('syncTelegramBtn')?.addEventListener('click', () => {
+            this.syncTelegram();
+        });
 
         const board = document.getElementById("kanbanBoard");
         if (board) {
@@ -3045,5 +3053,119 @@ const UI = {
     updateMiroStats() {
         if (!window.Controllers || !window.Controllers.miro) return;
         window.Controllers.miro.updateStats();
-    }
+    },
+
+
+    // --- TELEGRAM SYNC ---
+    async syncTelegram() {
+        const token = window.appConfig.TELEGRAM_BOT_TOKEN;
+        if (!token || token.trim() === '') {
+            this.showNotification('⚠️ Токен бота не задан в config.js');
+            return;
+        }
+
+        const btn = document.getElementById('syncTelegramBtn');
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = '⏳ Загрузка...';
+        }
+
+        const lastUpdateId = Store.data.telegram.lastUpdateId || 0;
+        const url = `https://api.telegram.org/bot${token}/getUpdates?offset=${lastUpdateId + 1}&limit=100`;
+
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Ошибка ${response.status}: ${errorText}`);
+            }
+            const data = await response.json();
+
+            if (!data.ok) {
+                throw new Error(data.description || 'Неизвестная ошибка');
+            }
+
+            const updates = data.result || [];
+            let addedCount = 0;
+
+            for (const update of updates) {
+                const message = update.message;
+                if (!message || !message.text) continue;
+
+                const text = message.text;
+                const messageId = message.message_id;
+
+                // 1. Найти все хештеги в тексте
+                const hashtags = text.match(/#[^\s#]+/g) || [];
+                if (hashtags.length === 0) continue;
+
+                // 2. Удалить хештеги из текста (чтобы они не попали в заголовок/описание)
+                let cleanText = text;
+                for (const tag of hashtags) {
+                    cleanText = cleanText.replace(tag, '');
+                }
+
+                // 3. Разбить на строки и отделить заголовок (до первой пустой строки) от описания
+                const lines = cleanText.split('\n');
+                let titleLines = [];
+                let descLines = [];
+                let isTitle = true;
+
+                for (const line of lines) {
+                    const trimmed = line.trim();
+                    if (isTitle) {
+                        if (trimmed === '') {
+                            isTitle = false; // встретили пустую строку – переключаемся на описание
+                        } else {
+                            titleLines.push(line);
+                        }
+                    } else {
+                        descLines.push(line);
+                    }
+                }
+
+                const title = titleLines.join('\n').trim() || 'Без заголовка';
+                const description = descLines.join('\n').trim();
+
+                // 4. Для каждого уникального хештега создаём карточку
+                const uniqueTags = [...new Set(hashtags)];
+                for (const tag of uniqueTags) {
+                    const columnName = tag.substring(1).toLowerCase();
+                    const column = Store.getOrCreateColumn(columnName);
+                    const existing = Store.data.kanban.cards.find(c => c.telegramId === messageId);
+                    if (!existing) {
+                        Store.addKanbanCard(column.id, title, description, messageId);
+                        addedCount++;
+                    }
+                }
+            }
+
+            // Обновляем lastUpdateId
+            if (updates.length > 0) {
+                const maxUpdateId = updates.reduce((max, u) => Math.max(max, u.update_id), 0);
+                Store.data.telegram.lastUpdateId = maxUpdateId;
+                Store.save();
+            }
+
+            // Обновляем канбан
+            this.renderKanban();
+
+            if (addedCount > 0) {
+                this.showNotification(`✅ Добавлено ${addedCount} новых задач из Telegram`);
+            } else {
+                this.showNotification(`ℹ️ Новых задач не найдено`);
+            }
+
+        } catch (error) {
+            console.error('Telegram sync error:', error);
+            this.showNotification(`❌ Ошибка синхронизации: ${error.message}`);
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = '🔄 Синхронизировать с Telegram';
+            }
+        }
+    },
+
+
 };
