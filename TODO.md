@@ -161,3 +161,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -telegram sync feature coming
 29.06.2026
 -finna learn japanese with torture
+30.06.2026
+-gotta finish torture fast and do a research with people
