@@ -164,3 +164,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 30.06.2026
 -gotta finish torture fast and do a research with people
 -feature list finalized for research-ready torture
+01.07.2026
+-rest of pages done for web-come.agency
