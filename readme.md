@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Research](https://img.shields.io/badge/Research-Bachelor%27s%20Thesis-orange)](docs/thesis.pdf)
-[![Stack](https://img.shields.io/badge/Stack-Vanilla%20JS%20%7C%20Node.js%20%7C%20DeepSeek-green)](https://github.com/YOUR_USERNAME/Torture)
+[![Stack](https://img.shields.io/badge/Stack-Vanilla%20JS%20%7C%20Node.js%20%7C%20DeepSeek-green)](https://github.com/Otcocuka/torture.web)
 
 > **Torture** is a browser-based SPA that bridges personal productivity (GTD, Pomodoro, Kanban)
 > with an AI-powered cognitive learning engine grounded in spaced repetition and active recall.
@@ -13,7 +13,7 @@
 
 ## 🔬 Scientific Contribution
 
-This system was developed as part of a Bachelor's thesis at [University Name], 2025.
+This system was developed as part of a Bachelor's thesis at Russian State Social University, 2026.
 Key novel contributions:
 
 | Contribution               | Description                                                                        |
@@ -25,7 +25,17 @@ Key novel contributions:
 | **Research Data Pipeline** | Structured event logging (quiz, read_session, habit, pomodoro) with JSON export    |
 | **Topic Clustering**       | Auto-categorization of knowledge units via LLM + manual override                   |
 
-**Experimental validation:** n=30, 4-week study — **+31.3% retention rate**, **−25.5% cognitive load** vs. control group (NASA-TLX).
+**Research validation:** A simulation was conducted using a synthetic data generator
+([`generate_research_data.js`](scripts/generate_research_data.js)) that produces realistic
+learning interaction logs. The generator simulates 4 weeks of system usage (200+ events
+across 5 knowledge units, with realistic learning curves and quiz score progression).
+This demo pipeline is included in the repository as
+[`research_export_sample.json`](research_export_sample.json).
+
+> ⚠️ **Note:** This is a simulated dataset, not results from a controlled trial.
+> The repository includes the full generator script so the methodology is transparent
+> and reproducible. A formal controlled experiment is planned as part of the Master's
+> research (MEXT/G30 program, target n=60).
 
 ---
 
