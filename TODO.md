@@ -168,3 +168,4 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -rest of pages done for web-come.agency
 02.07.2026
 -torture handbook made
+-getting ready for professor outreach 
