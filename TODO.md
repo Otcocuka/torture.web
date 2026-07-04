@@ -169,3 +169,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 02.07.2026
 -torture handbook made
 -getting ready for professor outreach 
+04.07.2026
+-creating a recreatable environment for experiments inside torture
