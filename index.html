@@ -23,7 +23,10 @@
                     class="nav-btn px-4 py-2 rounded-md text-sm font-medium transition-standard hover:bg-white hover:shadow-sm text-gray-600">Колесо</button>
                 <button data-nav="view-todo"
                     class="nav-btn px-4 py-2 rounded-md text-sm font-medium transition-standard hover:bg-white hover:shadow-sm text-gray-600">Kanban</button>
-
+                <button data-nav="view-journal"
+                    class="nav-btn px-4 py-2 rounded-md text-sm font-medium transition-standard hover:bg-white hover:shadow-sm text-gray-600">
+                    📔 Дневник
+                </button>
                 <button data-nav="view-miro"
                     class="nav-btn px-4 py-2 rounded-md text-sm font-medium transition-standard hover:bg-white hover:shadow-sm text-gray-600">
                     🗺️ Miro
@@ -581,6 +584,52 @@
                 <!-- Context Menu -->
                 <div id="miroContextMenu"
                     class="absolute hidden bg-white shadow-2xl rounded-lg border z-50 min-w-[180px]"></div>
+            </div>
+        </div>
+
+
+
+
+        <!-- 12. JOURNAL VIEW -->
+        <div id="view-journal" class="app-view hidden p-6 max-w-3xl mx-auto">
+            <div class="bg-white p-6 rounded-xl shadow-sm">
+                <h2 class="text-2xl font-bold mb-4 text-gray-800 border-b pb-2">📔 Дневник</h2>
+
+                <!-- Форма добавления -->
+                <div class="mb-6">
+                    <textarea id="journalInput" rows="3"
+                        class="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-400 focus:outline-none"
+                        placeholder="Что произошло сегодня? Запишите свои мысли..."></textarea>
+
+                    <!-- Контейнер для превью прикрепленных файлов -->
+                    <div id="journalAttachmentsPreview" class="flex flex-wrap gap-2 mt-2"></div>
+
+                    <div class="flex justify-between items-center mt-2">
+                        <div class="flex gap-2">
+                            <label for="journalFileInput"
+                                class="cursor-pointer bg-gray-200 hover:bg-gray-300 px-3 py-1.5 rounded text-sm transition">
+                                📎 Прикрепить файл
+                                <input type="file" id="journalFileInput" multiple class="hidden"
+                                    accept="image/*,.pdf,.doc,.docx,.txt,.zip,.rar">
+                            </label>
+                            <button id="journalClearAttachmentsBtn"
+                                class="text-sm text-gray-400 hover:text-red-500 hidden">
+                                🗑️ Очистить
+                            </button>
+                        </div>
+                        <button id="journalAddBtn"
+                            class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition">
+                            + Добавить запись
+                        </button>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-1">Можно прикрепить несколько файлов. Изображения будут показаны
+                        в записи.</p>
+                </div>
+
+                <!-- Список записей -->
+                <div id="journalEntries" class="space-y-4">
+                    <!-- Сюда JS отрендерит записи -->
+                </div>
             </div>
         </div>
 

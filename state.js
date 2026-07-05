@@ -20,6 +20,9 @@ const Store = {
         wheel: { history: [] },
         appStats: { totalUptime: 0, lastSeen: Date.now() },
         kanban: { columns: [], cards: [] },
+        journal: {
+            entries: []
+        },
 
         notifications: [],
         notificationHistory: [],
@@ -92,72 +95,72 @@ const Store = {
                 const parsed = JSON.parse(raw);
                 this.data.notificationHistory = parsed.notificationHistory || [];
 
-                // --- Логика слияния (Merge) ---
-
-                // Basics
+                // --- Basics ---
                 this.data.habits = parsed.habits || [];
                 this.data.researchData = parsed.researchData || [];
                 this.data.achievements = parsed.achievements || [];
                 this.data.habitSettings = { ...this.data.habitSettings, ...parsed.habitSettings };
                 this.data.tempSubtasks = parsed.tempSubtasks || [];
 
-                // Pomodoro
+                // --- Pomodoro ---
                 if (parsed.pomodoro) {
                     this.data.pomodoro.stats = { ...this.data.pomodoro.stats, ...parsed.pomodoro.stats };
                     this.data.pomodoro.settings = { ...this.data.pomodoro.settings, ...parsed.pomodoro.settings };
                 }
                 this.data.pomodoroState = parsed.pomodoroState || null;
 
-                // Wheel
+                // --- Wheel ---
                 this.data.wheel.history = parsed.wheel?.history || [];
 
-                // Kanban
+                // --- Kanban ---
                 if (parsed.kanban) {
                     this.data.kanban = parsed.kanban;
                 } else {
                     this.data.kanban = { columns: [], cards: [] };
                 }
-                // Telegram (восстанавливаем lastUpdateId)
                 if (parsed.telegram) {
                     this.data.telegram = parsed.telegram;
                 }
 
-                // Notifications
+                // --- Journal (FIX) ---
+                if (parsed.journal) {
+                    this.data.journal = parsed.journal;
+                } else {
+                    this.data.journal = { entries: [] };
+                }
+
+                // --- Notifications ---
                 this.data.notifications = parsed.notifications || [];
 
-                // Reader
+                // --- Reader ---
                 if (parsed.reader) {
                     this.data.reader.activeFileId = parsed.reader.activeFileId || null;
                     this.data.reader.files = parsed.reader.files || [];
                     this.data.reader.settings = { ...this.data.reader.settings, ...parsed.reader.settings };
                 }
 
-                // Chat
+                // --- Chat ---
                 if (parsed.chat) {
                     this.data.chat.messages = parsed.chat.messages || [];
                     this.data.chat.isTyping = false;
                     this.data.chat.provider = parsed.chat.provider || 'deepseek';
                 }
 
-                // *** ИСПРАВЛЕНО: Загрузка настроек сносок ***
+                // --- Explanation Settings & Presets ---
                 if (parsed.explanationSettings) {
-                    this.data.explanationSettings = {
-                        ...this.data.explanationSettings,
-                        ...parsed.explanationSettings
-                    };
+                    this.data.explanationSettings = { ...this.data.explanationSettings, ...parsed.explanationSettings };
                 }
-
                 if (parsed.explanationPresets && Array.isArray(parsed.explanationPresets)) {
                     this.data.explanationPresets = parsed.explanationPresets;
                 }
 
-                // App Stats
+                // --- App Stats ---
                 if (parsed.appStats) {
                     this.data.appStats = { totalUptime: 0, ...parsed.appStats };
                     this.data.appStats.lastSeen = Date.now();
                 }
 
-                // *** NEW: COGNITIVE CORE LOAD ***
+                // --- Cognitive ---
                 if (parsed.cognitive) {
                     this.data.cognitive = {
                         documents: parsed.cognitive.documents || [],
@@ -1236,5 +1239,52 @@ const Store = {
         this.save();
         return true;
     },
+
+
+    // --- JOURNAL ---
+    addJournalEntry(text, attachments = []) {
+        // Разрешаем пустой текст, если есть вложения
+        const validAttachments = attachments.filter(a => a.data || a.name);
+        if ((!text || text.trim() === '') && validAttachments.length === 0) return false;
+        // проверка размера (необязательно, но добавим предупреждение)
+        const totalSize = this.data.journal.entries.reduce((sum, e) => {
+            return sum + e.attachments.reduce((s, a) => s + (a.data ? a.data.length : 0), 0);
+        }, 0);
+        const newSize = validAttachments.reduce((s, a) => s + (a.data ? a.data.length : 0), 0);
+        if (totalSize + newSize > 10 * 1024 * 1024) {
+            console.warn('Превышен лимит хранилища (10 МБ). Некоторые изображения не сохранены.');
+            // можно обрезать или показать уведомление, но продолжим
+        }
+
+        const entry = {
+            id: Date.now(),
+            text: (text || '').trim(),
+            date: new Date().toISOString().split('T')[0],
+            time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
+            timestamp: Date.now(),
+            attachments: validAttachments
+        };
+        this.data.journal.entries.unshift(entry);
+        console.log('[Store] entry before save:', entry);
+        this.save();
+        return entry;
+    }, save() {
+        console.log('[Store] saving data, journal entries:', this.data.journal.entries.length);
+        try {
+            localStorage.setItem(this.key, JSON.stringify(this.data));
+            console.log('[Store] save successful');
+        } catch (e) {
+            console.error('Ошибка сохранения:', e);
+        }
+    },
+
+    getJournalEntries() {
+        return this.data.journal.entries || [];
+    },
+
+    clearJournal() {
+        this.data.journal.entries = [];
+        this.save();
+    }
 
 };

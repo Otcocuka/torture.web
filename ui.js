@@ -10,7 +10,7 @@ const UI = {
             btn.addEventListener("click", (e) => {
                 const target = e.target.dataset.nav;
 
-                if (target === "view-habits" || target === "view-timer" || target === "view-wheel" || target === "view-notifications" || target === "view-reader" || target === "view-chat" || target === "view-todo" || target === "view-stats" || target === "view-settings" || target === "view-knowledge-avatar") {
+                if (target === "view-habits" || target === "view-timer" || target === "view-wheel" || target === "view-notifications" || target === "view-reader" || target === "view-chat" || target === "view-todo" || target === "view-stats" || target === "view-journal" || target === "view-settings" || target === "view-knowledge-avatar") {
                     this.switchView(target);
                 }
 
@@ -53,8 +53,10 @@ const UI = {
         this.bindGlobalEvents();
         this.bindTodoEvents();
         this.bindNotificationsEvents();
+        this.bindJournalEvents();
         this.bindReaderEvents();
         this.initSettings();
+
         document.getElementById('feedbackBtn')?.addEventListener('click', () => {
             this.showFeedbackModal();
         });
@@ -135,6 +137,12 @@ const UI = {
 
             if (viewId === "view-habits") {
                 this.renderHabits();
+            }
+
+            if (viewId === "view-journal") {
+                this._pendingAttachments = [];
+                this.renderAttachmentsPreview();
+                this.renderJournalView();
             }
 
             // CRITICAL FIX: Proper Miro initialization
@@ -2240,6 +2248,8 @@ const UI = {
     readerSessionTimer: null,
     readerSessionStartTime: 0,
     originalTitle: document.title,
+    // Для работы с вложениями
+    _pendingAttachments: [], // временные вложения перед отправкой
 
     initReaderContextLogic() {
         document.addEventListener('contextmenu', (e) => {
@@ -3167,5 +3177,496 @@ const UI = {
         }
     },
 
+
+    bindJournalEvents() {
+        const input = document.getElementById('journalInput');
+        const addBtn = document.getElementById('journalAddBtn');
+        const fileInput = document.getElementById('journalFileInput');
+        const previewContainer = document.getElementById('journalAttachmentsPreview');
+        const clearBtn = document.getElementById('journalClearAttachmentsBtn');
+
+        // Добавление записи
+        addBtn?.addEventListener('click', () => {
+            const text = input.value.trim();
+            if (!text && this._pendingAttachments.length === 0) {
+                this.showNotification('⚠️ Введите текст или прикрепите файл');
+                return;
+            }
+            try {
+                const entry = Store.addJournalEntry(text, this._pendingAttachments);
+                console.log('Added entry:', entry);
+                console.log('All entries after add:', Store.getJournalEntries());
+                // Принудительно проверим localStorage
+                const raw = localStorage.getItem(Store.key);
+                console.log('localStorage after save (first 200 chars):', raw ? raw.substring(0, 200) : 'empty');
+                this._pendingAttachments = [];
+                input.value = '';
+                this.renderAttachmentsPreview();
+                this.renderJournalView();
+                this.showNotification('✅ Запись добавлена');
+            } catch (err) {
+                console.error('Ошибка сохранения записи:', err);
+                this.showNotification('❌ Ошибка сохранения. Возможно, файлы слишком большие.');
+            }
+        });
+
+        // Отправка по Ctrl+Enter
+        input?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                addBtn.click();
+            }
+        });
+
+        // Выбор файлов
+        fileInput?.addEventListener('change', (e) => {
+            const files = e.target.files;
+            if (!files.length) return;
+
+            // Преобразуем файлы в data URL (для изображений) или сохраняем имя
+            for (const file of files) {
+                const isImage = file.type.startsWith('image/');
+                if (isImage) {
+                    if (file.size > 2 * 1024 * 1024) {
+                        UI.showNotification(`⚠️ Изображение "${file.name}" слишком большое (>2 МБ)`);
+                        continue;
+                    }
+                    // Сжимаем изображение до 800px по ширине, качество 0.7
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            const canvas = document.createElement('canvas');
+                            const MAX_SIZE = 800;
+                            let width = img.width;
+                            let height = img.height;
+                            if (width > height) {
+                                if (width > MAX_SIZE) {
+                                    height *= MAX_SIZE / width;
+                                    width = MAX_SIZE;
+                                }
+                            } else {
+                                if (height > MAX_SIZE) {
+                                    width *= MAX_SIZE / height;
+                                    height = MAX_SIZE;
+                                }
+                            }
+                            canvas.width = width;
+                            canvas.height = height;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(img, 0, 0, width, height);
+                            const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                            this._pendingAttachments.push({
+                                type: 'image',
+                                name: file.name,
+                                data: compressedDataUrl,
+                                mimeType: 'image/jpeg'
+                            });
+                            this.renderAttachmentsPreview();
+                        };
+                        img.src = ev.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                }
+
+            }
+            // Очищаем input, чтобы можно было повторно выбрать те же файлы
+            fileInput.value = '';
+        });
+
+        // Очистка всех вложений
+        clearBtn?.addEventListener('click', () => {
+            this._pendingAttachments = [];
+            this.renderAttachmentsPreview();
+        });
+    },
+
+    renderJournalView() {
+        const container = document.getElementById('journalEntries');
+        if (!container) return;
+        const entries = Store.getJournalEntries();
+
+        if (entries.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-12 text-gray-400 border-2 border-dashed rounded-xl">
+                    <p class="text-lg">Пока нет записей</p>
+                    <p class="text-sm">Напишите что-нибудь в форме выше ✍️</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = entries.map(entry => {
+            const attachmentsHtml = entry.attachments && entry.attachments.length > 0
+                ? this.renderJournalAttachments(entry.attachments, entry.id)
+                : '';
+
+            return `
+                <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:shadow-sm transition" data-entry-id="${entry.id}">
+                    <div class="flex justify-between items-start mb-1">
+                        <span class="text-sm font-semibold text-gray-600">${entry.date} ${entry.time}</span>
+                        <span class="text-xs text-gray-400">#${entry.id}</span>
+                    </div>
+                    <div class="text-gray-800 whitespace-pre-wrap">${this.escapeHtml(entry.text)}</div>
+                    ${attachmentsHtml}
+                </div>
+            `;
+        }).join('');
+
+        // Делегирование кликов по изображениям для открытия галереи
+        // Делегирование кликов по изображениям для открытия галереи
+        // Делегирование кликов по изображениям для открытия галереи
+        container.addEventListener('click', (e) => {
+            const thumb = e.target.closest('.journal-image-thumb');
+            if (thumb) {
+                const entryId = parseInt(thumb.closest('[data-entry-id]')?.dataset.entryId, 10);
+                const index = parseInt(thumb.dataset.imageIndex, 10) || 0;
+                if (!isNaN(entryId)) this.openGallery(entryId, index);
+                return;
+            }
+            const showAll = e.target.closest('.journal-image-show-all');
+            if (showAll) {
+                const entryId = parseInt(showAll.closest('[data-entry-id]')?.dataset.entryId, 10);
+                if (!isNaN(entryId)) this.openGallery(entryId, 0);
+            }
+        });
+    },
+
+
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    },
+
+
+
+    renderAttachmentsPreview() {
+        const container = document.getElementById('journalAttachmentsPreview');
+        const clearBtn = document.getElementById('journalClearAttachmentsBtn');
+        if (!container) return;
+
+        if (this._pendingAttachments.length === 0) {
+            container.innerHTML = '';
+            if (clearBtn) clearBtn.classList.add('hidden');
+            return;
+        }
+
+        if (clearBtn) clearBtn.classList.remove('hidden');
+
+        container.innerHTML = this._pendingAttachments.map((att, index) => {
+            if (att.type === 'image') {
+                return `
+                    <div class="relative w-16 h-16 rounded border border-gray-300 overflow-hidden group">
+                        <img src="${att.data}" alt="${att.name}" class="w-full h-full object-cover">
+                        <button data-index="${index}" class="remove-attachment absolute top-0 right-0 bg-red-500 text-white rounded-full w-4 h-4 text-xs flex items-center justify-center hover:bg-red-600 opacity-0 group-hover:opacity-100 transition">×</button>
+                    </div>
+                `;
+            } else {
+                return `
+                    <div class="relative flex items-center gap-1 bg-gray-100 rounded px-2 py-1 text-xs border border-gray-300 group">
+                        <span>📄 ${att.name}</span>
+                        <button data-index="${index}" class="remove-attachment text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition">×</button>
+                    </div>
+                `;
+            }
+        }).join('');
+
+        // Обработчики удаления отдельных вложений
+        container.querySelectorAll('.remove-attachment').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const index = parseInt(e.target.dataset.index);
+                this._pendingAttachments.splice(index, 1);
+                this.renderAttachmentsPreview();
+            });
+        });
+    },
+
+
+    renderJournalAttachments(attachments, entryId) {
+        const images = attachments.filter(a => a.type === 'image' && a.data);
+        const files = attachments.filter(a => a.type === 'file');
+
+        if (images.length === 0 && files.length === 0) return '';
+
+        let html = '<div class="mt-2 flex flex-wrap gap-2">';
+
+        if (images.length > 0) {
+            const showAll = images.length > 3;
+            const visible = showAll ? images.slice(0, 3) : images;
+            visible.forEach((img, idx) => {
+                html += `
+                    <div class="w-20 h-20 rounded border border-gray-300 overflow-hidden cursor-pointer hover:opacity-80 transition journal-image-thumb" 
+                         data-image-index="${idx}" data-entry-id="${entryId}">
+                        <img src="${img.data}" alt="${img.name}" class="w-full h-full object-cover">
+                    </div>
+                `;
+            });
+            if (showAll) {
+                html += `
+                    <div class="w-20 h-20 rounded border border-gray-300 bg-gray-200 flex items-center justify-center text-xs text-gray-600 cursor-pointer hover:bg-gray-300 transition journal-image-show-all" 
+                         data-entry-id="${entryId}">
+                        +${images.length - 3}
+                    </div>
+                `;
+            }
+        }
+
+        files.forEach(file => {
+            html += `
+                <div class="flex items-center gap-1 bg-gray-100 rounded px-2 py-1 text-xs border border-gray-300">
+                    <span>📄</span>
+                    <span>${this.escapeHtml(file.name)}</span>
+                </div>
+            `;
+        });
+
+        html += '</div>';
+        return html;
+    },
+
+
+    openGallery(entryId, startIndex = 0) {
+        const entries = Store.getJournalEntries();
+        const entry = entries.find(e => e.id === entryId);
+        if (!entry) {
+            UI.showNotification('Запись не найдена');
+            return;
+        }
+        const images = entry.attachments.filter(a => a.type === 'image' && a.data);
+        if (images.length === 0) {
+            UI.showNotification('Нет изображений для просмотра');
+            return;
+        }
+
+        let currentIndex = Math.min(startIndex, images.length - 1);
+
+        const renderGalleryContent = () => {
+            const img = images[currentIndex];
+            return `
+            <div class="gallery-wrapper w-full h-full flex items-center justify-center relative">
+                <button class="absolute top-4 right-4 text-white text-3xl hover:text-gray-300 z-10" 
+                        onclick="UI.closeGallery()">×</button>
+                <div class="gallery-image-container relative overflow-hidden w-full h-full flex items-center justify-center">
+                    <img src="${img.data}" alt="${img.name}" 
+                         class="gallery-image object-contain max-w-full max-h-full select-none"
+                         style="cursor: zoom-in; transition: transform 0.1s ease-out; transform: scale(1) translate(0,0);">
+                </div>
+                ${images.length > 1 ? `
+                    <button class="absolute left-4 top-1/2 -translate-y-1/2 text-white text-4xl hover:text-gray-300 z-10" 
+                            onclick="UI.galleryPrev()">‹</button>
+                    <button class="absolute right-4 top-1/2 -translate-y-1/2 text-white text-4xl hover:text-gray-300 z-10" 
+                            onclick="UI.galleryNext()">›</button>
+                    <div class="absolute bottom-4 left-1/2 -translate-x-1/2 text-white text-sm bg-black/50 px-3 py-1 rounded-full">
+                        ${currentIndex + 1} / ${images.length}
+                    </div>
+                ` : ''}
+            </div>
+        `;
+        };
+
+        this._galleryState = {
+            entryId,
+            images,
+            currentIndex,
+            render: renderGalleryContent,
+            scale: 1,
+            offsetX: 0,
+            offsetY: 0,
+            isDragging: false,
+            dragStartX: 0,
+            dragStartY: 0,
+            startOffsetX: 0,
+            startOffsetY: 0,
+            isZoomed: false
+        };
+
+        // Открываем модалку
+        this.renderModal('galleryModal', renderGalleryContent());
+
+        // Инициализируем взаимодействия после рендера
+        setTimeout(() => {
+            this._initGalleryInteractions();
+        }, 50);
+
+        // Клавиатурная навигация
+        if (this._galleryKeyHandler) {
+            document.removeEventListener('keydown', this._galleryKeyHandler);
+        }
+        this._galleryKeyHandler = (e) => {
+            if (e.key === 'ArrowLeft') this.galleryPrev();
+            else if (e.key === 'ArrowRight') this.galleryNext();
+            else if (e.key === 'Escape') this.closeGallery();
+        };
+        document.addEventListener('keydown', this._galleryKeyHandler);
+    },
+
+    closeGallery() {
+        // Очищаем обработчики
+        if (this._galleryCleanup) {
+            this._galleryCleanup();
+            this._galleryCleanup = null;
+        }
+        this.closeModal('galleryModal');
+        if (this._galleryKeyHandler) {
+            document.removeEventListener('keydown', this._galleryKeyHandler);
+            this._galleryKeyHandler = null;
+        }
+        this._galleryState = null;
+    },
+
+    galleryPrev() {
+        if (!this._galleryState) return;
+        const { images, currentIndex } = this._galleryState;
+        if (images.length <= 1) return;
+        const newIndex = (currentIndex - 1 + images.length) % images.length;
+        this._galleryState.currentIndex = newIndex;
+        // Сбрасываем зум и смещение при смене изображения
+        this._galleryState.scale = 1;
+        this._galleryState.offsetX = 0;
+        this._galleryState.offsetY = 0;
+        this._galleryState.isZoomed = false;
+        this._updateGalleryContent();
+    },
+
+    galleryNext() {
+        if (!this._galleryState) return;
+        const { images, currentIndex } = this._galleryState;
+        if (images.length <= 1) return;
+        const newIndex = (currentIndex + 1) % images.length;
+        this._galleryState.currentIndex = newIndex;
+        this._galleryState.scale = 1;
+        this._galleryState.offsetX = 0;
+        this._galleryState.offsetY = 0;
+        this._galleryState.isZoomed = false;
+        this._updateGalleryContent();
+    },
+
+    _updateGalleryContent() {
+        const modalContent = document.getElementById('modal_content_galleryModal');
+        if (!modalContent || !this._galleryState) return;
+        // Перерисовываем содержимое
+        modalContent.innerHTML = this._galleryState.render();
+        // Заново инициализируем взаимодействия
+        setTimeout(() => {
+            this._initGalleryInteractions();
+        }, 50);
+    },
+
+
+    _initGalleryInteractions() {
+        const modalContent = document.getElementById('modal_content_galleryModal');
+        if (!modalContent || !this._galleryState) return;
+
+        const container = modalContent.querySelector('.gallery-image-container');
+        const img = modalContent.querySelector('.gallery-image');
+        if (!container || !img) return;
+
+        const state = this._galleryState;
+
+        // ---- ЗУМ ПО КЛИКУ ----
+        const toggleZoom = (e) => {
+            e.stopPropagation();
+            const currentScale = state.scale;
+            const newScale = currentScale === 1 ? 2.5 : 1;
+            state.scale = newScale;
+            state.isZoomed = newScale > 1;
+            // Сбрасываем смещение при зуме
+            if (newScale === 1) {
+                state.offsetX = 0;
+                state.offsetY = 0;
+            }
+            updateImageTransform();
+        };
+
+        img.addEventListener('click', toggleZoom);
+
+        // ---- DRAG (перетаскивание) ----
+        let isDragging = false;
+        let startX = 0, startY = 0;
+        let startOffsetX = 0, startOffsetY = 0;
+
+        const onMouseDown = (e) => {
+            if (!state.isZoomed) return;
+            e.preventDefault();
+            isDragging = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            startOffsetX = state.offsetX;
+            startOffsetY = state.offsetY;
+            img.style.cursor = 'grabbing';
+        };
+
+        const onMouseMove = (e) => {
+            if (!isDragging) return;
+            e.preventDefault();
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            // Перемещаем с учётом текущего масштаба
+            state.offsetX = startOffsetX + dx / state.scale;
+            state.offsetY = startOffsetY + dy / state.scale;
+            updateImageTransform();
+        };
+
+        const onMouseUp = () => {
+            if (isDragging) {
+                isDragging = false;
+                img.style.cursor = state.isZoomed ? 'grab' : 'zoom-in';
+            }
+        };
+
+        img.addEventListener('mousedown', onMouseDown);
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+
+        // ---- WHEEL (скролл для переключения) ----
+        const onWheel = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (e.ctrlKey || e.metaKey) {
+                // Если зажат Ctrl – зум (можно реализовать отдельно, но оставим браузеру)
+                return;
+            }
+            const delta = e.deltaY;
+            if (delta > 0) {
+                // Скролл вниз – следующая
+                this.galleryNext();
+            } else if (delta < 0) {
+                // Скролл вверх – предыдущая
+                this.galleryPrev();
+            }
+        };
+
+        // Вешаем на контейнер модалки (overlay или wrapper)
+        const wrapper = modalContent.querySelector('.gallery-wrapper');
+        if (wrapper) {
+            wrapper.addEventListener('wheel', onWheel, { passive: false });
+        }
+
+        // ---- Функция обновления трансформации ----
+        const updateImageTransform = () => {
+            const scale = state.scale;
+            const tx = state.offsetX;
+            const ty = state.offsetY;
+            img.style.transform = `scale(${scale}) translate(${tx}px, ${ty}px)`;
+            img.style.cursor = scale > 1 ? 'grab' : 'zoom-in';
+        };
+
+        // Сохраняем ссылки для очистки при закрытии
+        this._galleryCleanup = () => {
+            img.removeEventListener('click', toggleZoom);
+            img.removeEventListener('mousedown', onMouseDown);
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+            if (wrapper) {
+                wrapper.removeEventListener('wheel', onWheel);
+            }
+            // Удаляем ссылки
+            this._galleryCleanup = null;
+        };
+
+        // Применяем начальное состояние
+        updateImageTransform();
+    },
 
 };
