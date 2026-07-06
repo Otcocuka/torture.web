@@ -605,7 +605,7 @@
                     <div id="journalAttachmentsPreview" class="flex flex-wrap gap-2 mt-2"></div>
 
                     <div class="flex justify-between items-center mt-2">
-                        <div class="flex gap-2">
+                        <div class="flex gap-2 items-center flex-wrap">
                             <label for="journalFileInput"
                                 class="cursor-pointer bg-gray-200 hover:bg-gray-300 px-3 py-1.5 rounded text-sm transition">
                                 📎 Прикрепить файл
@@ -616,6 +616,20 @@
                                 class="text-sm text-gray-400 hover:text-red-500 hidden">
                                 🗑️ Очистить
                             </button>
+
+                            <!-- NEW: Чекбокс "Запись в конце сессии" -->
+                            <label
+                                class="flex items-center gap-1 text-sm text-gray-600 ml-2 cursor-pointer select-none">
+                                <input type="checkbox" id="journalEndOfSessionCheck" class="w-4 h-4 text-blue-600">
+                                <span>Запись в конце сессии</span>
+                            </label>
+
+                            <!-- NEW: Кнопка Self-report (по умолчанию disabled) -->
+                            <button id="journalSelfReportBtn"
+                                class="bg-purple-600 text-white px-3 py-1.5 rounded text-sm hover:bg-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                disabled>
+                                📋 Self-report (NASA-TLX)
+                            </button>
                         </div>
                         <button id="journalAddBtn"
                             class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition">
@@ -623,7 +637,7 @@
                         </button>
                     </div>
                     <p class="text-xs text-gray-400 mt-1">Можно прикрепить несколько файлов. Изображения будут показаны
-                        в записи.</p>
+                        в записи. Отметьте «Запись в конце сессии», чтобы добавить оценку нагрузки.</p>
                 </div>
 
                 <!-- Список записей -->

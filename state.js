@@ -1242,10 +1242,9 @@ const Store = {
 
 
     // --- JOURNAL ---
-    addJournalEntry(text, attachments = []) {
-        // Разрешаем пустой текст, если есть вложения
+    addJournalEntry(text, attachments = [], selfReport = null) {
         const validAttachments = attachments.filter(a => a.data || a.name);
-        if ((!text || text.trim() === '') && validAttachments.length === 0) return false;
+        if ((!text || text.trim() === '') && validAttachments.length === 0 && !selfReport) return false;
         // проверка размера (необязательно, но добавим предупреждение)
         const totalSize = this.data.journal.entries.reduce((sum, e) => {
             return sum + e.attachments.reduce((s, a) => s + (a.data ? a.data.length : 0), 0);
@@ -1253,7 +1252,6 @@ const Store = {
         const newSize = validAttachments.reduce((s, a) => s + (a.data ? a.data.length : 0), 0);
         if (totalSize + newSize > 10 * 1024 * 1024) {
             console.warn('Превышен лимит хранилища (10 МБ). Некоторые изображения не сохранены.');
-            // можно обрезать или показать уведомление, но продолжим
         }
 
         const entry = {
@@ -1262,13 +1260,16 @@ const Store = {
             date: new Date().toISOString().split('T')[0],
             time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
             timestamp: Date.now(),
-            attachments: validAttachments
+            attachments: validAttachments,
+            isSelfReport: !!selfReport,
+            selfReportData: selfReport || null
         };
         this.data.journal.entries.unshift(entry);
-        console.log('[Store] entry before save:', entry);
         this.save();
         return entry;
-    }, save() {
+    },
+    
+    save() {
         console.log('[Store] saving data, journal entries:', this.data.journal.entries.length);
         try {
             localStorage.setItem(this.key, JSON.stringify(this.data));

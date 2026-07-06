@@ -2250,6 +2250,7 @@ const UI = {
     originalTitle: document.title,
     // Для работы с вложениями
     _pendingAttachments: [], // временные вложения перед отправкой
+    _pendingSelfReport: null,
 
     initReaderContextLogic() {
         document.addEventListener('contextmenu', (e) => {
@@ -3184,22 +3185,39 @@ const UI = {
         const fileInput = document.getElementById('journalFileInput');
         const previewContainer = document.getElementById('journalAttachmentsPreview');
         const clearBtn = document.getElementById('journalClearAttachmentsBtn');
+        const endOfSessionCheck = document.getElementById('journalEndOfSessionCheck');
+        const selfReportBtn = document.getElementById('journalSelfReportBtn');
+
+        // Чекбокс "Запись в конце сессии"
+        endOfSessionCheck?.addEventListener('change', () => {
+            const checked = endOfSessionCheck.checked;
+            selfReportBtn.disabled = !checked;
+            if (!checked) {
+                // Очищаем сохранённый self-report, если чекбокс снят
+                this._pendingSelfReport = null;
+            }
+        });
+
+        // Кнопка Self-report
+        selfReportBtn?.addEventListener('click', () => {
+            if (selfReportBtn.disabled) return;
+            this.showNasaTlxModal();
+        });
 
         // Добавление записи
         addBtn?.addEventListener('click', () => {
             const text = input.value.trim();
-            if (!text && this._pendingAttachments.length === 0) {
+            if (!text && this._pendingAttachments.length === 0 && !this._pendingSelfReport) {
                 this.showNotification('⚠️ Введите текст или прикрепите файл');
                 return;
             }
             try {
-                const entry = Store.addJournalEntry(text, this._pendingAttachments);
+                const entry = Store.addJournalEntry(text, this._pendingAttachments, this._pendingSelfReport);
                 console.log('Added entry:', entry);
-                console.log('All entries after add:', Store.getJournalEntries());
-                // Принудительно проверим localStorage
-                const raw = localStorage.getItem(Store.key);
-                console.log('localStorage after save (first 200 chars):', raw ? raw.substring(0, 200) : 'empty');
                 this._pendingAttachments = [];
+                this._pendingSelfReport = null;
+                endOfSessionCheck.checked = false;
+                selfReportBtn.disabled = true;
                 input.value = '';
                 this.renderAttachmentsPreview();
                 this.renderJournalView();
@@ -3222,7 +3240,6 @@ const UI = {
             const files = e.target.files;
             if (!files.length) return;
 
-            // Преобразуем файлы в data URL (для изображений) или сохраняем имя
             for (const file of files) {
                 const isImage = file.type.startsWith('image/');
                 if (isImage) {
@@ -3230,7 +3247,6 @@ const UI = {
                         UI.showNotification(`⚠️ Изображение "${file.name}" слишком большое (>2 МБ)`);
                         continue;
                     }
-                    // Сжимаем изображение до 800px по ширине, качество 0.7
                     const reader = new FileReader();
                     reader.onload = (ev) => {
                         const img = new Image();
@@ -3266,10 +3282,16 @@ const UI = {
                         img.src = ev.target.result;
                     };
                     reader.readAsDataURL(file);
+                } else {
+                    this._pendingAttachments.push({
+                        type: 'file',
+                        name: file.name,
+                        data: null,
+                        mimeType: file.type
+                    });
+                    this.renderAttachmentsPreview();
                 }
-
             }
-            // Очищаем input, чтобы можно было повторно выбрать те же файлы
             fileInput.value = '';
         });
 
@@ -3287,11 +3309,11 @@ const UI = {
 
         if (entries.length === 0) {
             container.innerHTML = `
-                <div class="text-center py-12 text-gray-400 border-2 border-dashed rounded-xl">
-                    <p class="text-lg">Пока нет записей</p>
-                    <p class="text-sm">Напишите что-нибудь в форме выше ✍️</p>
-                </div>
-            `;
+            <div class="text-center py-12 text-gray-400 border-2 border-dashed rounded-xl">
+                <p class="text-lg">Пока нет записей</p>
+                <p class="text-sm">Напишите что-нибудь в форме выше ✍️</p>
+            </div>
+        `;
             return;
         }
 
@@ -3300,20 +3322,25 @@ const UI = {
                 ? this.renderJournalAttachments(entry.attachments, entry.id)
                 : '';
 
+            const selfReportBadge = entry.isSelfReport
+                ? `<span class="inline-block bg-purple-100 text-purple-800 text-xs px-2 py-0.5 rounded-full ml-2">📋 Self-report</span>`
+                : '';
+
             return `
-                <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:shadow-sm transition" data-entry-id="${entry.id}">
-                    <div class="flex justify-between items-start mb-1">
-                        <span class="text-sm font-semibold text-gray-600">${entry.date} ${entry.time}</span>
-                        <span class="text-xs text-gray-400">#${entry.id}</span>
-                    </div>
-                    <div class="text-gray-800 whitespace-pre-wrap">${this.escapeHtml(entry.text)}</div>
-                    ${attachmentsHtml}
+            <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:shadow-sm transition" data-entry-id="${entry.id}">
+                <div class="flex justify-between items-start mb-1">
+                    <span class="text-sm font-semibold text-gray-600">
+                        ${entry.date} ${entry.time}
+                        ${selfReportBadge}
+                    </span>
+                    <span class="text-xs text-gray-400">#${entry.id}</span>
                 </div>
-            `;
+                <div class="text-gray-800 whitespace-pre-wrap">${this.escapeHtml(entry.text)}</div>
+                ${attachmentsHtml}
+            </div>
+        `;
         }).join('');
 
-        // Делегирование кликов по изображениям для открытия галереи
-        // Делегирование кликов по изображениям для открытия галереи
         // Делегирование кликов по изображениям для открытия галереи
         container.addEventListener('click', (e) => {
             const thumb = e.target.closest('.journal-image-thumb');
@@ -3667,6 +3694,75 @@ const UI = {
 
         // Применяем начальное состояние
         updateImageTransform();
+    },
+
+
+    showNasaTlxModal() {
+        // Если уже есть сохранённые данные, покажем их в полях
+        const current = this._pendingSelfReport || {};
+
+        const renderForm = () => {
+            const factors = [
+                { id: 'mental', label: 'Умственная нагрузка (Mental Demand)' },
+                { id: 'physical', label: 'Физическая нагрузка (Physical Demand)' },
+                { id: 'temporal', label: 'Срочность (Temporal Demand)' },
+                { id: 'performance', label: 'Успешность (Performance)' },
+                { id: 'effort', label: 'Затраченные усилия (Effort)' },
+                { id: 'frustration', label: 'Фрустрация (Frustration)' }
+            ];
+
+            return `
+            <div class="bg-white rounded-lg p-6 w-[600px] max-h-[80vh] overflow-y-auto shadow-xl">
+                <h3 class="text-lg font-bold mb-4">📋 Самооценка нагрузки (NASA-TLX)</h3>
+                <p class="text-sm text-gray-500 mb-4">Оцените каждый фактор по шкале от 0 до 100 (0 — очень низкий, 100 — очень высокий).</p>
+                <div class="space-y-4">
+                    ${factors.map(f => `
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">${f.label}</label>
+                            <div class="flex items-center gap-3">
+                                <input type="range" id="tlx_${f.id}" min="0" max="100" value="${current[f.id] || 50}" 
+                                       class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                                <span class="text-sm font-mono w-10 text-center" id="tlx_${f.id}_value">${current[f.id] || 50}</span>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="flex justify-end gap-2 mt-6">
+                    <button onclick="UI.closeModal('tlxModal')" 
+                            class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 text-sm">Отмена</button>
+                    <button id="saveTlxBtn" 
+                            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-medium">Сохранить оценку</button>
+                </div>
+            </div>
+        `;
+        };
+
+        // Открываем модалку
+        this.renderModal('tlxModal', renderForm());
+
+        // Обновление цифр при движении слайдеров
+        const factors = ['mental', 'physical', 'temporal', 'performance', 'effort', 'frustration'];
+        factors.forEach(id => {
+            const slider = document.getElementById(`tlx_${id}`);
+            const valueSpan = document.getElementById(`tlx_${id}_value`);
+            if (slider && valueSpan) {
+                slider.addEventListener('input', () => {
+                    valueSpan.textContent = slider.value;
+                });
+            }
+        });
+
+        // Сохранение данных
+        document.getElementById('saveTlxBtn')?.addEventListener('click', () => {
+            const data = {};
+            factors.forEach(id => {
+                const slider = document.getElementById(`tlx_${id}`);
+                data[id] = parseInt(slider.value, 10) || 0;
+            });
+            this._pendingSelfReport = data;
+            this.closeModal('tlxModal');
+            this.showNotification('✅ Оценка сохранена, добавьте запись');
+        });
     },
 
 };
