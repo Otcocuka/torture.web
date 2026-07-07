@@ -171,3 +171,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -getting ready for professor outreach 
 04.07.2026
 -creating a recreatable environment for experiments inside torture
+07.07.2026
+-set up a local arch linux cli server on a mac mini at home for my home lab
