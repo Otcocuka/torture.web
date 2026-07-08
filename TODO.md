@@ -173,3 +173,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -creating a recreatable environment for experiments inside torture
 07.07.2026
 -set up a local arch linux cli server on a mac mini at home for my home lab
+08.07.2026
+-server now reachable from web, ssh, has domain, has simple protection
