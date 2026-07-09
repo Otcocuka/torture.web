@@ -175,3 +175,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -set up a local arch linux cli server on a mac mini at home for my home lab
 08.07.2026
 -server now reachable from web, ssh, has domain, has simple protection
+09.07.2026
+-gotta wait a little for an ssd to come for my server so i can setup a db there and migrate torture onto a real database
