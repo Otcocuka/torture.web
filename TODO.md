@@ -177,3 +177,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -server now reachable from web, ssh, has domain, has simple protection
 09.07.2026
 -gotta wait a little for an ssd to come for my server so i can setup a db there and migrate torture onto a real database
+10.07.2026
+-got a little side job
