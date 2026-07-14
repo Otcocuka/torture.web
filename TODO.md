@@ -181,3 +181,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -got a little side job
 12.07.2026
 -gotta rearrange my giant backlog 
+15.07.2026
+-saw my brother in a dream. miss him so much
