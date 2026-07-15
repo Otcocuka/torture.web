@@ -183,3 +183,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -gotta rearrange my giant backlog 
 15.07.2026
 -saw my brother in a dream. miss him so much
+-for fucks sake why did he die so early
+-holy shit it was gruesomely tiresome, collecting features from my telegram backlog. but, as my brother used to say, you have to work while you still can
