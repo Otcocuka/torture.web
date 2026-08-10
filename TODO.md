@@ -189,3 +189,6 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -becoming productive again, having fun from working once again
 17.07.2026
 -I continue the process
+
+10.08.2026
+-got assaulted on 18.07, had a concussion after an assault and couldn't work\stare at the monitor. but i'm so back, already sorted through new backlog
