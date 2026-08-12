@@ -195,3 +195,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 
 11.08.2026
 -13 places
+12.08.2026
+-need some solitude. got lots of shit to do
