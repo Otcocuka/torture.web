@@ -201,3 +201,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -finally getting my butt into gear
 14.08.2026
 -holy shit i'm so late, need to push harder
+15.08.2026
+-still late
