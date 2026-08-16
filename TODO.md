@@ -203,3 +203,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -holy shit i'm so late, need to push harder
 15.08.2026
 -still late
+16.08.2026
+-deadlines are dead
