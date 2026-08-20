@@ -212,3 +212,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -another great day with consistent pressure and low poking 
 19.08.2026
 -お疲れ様 я скажу себе завтра, но сегодня тоже заслужил
+20.08.2026
+-все еще не заслужил, завтра смогу сказать себе
