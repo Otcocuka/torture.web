@@ -214,3 +214,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -お疲れ様 я скажу себе завтра, но сегодня тоже заслужил
 20.08.2026
 -все еще не заслужил, завтра смогу сказать себе
+21.08.2026
+-mada mada. but good job for today anyways
