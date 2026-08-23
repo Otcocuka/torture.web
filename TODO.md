@@ -216,3 +216,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -все еще не заслужил, завтра смогу сказать себе
 21.08.2026
 -mada mada. but good job for today anyways
+23.08.2026
+-was busy yesterday, couldn't reach my pc
