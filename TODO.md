@@ -218,3 +218,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -mada mada. but good job for today anyways
 23.08.2026
 -was busy yesterday, couldn't reach my pc
+24.08.2026
+-i'm back. angrier than ever
