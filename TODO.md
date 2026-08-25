@@ -220,3 +220,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -was busy yesterday, couldn't reach my pc
 24.08.2026
 -i'm back. angrier than ever
+25.08.2026
+-gj for today. but only for today. and only for 60%
