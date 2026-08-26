@@ -224,3 +224,4 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -gj for today. but only for today. and only for 60%
 26.08.2026
 -damn girls
+-gj for today, 80% done
