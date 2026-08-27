@@ -225,3 +225,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 26.08.2026
 -damn girls
 -gj for today, 80% done
+27.08.2026
+-90% done with web-come.agency
