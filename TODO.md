@@ -229,3 +229,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -90% done with web-come.agency
 28.08.2026
 -getting over it with Damir Farziev
+29.08.2026
+-hard
