@@ -231,3 +231,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -getting over it with Damir Farziev
 29.08.2026
 -hard
+30.08.2026
+-harder
