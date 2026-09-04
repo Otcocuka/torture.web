@@ -242,4 +242,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 03.09.2026
 -maybe the last plead
 04.09.2026
--life continues anyways
+-life continues anyways. and work doesn't stop
+
