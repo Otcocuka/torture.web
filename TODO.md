@@ -245,3 +245,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -life continues anyways. and work doesn't stop
 05.09.2026
 -lucky strike
+06.09.2026
+-perseverance beats them all
