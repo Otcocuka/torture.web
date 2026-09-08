@@ -248,4 +248,6 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 06.09.2026
 -perseverance beats them all
 07.09.2026
--smitten 
+-smitten
+08.09.2026
+-life is good, man
