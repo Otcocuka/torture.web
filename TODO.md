@@ -258,3 +258,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -damn boy, gotta speed up
 11.09.2026
 -bitch, i'm on fire
+12.09.2026
+-need to really take it seriously
