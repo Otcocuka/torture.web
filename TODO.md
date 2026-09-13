@@ -260,3 +260,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -bitch, i'm on fire
 12.09.2026
 -need to really take it seriously
+13.09.2026 
+-or serious will take me
