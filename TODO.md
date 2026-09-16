@@ -266,3 +266,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -nah, i'd win
 15.09.2026
 -feeling like shit 
+16.09.2026
+-finally got a surge
