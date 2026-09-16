@@ -268,3 +268,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -feeling like shit 
 16.09.2026
 -finally got a surge
+17.09.2026
+-bitch i'm back, stronger than ever
