@@ -275,3 +275,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -dude, it's getting serious actual name is "an adaptive system that builds, measures, and continuously updates a model of what a person knows and can do". everything else is just interfaces and intervention mechanisms around it
 19.09.2026
 -getting ready for my bday
+20.09.2026
+-happy bday mr president
