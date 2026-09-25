@@ -285,3 +285,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -don't wanna have anyone in my life except you
 24.09.2026
 -finalizing backlog, brain already rotten
+25.09.2026
+-new server coming 
