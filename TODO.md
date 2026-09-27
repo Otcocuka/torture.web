@@ -289,3 +289,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -new server coming 
 26.09.2026
 -splitting torture into two versions
+27.09.2026
+-a big sprint is coming, boy. get ready
