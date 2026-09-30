@@ -295,3 +295,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -my dear prince
 29.09.2026
 -action is coming
+30.09.2026
+-design document ready. finally
