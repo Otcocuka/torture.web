@@ -297,3 +297,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -action is coming
 30.09.2026
 -design document ready. finally
+01.10.2026
+-database almost set up, getting infrastructure ready for "scientific" torture 
