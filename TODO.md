@@ -299,3 +299,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -design document ready. finally
 01.10.2026
 -database almost set up, getting infrastructure ready for "scientific" torture 
+02.10.2026
+-homelab coming
