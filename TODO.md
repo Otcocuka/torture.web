@@ -301,3 +301,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -database almost set up, getting infrastructure ready for "scientific" torture 
 02.10.2026
 -homelab coming
+03.10.2026
+-version 1.1 almost ready, a big chunk of work is done, gj
