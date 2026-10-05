@@ -305,3 +305,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -version 1.1 almost ready, a big chunk of work is done, gj|
 04.10.2026
 -basic homelab is set up, nicely done
+05.10.2026
+-got shit to do
