@@ -307,3 +307,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -basic homelab is set up, nicely done
 05.10.2026
 -got shit to do
+06.10.2026
+-final leap coming
