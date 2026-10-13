@@ -320,3 +320,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -it wasn't that scary after all. wasn't scary at all actually, just thinking about it was
 11.10.2026
 -progress is obvious
+13.10.2026
+-good news, seems like it
