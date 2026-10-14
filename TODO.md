@@ -323,3 +323,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 13.10.2026
 -good news, seems like it
 -goddamn i'm a beast 
+14.10.2026
+-bitch i'm not broke anymore yaaaaaaaaay!
