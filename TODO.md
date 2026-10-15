@@ -325,3 +325,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -goddamn i'm a beast 
 14.10.2026
 -bitch i'm not broke anymore yaaaaaaaaay!
+15.10.2026
+-yet work on torture doesn't stop
