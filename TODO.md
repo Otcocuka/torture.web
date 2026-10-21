@@ -333,3 +333,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -heeeeeee's baaaaaack
 18.10.2026
 -goddamn it was a throwback
+21.10.2026
+-getting myself together
