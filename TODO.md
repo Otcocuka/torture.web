@@ -342,4 +342,6 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 24.10.2026
 -almost forgot
 28.10.2026
--seems to be working well
+-seems to be working wel
+01.11.2026
+-gotta reconsider schedule
