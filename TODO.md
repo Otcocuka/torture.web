@@ -345,3 +345,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -seems to be working wel
 01.11.2026
 -gotta reconsider schedule
+05.11.2026
+-don't forget your dreams, dude
