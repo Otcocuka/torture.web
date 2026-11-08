@@ -349,3 +349,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -don't forget your dreams, dude
 06.11.2026
 -i'm gonna be legendary
+08.11.2026
+-gotta revisit my plans and redo everything from scratch
