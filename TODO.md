@@ -350,4 +350,6 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 06.11.2026
 -i'm gonna be legendary
 08.11.2026
--gotta revisit my plans and redo everything from scratch
+-gotta revisit my plans and redo everything from scrat
+11.11.2026
+-new leap coming
