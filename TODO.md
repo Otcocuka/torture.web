@@ -353,3 +353,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -gotta revisit my plans and redo everything from scrat
 11.11.2026
 -new leap coming
+17.11.2026
+-everything's fine and that's great
