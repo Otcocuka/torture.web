@@ -354,4 +354,6 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 11.11.2026
 -new leap coming
 17.11.2026
--everything's fine and that's great
+-everything's fine and that's grea
+18.11.2026
+-new beginning
