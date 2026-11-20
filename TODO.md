@@ -357,3 +357,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -everything's fine and that's grea
 18.11.2026
 -new beginning
+20.11.2026 
+-flashy flashing things happening, the engine's revving
