@@ -359,3 +359,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -new beginning
 20.11.2026 
 -flashy flashing things happening, the engine's revving
+21.11.2026
+-gotta let my creativity just do shit
