@@ -363,3 +363,5 @@ Arthur you'll forever be remembered as the best older brother I could have ever 
 -gotta let my creativity just do shit
 24.11.2026
 -things will go my way
+25.11.2026
+-i'll do everything i wanted
